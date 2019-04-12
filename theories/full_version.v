@@ -2,6 +2,12 @@ Require Import Coq.Reals.Reals.
 Require Import List.
 Import ListNotations.
 
+(**
+  TODO: Prove that all Inductive defining functions yield total functions.
+  This is important, as if the functions are not total we might have empty
+  hypothesis.
+**)
+
 
 
 (** Parameters of the protocol **)
@@ -358,6 +364,9 @@ Inductive sorted : state -> Prop :=
           sorted (next msg (next msg' sigma))
   .
 
+Inductive set_state : Set :=
+    well_formed : forall sigma:state, sorted sigma -> set_state.
+
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
           add_in_sorted msg Empty (next msg Empty)
@@ -438,27 +447,33 @@ Inductive fault_weight_msg : message -> message -> R -> Prop :=
       fault_weight_msg (c1,v,msg1) (c2,v,msg2) (weight v)
   .
 
+Inductive fault_weight_message_state : message -> state -> R -> Prop :=
+  | fault_weight_message_state_Empty: forall msg,
+      fault_weight_message_state msg Empty 0
+  | fault_weight_message_state_Next: forall msg1 msg2 sigma r1 r2,
+      fault_weight_message_state msg1 sigma r1 ->
+      fault_weight_msg msg1 msg2 r2 ->
+      fault_weight_message_state msg1 (next msg2 sigma) (r1 + r2)%R
+.
+
 Inductive fault_weight_state : state -> R -> Prop :=
   | fault_weight_state_Empty: 
       fault_weight_state Empty 0
-  | fault_weight_state_elem: forall c v msg,
-      fault_weight_state (Next c v msg Empty) (weight v)
-  | fault_weight_state_Next: forall msg1 msg2 sigma r1 r2,
-      fault_weight_state sigma r1 ->
-      fault_weight_msg msg1 msg2 r2 ->
-      fault_weight_state (next msg1 (next msg2 sigma)) (r1 + r2)%R
+  | fault_weight_state_Next: forall msg sigma r1 r2,
+      fault_weight_message_state msg sigma r1 ->
+      fault_weight_state sigma r2 ->
+      fault_weight_state (next msg sigma) (r1 + r2)%R
 .
+
 
 
 (*******************************)
 (** Protocol state conditions **) 
 (*******************************)
 
-(** The Full Node condition **)
+(** The Full Node condition. Assumes sigma1 and sigma2 are sorted **)
 
 Definition full_node_condition (sigma1 sigma2 : state) : Prop :=
-    sorted(sigma1) -> 
-    sorted(sigma2) -> 
     sorted_subset sigma1 sigma2.
 
 (** The valid message condition **)
@@ -467,12 +482,24 @@ Definition valid_msg_condition (c : C) (sigma : state) : Prop :=
 
 
 (** The fault tolerance condition **)
-Definition fault_tolerance_condition (sigma sigma' : state) (c : C) (v : V) (r : R) : Prop :=
-  fault_weight_state (Next c v sigma' sigma) r ->
+Definition fault_tolerance_condition (sigma : state) : Prop :=
+  forall r,
+  fault_weight_state sigma r ->
   (r <= t)%R.
 
-
-
+Inductive protocol_state : state -> Prop :=
+  | protocol_state_empty : protocol_state Empty
+  | protocol_state_next : forall c v sigma sigma' sigma'',
+      protocol_state sigma ->
+      protocol_state sigma' ->
+      sorted(sigma) -> 
+      sorted(sigma') -> 
+      full_node_condition sigma sigma' ->
+      valid_msg_condition c sigma ->
+      add_in_sorted (c, v, sigma) sigma' sigma'' ->
+      fault_tolerance_condition sigma'' ->
+      protocol_state sigma''
+.
 
 
 (* NOT needed anymore
