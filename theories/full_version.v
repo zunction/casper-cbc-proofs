@@ -382,6 +382,32 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
           add_in_sorted msg (next msg' sigma) (next msg' sigma')
   .
 
+
+Theorem add_in_sorted_sorted : forall msg sigma sigma',
+  sorted sigma -> add_in_sorted msg sigma sigma' -> sorted sigma'.
+Proof.
+  intros msg sigma sigma' Hsorted. destruct msg as [(c, v) sigma_msg].
+  induction Hsorted.
+  - intros. inversion H; subst; try (destruct msg' as [(c', v') sigma_msg']; unfold next in H0; inversion H0). 
+    constructor. 
+  - intros. inversion H; subst.
+    + destruct msg as [(c', v') sigma_msg']. unfold next in H2. inversion H2.
+    + destruct msg as [(c1, v1) sigma_msg1].
+      destruct msg' as [(c2, v2) sigma_msg2].
+      unfold next in H0. inversion H0; subst.
+      constructor.
+    + destruct msg as [(c1, v1) sigma_msg1].
+      destruct msg' as [(c2, v2) sigma_msg2].
+      unfold next in H0. inversion H0; subst.
+      constructor; try assumption; try constructor.
+    + destruct msg as [(c1, v1) sigma_msg1].
+      destruct msg' as [(c2, v2) sigma_msg2].
+      unfold next in H0. inversion H0; subst.
+      inversion H3; subst; try ( destruct msg' as [(c', v') sigma_msg']; unfold next in H2; inversion H2 ).
+      constructor; try assumption; try constructor.
+  - intros. inversion H0; subst.
+Admitted.
+
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
           sorted_subset Empty sigma
@@ -492,8 +518,6 @@ Inductive protocol_state : state -> Prop :=
   | protocol_state_next : forall c v sigma sigma' sigma'',
       protocol_state sigma ->
       protocol_state sigma' ->
-      sorted(sigma) -> 
-      sorted(sigma') -> 
       full_node_condition sigma sigma' ->
       valid_msg_condition c sigma ->
       add_in_sorted (c, v, sigma) sigma' sigma'' ->
@@ -501,6 +525,17 @@ Inductive protocol_state : state -> Prop :=
       protocol_state sigma''
 .
 
+
+Theorem protocol_state_sorted : forall state,
+  protocol_state state -> sorted state.
+Proof.
+  intros.
+  induction H.
+  - constructor.
+  - apply (add_in_sorted_sorted (c,v,sigma) sigma').
+    + assumption.
+    + assumption.
+Qed.
 
 (* NOT needed anymore
 
