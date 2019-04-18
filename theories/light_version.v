@@ -163,6 +163,54 @@ Inductive add_in_sorted {A} {lt : relation A} : A -> list A -> list A -> Prop :=
   .
 
 
+Theorem add_in_sorted_functional : forall A lt x l1 l2 l2',
+   StrictOrder lt ->
+   @add_in_sorted A lt x l1 l2 ->
+   @add_in_sorted A lt x l1 l2' ->
+   l2 = l2'.
+Proof.
+  intros A lt x l1 l2 l2' SO. assert (SO' := SO). destruct SO' as [IR TR]. 
+  generalize dependent x. generalize dependent l2. generalize dependent l2'.
+  induction l1; intros l2' l2 x Add Add'.
+  - inversion Add; subst. inversion Add'; subst. reflexivity.
+  - inversion Add; inversion Add'; subst; try reflexivity.
+    + destruct (IR a H7).
+    + destruct (IR a H6).
+    + destruct (IR a H3).
+    + destruct (IR a (TR a x a H7 H3)).
+    + destruct (IR a H2).
+    + destruct (IR a (TR a x a H2 H9)).
+    + apply (IHl1 _ _ _ H4) in H10. subst. reflexivity.
+Qed.
+
+Theorem add_in_sorted_total : forall A lt x l,
+  TotalOrder lt ->
+  exists l', @add_in_sorted A lt x l l'.
+Proof.
+  intros. generalize dependent x.
+  induction l.
+  - intros. exists [x]. constructor.
+  - intros. destruct (H a x) as [Heq | [LTax | LTxa]].
+    + subst. exists (x :: l). constructor.
+    + destruct (IHl x). exists (a :: x0). constructor; assumption.
+    + exists (x :: a :: l). constructor. assumption.
+Qed.
+
+Theorem add_in_sorted_in {A} {lt : relation A} : forall msg msg' sigma sigma',
+  @add_in_sorted A lt msg sigma sigma' -> 
+  In msg' sigma' ->
+  msg = msg' \/In msg' sigma.
+Proof. 
+  intros. induction H; try (right; assumption).
+  - destruct H0; inversion H; subst. left. assumption.
+  - simpl in H0. simpl. assumption. 
+  - simpl. simpl in H0. destruct H0.
+    + right. left. assumption.
+    + apply IHadd_in_sorted in H0. destruct H0.
+      * left. assumption.
+      * right . right. assumption.
+Qed.
+
 Lemma add_in_sorted_first {A} {lt : relation A} : forall msg a b sigma sigma',
     StrictOrder lt ->
     LocallySorted lt (a :: sigma) ->
@@ -211,31 +259,93 @@ Qed.
 (** Sorted lists as sets **)
 Definition set_eq {A} (s1 s2 : list A) := incl s1 s2 /\ incl s2 s1.
 
+Theorem set_eq_reflexive {A} : forall (s : list A), set_eq s s.
+Proof.
+  induction s;split; intro; intro; assumption.
+Qed.
+
+Lemma set_In {A}  (lt : relation A) : forall x y s,
+  StrictOrder lt ->
+  LocallySorted lt (y :: s) ->
+  In x s ->
+  lt y x.
+Proof.
+  intros x y s SO LS IN. generalize dependent x. generalize dependent y.
+  destruct SO as [_ HT]. unfold Transitive in HT.
+  induction s.
+  - intros y LS x IN. inversion IN.
+  - intros y LS x IN.
+    inversion LS; subst.
+    inversion IN; subst.
+    + assumption.
+    + apply (IHs a H1 x) in H.
+      apply (HT y a x H3 H).
+Qed.
+
+Lemma set_eq_first_equal {A}  (lt : relation A) : forall x1 x2 s1 s2,
+  StrictOrder lt ->
+  LocallySorted lt (x1 :: s1) ->
+  LocallySorted lt (x2 :: s2) ->
+  set_eq (x1 :: s1) (x2 :: s2) ->
+  x1 = x2 /\ set_eq s1 s2.
+Proof.
+  intros x1 x2 s1 s2 SO LS1 LS2 SEQ. destruct SEQ as [IN1 IN2].
+  assert (SO' := SO). destruct SO' as [IR TR].
+  assert (x12 : x1 = x2).
+  {
+    unfold incl in *. destruct (IN1 x1). { simpl. left. reflexivity. }
+    - subst. reflexivity.
+    - apply (set_In lt x1 x2 s2 SO LS2) in H.
+      destruct (IN2 x2). { simpl. left. reflexivity. }
+      * subst. apply IR in H. inversion H.
+      * apply (set_In lt x2 x1 s1 SO LS1) in H0.
+        apply (TR x1 x2 x1 H0) in H. apply IR in H. inversion H.
+  }
+  subst.
+  split; try reflexivity.
+  split; unfold incl.
+  - intros. assert (INa1 := H).
+    apply (set_In lt _ _ _ SO LS1) in H. 
+    destruct (IN1 a).
+    { simpl. right. assumption. }
+    + subst. apply IR in H. inversion H.
+    + assumption.
+  - intros. assert (INa2 := H).
+    apply (set_In lt _ _ _ SO LS2) in H. 
+    destruct (IN2 a).
+    { simpl. right. assumption. }
+    + subst. apply IR in H. inversion H.
+    + assumption.
+Qed.
+
 Theorem set_equality_predicate {A}  (lt : relation A) : forall s1 s2,
   StrictOrder lt ->
   LocallySorted lt s1 ->
   LocallySorted lt s2 ->
   set_eq s1 s2 <-> s1 = s2.
 Proof.
-  intros. split.
-  - intro. destruct H2. unfold incl in *. generalize dependent s2. induction H0; intros; destruct s2.
-    +  reflexivity.
-    + exfalso. apply (H3 a). constructor. reflexivity.
-    + exfalso. apply (H2 a). constructor. reflexivity.
-    + assert (a = a0 -> s2 = [] -> [a] = a0 :: s2). 
-      { intros. subst. reflexivity. }
-      apply H0.
-      * destruct (H3 a0); try (constructor; reflexivity); try assumption. 
-        inversion H4.
-Admitted. 
-
+  intros s1 s2 SO LS1 LS2 . assert (SO' := SO). destruct SO' as [IR TR].
+  split. 
+  - generalize dependent s2. induction s1; destruct s2.
+    + intros. reflexivity.
+    + intros. destruct H. exfalso. apply (H0 a). simpl. left. reflexivity.
+    + intros. destruct H. exfalso. apply (H a). simpl. left. reflexivity.
+    + intros. apply (set_eq_first_equal lt a a0 s1 s2 SO LS1 LS2) in H. destruct H; subst.
+      apply Sorted_LocallySorted_iff in LS1. apply Sorted_inv in LS1. destruct LS1 as [LS1 _]. apply Sorted_LocallySorted_iff in LS1.
+      apply Sorted_LocallySorted_iff in LS2. apply Sorted_inv in LS2. destruct LS2 as [LS2 _]. apply Sorted_LocallySorted_iff in LS2.
+      apply (IHs1 LS1 s2 LS2) in H0. subst. reflexivity.
+  - intros. subst. apply set_eq_reflexive.
+Qed.
 
 (** Hash sets **)
 Definition hash_lex := @list_lex hash hash_lt. 
+Definition add_in_hash_set := @add_in_sorted hash hash_lt.
 
 (** Messages **)
 
 Definition message : Set := C * V * list hash.
+
+Variable Hash : message -> hash.
 
 Definition message_lt (m1 : message) (m2 : message) : Prop :=
   match m1,m2 with
@@ -285,6 +395,24 @@ Qed.
 Definition state : Set := list message.
 Definition state_lt := @list_lex message message_lt.
 
+
+Inductive Hstate : state -> list hash -> Prop :=
+  | Hstate_nil :  Hstate [] []
+  | Hstate_cons : forall msg sigma hs hs',
+    Hstate sigma hs ->
+    add_in_hash_set (Hash msg) hs hs' ->
+    Hstate (msg :: sigma) hs'.
+
+Theorem Hstate_sorted : forall sigma hs,
+  Hstate sigma hs -> LocallySorted hash_lt hs.
+Proof.
+  induction sigma; intros.
+  - inversion H; subst. constructor.
+  - inversion H; subst. apply IHsigma in H2.
+    apply (add_in_sorted_sorted hash_lt (Hash a) hs0); try assumption.
+    apply hash_lt_storder.
+Qed.
+
 (***************)
 (** Estimator **)
 (***************)
@@ -298,8 +426,6 @@ Axiom epsilon_total : forall s : state, exists c : C, epsilon s c.
 (* State properties *)
 (********************)
 
-Print LocallySorted.
-
 Definition state_sorted : state -> Prop := LocallySorted message_lt.
 
 
@@ -312,52 +438,45 @@ Inductive fault_weight_msg : message -> message -> R -> Prop :=
   | fault_weight_c_msg: forall c v msg,
       fault_weight_msg (c,v,msg) (c,v,msg) 0
   | fault_weight_msg1: forall c1 c2 v msg1 msg2,
-      in_state (c1,v,msg1) msg2 ->
+      In (Hash (c1,v,msg1)) msg2 ->
       fault_weight_msg (c1,v,msg1) (c2,v,msg2) 0
   | fault_weight_msg2: forall c1 c2 v msg1 msg2,
-      in_state (c2,v,msg2) msg1 ->
+      In (Hash (c2,v,msg2)) msg1 ->
       fault_weight_msg (c1,v,msg1) (c2,v,msg2) 0
   | fault_weight_next: forall c1 c2 v msg1 msg2,
       c1 <> c2 ->
       msg1 <> msg2 ->
-      not (in_state (c1,v,msg1) msg2) ->
-      not (in_state (c2,v,msg2) msg2) ->
+      not (In (Hash (c1,v,msg1)) msg2) ->
+      not (In (Hash (c2,v,msg2)) msg2) ->
       fault_weight_msg (c1,v,msg1) (c2,v,msg2) (weight v)
   .
 
 Inductive fault_weight_message_state : message -> state -> R -> Prop :=
-  | fault_weight_message_state_Empty: forall msg,
-      fault_weight_message_state msg Empty 0
-  | fault_weight_message_state_Next: forall msg1 msg2 sigma r1 r2,
+  | fault_weight_message_state_nil: forall msg,
+      fault_weight_message_state msg [] 0
+  | fault_weight_message_state_cons: forall msg1 msg2 sigma r1 r2,
       fault_weight_message_state msg1 sigma r1 ->
       fault_weight_msg msg1 msg2 r2 ->
-      fault_weight_message_state msg1 (next msg2 sigma) (r1 + r2)%R
+      fault_weight_message_state msg1 (msg2 :: sigma) (r1 + r2)%R
 .
 
 Inductive fault_weight_state : state -> R -> Prop :=
-  | fault_weight_state_Empty: 
-      fault_weight_state Empty 0
-  | fault_weight_state_Next: forall msg sigma r1 r2,
+  | fault_weight_state_nil: 
+      fault_weight_state [] 0
+  | fault_weight_state_cons: forall msg sigma r1 r2,
       fault_weight_message_state msg sigma r1 ->
       fault_weight_state sigma r2 ->
-      fault_weight_state (next msg sigma) (r1 + r2)%R
+      fault_weight_state (msg :: sigma) (r1 + r2)%R
 .
-
 
 
 (*******************************)
 (** Protocol state conditions **) 
 (*******************************)
 
-(** The Full Node condition. Assumes sigma1 and sigma2 are sorted **)
-
-Definition full_node_condition (sigma1 sigma2 : state) : Prop :=
-    sorted_subset sigma1 sigma2.
-
 (** The valid message condition **)
 Definition valid_msg_condition (c : C) (sigma : state) : Prop :=
     epsilon sigma c.
-
 
 (** The fault tolerance condition **)
 Definition fault_tolerance_condition (sigma : state) : Prop :=
@@ -366,67 +485,37 @@ Definition fault_tolerance_condition (sigma : state) : Prop :=
   (r <= t)%R.
 
 Inductive protocol_state : state -> Prop :=
-  | protocol_state_empty : protocol_state Empty
-  | protocol_state_next : forall c v sigma sigma' sigma'',
+  | protocol_state_nil : protocol_state []
+  | protocol_state_cons : forall c v sigma hsigma sigma' sigma'',
       protocol_state sigma ->
       protocol_state sigma' ->
-      full_node_condition sigma sigma' ->
       valid_msg_condition c sigma ->
-      add_in_sorted (c, v, sigma) sigma' sigma'' ->
+      Hstate sigma hsigma ->
+      @add_in_sorted message message_lt (c, v, hsigma) sigma' sigma'' ->
       fault_tolerance_condition sigma'' ->
       protocol_state sigma''
 .
 
-
 Theorem protocol_state_sorted : forall state,
-  protocol_state state -> sorted state.
+  protocol_state state -> LocallySorted message_lt state.
 Proof.
   intros.
   induction H.
   - constructor.
-  - apply (add_in_sorted_sorted (c,v,sigma) sigma').
-    + assumption.
-    + assumption.
+  - apply (add_in_sorted_sorted message_lt (c,v,hsigma) sigma'); try assumption.
+    apply message_lt_storder.
 Qed.
 
-(* NOT needed anymore
-
-Inductive messages : state -> list message -> Prop :=
-  | msg_Empty : messages Empty nil
-  | msg_Next : forall msg sigma l,
-      messages sigma l ->
-      messages (next msg sigma) (msg :: l)
-  .
-
-Inductive fault_weight_msgs : list message -> R -> Prop :=
-  | fault_weight_msgs_nil: fault_weight_msgs nil 0
-  | fault_weight_msgs_elem: forall c v msg,
-      fault_weight_msgs ((c,v,msg) :: nil) (weight v)
-  | fault_weight_msgs_next: forall msg1 msg2 msgs r1 r2,
-       fault_weight_msg msg1 msg2 r1 ->
-       fault_weight_msgs msgs r2 ->
-      (fault_weight_msgs (msg1 :: msg2 :: msgs)) (r1 + r2)%R
-  .
-
-
-
-
-*)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Theorem protocol_state_message_sorted : forall c v hs state,
+  protocol_state state ->
+  In (c,v,hs) state ->
+  LocallySorted hash_lt hs.
+Proof.
+  intros.
+  induction H.
+  - inversion H0.
+  - apply (add_in_sorted_in (c0, v0, hsigma) (c, v, hs) sigma' sigma'' H4) in H0.
+    destruct H0.
+    + inversion H0; subst. apply (Hstate_sorted sigma). assumption.
+    + apply IHprotocol_state2. assumption.
+Qed.
