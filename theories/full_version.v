@@ -344,7 +344,7 @@ Proof.
 
 Inductive in_state : message -> state -> Prop :=
   | InStateNow : forall msg msg' sigma', 
-          msg_eq msg msg' -> 
+          msg = msg' -> 
           in_state msg (next msg' sigma')
   | InStateNext : forall msg msg' sigma', 
           in_state msg sigma' -> 
@@ -354,24 +354,44 @@ Inductive in_state : message -> state -> Prop :=
 
 (*****************************************************)
 
-Inductive sorted : state -> Prop :=
-  | sorted_Empty : sorted Empty
+Inductive strictly_sorted : state -> Prop :=
+  | sorted_Empty : strictly_sorted Empty
   | sorted_Singleton : forall msg, 
-          sorted (next msg Empty)
+          strictly_sorted (next msg Empty)
   | sorted_Next : forall msg  msg' sigma, 
           msg_lt msg msg' -> 
-          sorted (next msg' sigma) -> 
-          sorted (next msg (next msg' sigma))
+          strictly_sorted (next msg' sigma) -> 
+          strictly_sorted (next msg (next msg' sigma))
   .
 
+(* Attempt to define set_state
+
 Inductive set_state : Set :=
-    well_formed : forall sigma:state, sorted sigma -> set_state.
+    well_formed : forall sigma:state, strictly_sorted sigma -> set_state.
+
+Definition set_state_empty : set_state :=
+  well_formed Empty (sorted_Empty).
+
+Definition set_state_singleton (msg : message) : set_state :=
+  well_formed (next msg Empty) (sorted_Singleton msg).
+
+
+Inductive add_in_sorted : message -> set_state -> set_state -> Prop :=
+  | add_in_Empty : forall msg,
+        add_in_sorted msg set_state_empty (set_state_singleton msg)
+  | add_in_Next_eq : forall msg msg' sigma,
+          msg_eq msg msg' -> 
+          well_formed (next msg' sigma) -> 
+          add_in_sorted msg (next msg' sigma) (next msg' sigma)
+  .
+*)
+
 
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
           add_in_sorted msg Empty (next msg Empty)
    | add_in_Next_eq : forall msg msg' sigma,
-          msg_eq msg msg' ->  
+          msg = msg' ->  
           add_in_sorted msg (next msg' sigma) (next msg' sigma)
    | add_in_Next_lt : forall msg msg' sigma,
           msg_lt msg msg' ->  
@@ -382,31 +402,46 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
           add_in_sorted msg (next msg' sigma) (next msg' sigma')
   .
 
-
-Theorem add_in_sorted_sorted : forall msg sigma sigma',
-  sorted sigma -> add_in_sorted msg sigma sigma' -> sorted sigma'.
+Lemma add_is_next : forall c v sigma_msg sigma,
+  add (c, v, sigma_msg)to sigma = next (c, v, sigma_msg) sigma.
 Proof.
-  intros msg sigma sigma' Hsorted. destruct msg as [(c, v) sigma_msg].
+  intros. unfold next. reflexivity.
+Qed.
+    
+Theorem add_in_sorted_sorted : forall msg sigma sigma',
+  strictly_sorted sigma -> add_in_sorted msg sigma sigma' -> strictly_sorted sigma'.
+Proof.
+  intros msg sigma sigma' Hsorted. 
+  generalize dependent msg. generalize dependent sigma'.
   induction Hsorted.
-  - intros. inversion H; subst; try (destruct msg' as [(c', v') sigma_msg']; unfold next in H0; inversion H0). 
-    constructor. 
+  - intros. inversion H; subst;
+    try (inversion H; destruct msg' as [(c', v') sigma_msg']; unfold next in H0; inversion H0).
+    constructor.
   - intros. inversion H; subst.
-    + destruct msg as [(c', v') sigma_msg']. unfold next in H2. inversion H2.
-    + destruct msg as [(c1, v1) sigma_msg1].
-      destruct msg' as [(c2, v2) sigma_msg2].
+    + destruct msg as [(c, v) sigma_msg]. unfold next in H2. inversion H2.
+    + rewrite H0. constructor.
+    + constructor. assumption. rewrite H0. constructor.
+    + destruct msg as [(c, v) sigma_msg].      destruct msg' as [(c', v') sigma_msg']. 
       unfold next in H0. inversion H0; subst.
-      constructor.
-    + destruct msg as [(c1, v1) sigma_msg1].
-      destruct msg' as [(c2, v2) sigma_msg2].
-      unfold next in H0. inversion H0; subst.
-      constructor; try assumption; try constructor.
-    + destruct msg as [(c1, v1) sigma_msg1].
-      destruct msg' as [(c2, v2) sigma_msg2].
-      unfold next in H0. inversion H0; subst.
-      inversion H3; subst; try ( destruct msg' as [(c', v') sigma_msg']; unfold next in H2; inversion H2 ).
-      constructor; try assumption; try constructor.
+      inversion H3; subst;
+      try (destruct msg' as [(c', v') sigma_msg']; unfold next in H2; inversion H2).
+      * constructor. assumption. constructor.
   - intros. inversion H0; subst.
-Admitted.
+    + constructor.
+    + destruct msg as [(c, v) sigma_msg].
+      destruct msg' as [(c', v') sigma_msg'].      destruct msg'0 as [(c'0, v'0) sigma_msg'0].
+      unfold next in H1. inversion H1; subst.
+      rewrite (add_is_next c' v' sigma_msg' sigma). 
+      constructor. assumption. assumption.
+    + destruct msg as [(c, v) sigma_msg].
+      destruct msg' as [(c', v') sigma_msg'].      destruct msg'0 as [(c'0, v'0) sigma_msg'0].
+      unfold next in H1. inversion H1; subst.
+      constructor. assumption.  
+      rewrite (add_is_next c' v' sigma_msg' sigma). 
+      constructor. assumption. assumption.
+    Admitted.
+      
+
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -420,8 +455,8 @@ Inductive sorted_subset : state -> state -> Prop :=
   .
 
 Theorem sorted_subset_elements: forall msg sigma1 sigma2, 
-    sorted(sigma1) -> 
-    sorted(sigma2) ->
+    strictly_sorted(sigma1) -> 
+    strictly_sorted(sigma2) ->
     sorted_subset sigma1 sigma2 -> 
     in_state msg sigma1 -> 
     in_state msg sigma2.
@@ -430,7 +465,7 @@ Proof.
 
 
 Theorem add_sorted :
-  forall sigma msg, sorted sigma -> in_state msg sigma -> add_in_sorted msg sigma sigma.
+  forall sigma msg, strictly_sorted sigma -> in_state msg sigma -> add_in_sorted msg sigma sigma.
 Proof. 
   Admitted.
 
@@ -527,7 +562,7 @@ Inductive protocol_state : state -> Prop :=
 
 
 Theorem protocol_state_sorted : forall state,
-  protocol_state state -> sorted state.
+  protocol_state state -> strictly_sorted state.
 Proof.
   intros.
   induction H.
