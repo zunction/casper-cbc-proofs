@@ -377,12 +377,11 @@ Theorem add_in_sorted_sorted : forall msg sigma sigma',
   strictly_sorted sigma -> add_in_sorted msg sigma sigma' -> strictly_sorted sigma'.
 Proof.
   intros msg sigma sigma' Hsorted. 
-  destruct msg as [(c, v) sigma_msg].
-  generalize dependent c. generalize dependent v. generalize dependent sigma_msg. generalize dependent sigma'.
+  generalize dependent msg. generalize dependent sigma'.
   induction Hsorted.
   - intros. inversion H; subst;
     try (inversion H; destruct msg' as [(c', v') sigma_msg']; unfold next in H0; inversion H0); 
-    try constructor. rewrite H0. constructor.
+    try constructor. 
   - intros. inversion H; subst.
     + destruct msg as [(c', v') sigma_msg']. unfold next in H2. inversion H2.
     + rewrite H0. constructor.
@@ -390,7 +389,7 @@ Proof.
     + destruct msg as [(c', v') sigma_msg'].      destruct msg' as [(c'', v'') sigma_msg'']. 
       unfold next in H0. inversion H0; subst.
       inversion H3; subst;
-      try (destruct msg' as [(c'', v'') sigma_msg'']). ; unfold next in H2; inversion H2).
+      try (destruct msg' as [(c'', v'') sigma_msg'']; unfold next in H2; inversion H2).
       * constructor. assumption. constructor.
   - intros. inversion H0; subst; 
         try (destruct msg as [(c, v) sigma_msg]; destruct msg' as [(c', v') sigma_msg'];  
@@ -403,7 +402,8 @@ Proof.
       rewrite (add_is_next c' v' sigma_msg' sigma). 
       constructor; try assumption.
     + apply (IHHsorted _ msg0). 
-      apply (add_in_Next_gt _ _ _ _ H2).
+      rewrite add_is_next in H4.
+      apply (add_in_Next_gt _ _ _ _ H2) in H0.
     Admitted.
 
 
