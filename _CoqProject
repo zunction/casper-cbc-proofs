@@ -1,1 +1,4 @@
--Q . Casper
+-Q theories Casper
+theories/sorted_lists.v
+theories/light_version.v
+theories/full_version.v
