@@ -104,12 +104,10 @@ Axiom epsilon_total : forall s : state, exists c : C, epsilon s c.
 
 Inductive state_eq : state -> state -> Prop :=
   | state_eq_Empty : state_eq Empty Empty 
-  | state_eq_Next : forall c1 c2 v1 v2 msg1 msg2 sigma1 sigma2,
-      c1 = c2 -> 
-      v1 = v2 -> 
+  | state_eq_Next : forall c v msg1 msg2 sigma1 sigma2,
       state_eq msg1 msg2 ->
       state_eq sigma1 sigma2 ->
-      state_eq (add (c1,v1,msg1) to sigma1) (add (c2,v2,msg2) to sigma2)
+      state_eq (add (c,v,msg1) to sigma1) (add (c,v,msg2) to sigma2)
   .
 
 Theorem state_eq_reflexive:
@@ -136,21 +134,15 @@ Inductive state_lt : state -> state -> Prop :=
   | state_lt_C : forall c1 c2 v1 v2 msg1 msg2 sigma1 sigma2,
       c_lt c1 c2 ->
       state_lt (add (c1,v1,msg1) to sigma1) (add (c2,v2,msg2) to sigma2)
-  | state_lt_V : forall c1 c2 v1 v2 msg1 msg2 sigma1 sigma2,
-      c1 = c2 -> 
+  | state_lt_V : forall c v1 v2 msg1 msg2 sigma1 sigma2,
       v_lt v1 v2 -> 
-      state_lt (add (c1,v1,msg1) to sigma1) (add (c2,v2,msg2) to sigma2)
-  | state_lt_M : forall c1 c2 v1 v2 msg1 msg2 sigma1 sigma2,
-      c1 = c2 -> 
-      v1 = v2 -> 
+      state_lt (add (c,v1,msg1) to sigma1) (add (c,v2,msg2) to sigma2)
+  | state_lt_M : forall c v msg1 msg2 sigma1 sigma2,
       state_lt msg1 msg2 ->
-      state_lt (add (c1,v1,msg1) to sigma1) (add (c2,v2,msg2) to sigma2)
-  | state_lt_Next : forall c1 c2 v1 v2 msg1 msg2 sigma1 sigma2,
-      c1 = c2 -> 
-      v1 = v2 -> 
-      msg1 = msg2 ->
+      state_lt (add (c,v,msg1) to sigma1) (add (c,v,msg2) to sigma2)
+  | state_lt_Next : forall c v msg sigma1 sigma2,
       state_lt sigma1 sigma2 ->
-      state_lt (add (c1,v1,msg1) to sigma1) (add (c2,v2,msg2) to sigma2)
+      state_lt (add (c,v,msg) to sigma1) (add (c,v,msg) to sigma2)
   .
 
 Lemma state_lt_irreflexive : Irreflexive state_lt.
@@ -160,50 +152,43 @@ Proof.
  assert (EE : not(state_lt Empty Empty)); try (unfold not; intros; inversion H).
  unfold Irreflexive. unfold Reflexive. induction x.
     + apply EE.
-    + unfold complement. intros. inversion H. 
-      * destruct SOc. unfold Irreflexive in *.  
-        unfold Reflexive in *. 
+    + unfold complement. intros. inversion H; subst.
+      * destruct SOc. 
         apply StrictOrder_Irreflexive in H1. inversion H1.
-      * destruct SOv. unfold Irreflexive in *.  
-        unfold Reflexive in *. 
-        apply StrictOrder_Irreflexive in H9. inversion H9.
-      * apply IHx1 in H10. inversion H10.
-      * apply IHx2 in H11. inversion H11.
+      * destruct SOv. 
+        apply StrictOrder_Irreflexive in H1. inversion H1.
+      * apply IHx1 in H1. inversion H1.
+      * apply IHx2 in H1. inversion H1.
 Qed.
 
 Lemma state_lt_transitive: Transitive state_lt.
 Proof.
   assert (SOc : StrictOrder c_lt); try apply c_lt_storder.
   assert (SOv : StrictOrder v_lt); try apply v_lt_storder.
-  destruct SOc as [_ Soc]. unfold Transitive in Soc.
-  destruct SOv as [_ Sov]. unfold Transitive in Sov.
-  unfold Transitive.
+  destruct SOc as [_ Soc]. 
+  destruct SOv as [_ Sov]. 
+  unfold Transitive in *.
   intros. generalize dependent x. induction H0.
   - intros. inversion H.
-  - intros. inversion H0; subst.
+  - intros. inversion H0; subst; try (apply state_lt_C; assumption).
     + constructor.
     + apply state_lt_C; try assumption. apply (Soc _ _ _ H3 H). 
-    + apply state_lt_C; try assumption.
-    + apply state_lt_C; try assumption.
-    + apply state_lt_C; try assumption.
-  - intros. inversion H1; subst.
+  - intros. inversion H0; subst; try (apply state_lt_V; assumption).
     + constructor.
-    + apply state_lt_C; try assumption.
-    + apply state_lt_V; try reflexivity. apply (Sov _ _ _ H8 H0).
-    + apply state_lt_V; try reflexivity. assumption.
-    + apply state_lt_V; try reflexivity. assumption.
-  - intros; subst. inversion H2; subst.
+    + apply state_lt_C. assumption.
+    + apply state_lt_V. apply (Sov _ _ _ H3 H).
+  - intros; subst. inversion H; subst.
     + constructor.
-    + apply state_lt_C; try assumption.
-    + apply state_lt_V; try reflexivity; try assumption.
-    + apply state_lt_M; try reflexivity; try assumption. apply IHstate_lt; try assumption.
-    + apply state_lt_M; try reflexivity; try assumption. 
-  - intros; subst. inversion H3; subst.
+    + apply state_lt_C. assumption.
+    + apply state_lt_V. assumption.
+    + apply state_lt_M. apply IHstate_lt. assumption.
+    + apply state_lt_M. assumption. 
+  - intros; subst. inversion H; subst.
     + constructor.
-    + apply state_lt_C; try assumption.
-    + apply state_lt_V; try reflexivity; try assumption.
-    + apply state_lt_M; try reflexivity; try assumption.
-    + apply state_lt_Next; try reflexivity; try assumption. apply IHstate_lt; try assumption.
+    + apply state_lt_C. assumption.
+    + apply state_lt_V. assumption.
+    + apply state_lt_M. assumption.
+    + apply state_lt_Next. apply IHstate_lt. assumption.
 Qed.
 
 Lemma state_lt_storder : StrictOrder state_lt.
@@ -236,49 +221,25 @@ Proof.
                 (* lt sigma1_2 sigma2_2 \/ lt sigma2_2 sigma2_1 *)
                 { destruct H. 
                     (* lt sigma1_2 sigma2_2 *)
-                    { right. left. apply state_lt_Next. 
-                        {reflexivity. }
-                        {reflexivity. }
-                        {reflexivity. }
-                        {assumption. }
-                    }
+                    { right. left. apply state_lt_Next. assumption. }
                     (* lt sigma2_2 sigma1_2 *)
-                    { right. right. apply state_lt_Next.
-                        {reflexivity. }
-                        {reflexivity. }
-                        {reflexivity. }
-                        {assumption. }  
-                    }
+                    { right. right. apply state_lt_Next. assumption. }  
                  }
              }
             (* lt sigma1_1 sigma2_1 \/ lt sigma2_1 sigma1_1 *)
             {  destruct H. 
               (* lt sigma1_1 sigma2_1 *)
-              { right. left. apply state_lt_M. 
-                  {reflexivity. }
-                  {reflexivity. }
-                  {assumption. }
-              }
+              { right. left. apply state_lt_M. assumption. }
               (* lt sigma2_1 sigma2_1 *)
-              { right. right. apply state_lt_M. 
-                  {reflexivity. }
-                  {reflexivity. }
-                  {assumption. }                
-              }
+              { right. right. apply state_lt_M. assumption. }
             }
         }
         (* lt v v0 \/ lt v0 v *)
         { destruct H.
           (* lt v v0 *)
-          { right. left. apply state_lt_V. 
-              {reflexivity. }
-              {assumption. }          
-          }
+          { right. left. apply state_lt_V.  assumption. }          
           (* lt v0 v *)
-          {right. right. apply state_lt_V. 
-              {reflexivity. }
-              {assumption. }            
-          }
+          {right. right. apply state_lt_V. assumption. }            
         } 
      (* lt c c0 \/ lt c0 c *)  
      * destruct H.
@@ -391,29 +352,6 @@ Inductive strictly_sorted : state -> Prop :=
           strictly_sorted (next msg (next msg' sigma))
   .
 
-(* Attempt to define set_state
-
-Inductive set_state : Set :=
-    well_formed : forall sigma:state, strictly_sorted sigma -> set_state.
-
-Definition set_state_empty : set_state :=
-  well_formed Empty (sorted_Empty).
-
-Definition set_state_singleton (msg : message) : set_state :=
-  well_formed (next msg Empty) (sorted_Singleton msg).
-
-
-Inductive add_in_sorted : message -> set_state -> set_state -> Prop :=
-  | add_in_Empty : forall msg,
-        add_in_sorted msg set_state_empty (set_state_singleton msg)
-  | add_in_Next_eq : forall msg msg' sigma,
-          msg_eq msg msg' -> 
-          well_formed (next msg' sigma) -> 
-          add_in_sorted msg (next msg' sigma) (next msg' sigma)
-  .
-*)
-
-
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
           add_in_sorted msg Empty (next msg Empty)
@@ -439,33 +377,33 @@ Theorem add_in_sorted_sorted : forall msg sigma sigma',
   strictly_sorted sigma -> add_in_sorted msg sigma sigma' -> strictly_sorted sigma'.
 Proof.
   intros msg sigma sigma' Hsorted. 
-  generalize dependent msg. generalize dependent sigma'.
+  destruct msg as [(c, v) sigma_msg].
+  generalize dependent c. generalize dependent v. generalize dependent sigma_msg. generalize dependent sigma'.
   induction Hsorted.
   - intros. inversion H; subst;
-    try (inversion H; destruct msg' as [(c', v') sigma_msg']; unfold next in H0; inversion H0).
-    constructor.
+    try (inversion H; destruct msg' as [(c', v') sigma_msg']; unfold next in H0; inversion H0); 
+    try constructor. rewrite H0. constructor.
   - intros. inversion H; subst.
-    + destruct msg as [(c, v) sigma_msg]. unfold next in H2. inversion H2.
+    + destruct msg as [(c', v') sigma_msg']. unfold next in H2. inversion H2.
     + rewrite H0. constructor.
     + constructor. assumption. rewrite H0. constructor.
-    + destruct msg as [(c, v) sigma_msg].      destruct msg' as [(c', v') sigma_msg']. 
+    + destruct msg as [(c', v') sigma_msg'].      destruct msg' as [(c'', v'') sigma_msg'']. 
       unfold next in H0. inversion H0; subst.
       inversion H3; subst;
-      try (destruct msg' as [(c', v') sigma_msg']; unfold next in H2; inversion H2).
+      try (destruct msg' as [(c'', v'') sigma_msg'']). ; unfold next in H2; inversion H2).
       * constructor. assumption. constructor.
-  - intros. inversion H0; subst.
+  - intros. inversion H0; subst; 
+        try (destruct msg as [(c, v) sigma_msg]; destruct msg' as [(c', v') sigma_msg'];  
+              destruct msg'0 as [(c'0, v'0) sigma_msg'0]; 
+              unfold next in H1; inversion H1; subst).
     + constructor.
-    + destruct msg as [(c, v) sigma_msg].
-      destruct msg' as [(c', v') sigma_msg'].      destruct msg'0 as [(c'0, v'0) sigma_msg'0].
-      unfold next in H1. inversion H1; subst.
+    + rewrite (add_is_next c' v' sigma_msg' sigma). 
+      constructor; try assumption.
+    + constructor; try assumption.  
       rewrite (add_is_next c' v' sigma_msg' sigma). 
-      constructor. assumption. assumption.
-    + destruct msg as [(c, v) sigma_msg].
-      destruct msg' as [(c', v') sigma_msg'].      destruct msg'0 as [(c'0, v'0) sigma_msg'0].
-      unfold next in H1. inversion H1; subst.
-      constructor. assumption.  
-      rewrite (add_is_next c' v' sigma_msg' sigma). 
-      constructor. assumption. assumption.
+      constructor; try assumption.
+    + apply (IHHsorted _ msg0). 
+      apply (add_in_Next_gt _ _ _ _ H2).
     Admitted.
 
 

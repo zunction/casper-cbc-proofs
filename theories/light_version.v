@@ -188,8 +188,6 @@ Axiom epsilon_total : forall s : state, exists c : C, epsilon s c.
 Definition state_sorted : state -> Prop := LocallySorted message_lt.
 
 
-(**  Light model stops here. Rework things below (full model) **)
-
 Inductive fault_weight_msg : message -> message -> R -> Prop :=
   | fault_weight_v_diff: forall c1 c2 v1 v2 msg1 msg2,
       v1 <> v2 ->
