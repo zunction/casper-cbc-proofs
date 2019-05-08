@@ -225,7 +225,7 @@ Proof.
   - induction c2.
     + right. right. apply state_lt_Empty.
     + destruct (C_totally_ordered c c0); subst.
-      (* c = c0 *)  
+      (* c = c0 *) 
       * destruct (V_totally_ordered v v0); subst.
         (* v = v0 *)  
         { destruct (IHc1_1 c2_1); subst.
@@ -328,10 +328,6 @@ Proof.
 Qed.
 
 Corollary msg_lt_transitive: Transitive msg_lt.
-(** forall msg1 msg2 msg3,
-    msg_lt msg1 msg2 ->
-    msg_lt msg2 msg3 ->
-    msg_lt msg1 msg3. **)
 Proof.
   unfold Transitive.
   destruct x as [(c1, v1) sigma_msg1].
@@ -351,8 +347,27 @@ Qed.
 
 
 Corollary msg_lt_total: TotalOrder msg_lt.
-Proof. 
-Admitted.
+Proof.
+  unfold TotalOrder. 
+  unfold msg_lt.
+  destruct c1 as [(c1, v1) sigma_msg1].
+  destruct c2 as [(c2, v2) sigma_msg2].
+  unfold next.
+  destruct (C_totally_ordered c1 c2); subst.
+  + destruct (V_totally_ordered v1 v2); subst.
+    * destruct (state_lt_total sigma_msg1 sigma_msg2); subst.
+      { left. reflexivity. }
+      { destruct H.
+          { right. left. apply state_lt_M; try reflexivity || assumption. }
+          { right. right. apply state_lt_M; try reflexivity || assumption. }
+      }
+    * destruct H.
+      { right. left. apply state_lt_V; try reflexivity || assumption. }
+      { right. right. apply state_lt_V; try reflexivity || assumption. }
+  + destruct H.
+    * right. left. apply state_lt_C; try assumption.
+    * right. right. apply state_lt_C; try assumption.
+Qed.
 
 Inductive in_state : message -> state -> Prop :=
   | InStateNow : forall msg msg' sigma', 
@@ -403,7 +418,7 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
           add_in_sorted msg Empty (next msg Empty)
    | add_in_Next_eq : forall msg msg' sigma,
-          msg = msg' ->  
+          msg = msg' ->
           add_in_sorted msg (next msg' sigma) (next msg' sigma)
    | add_in_Next_lt : forall msg msg' sigma,
           msg_lt msg msg' ->  
@@ -419,7 +434,7 @@ Lemma add_is_next : forall c v sigma_msg sigma,
 Proof.
   intros. unfold next. reflexivity.
 Qed.
-    
+
 Theorem add_in_sorted_sorted : forall msg sigma sigma',
   strictly_sorted sigma -> add_in_sorted msg sigma sigma' -> strictly_sorted sigma'.
 Proof.
@@ -452,7 +467,6 @@ Proof.
       rewrite (add_is_next c' v' sigma_msg' sigma). 
       constructor. assumption. assumption.
     Admitted.
-      
 
 
 Inductive sorted_subset : state -> state -> Prop :=
@@ -476,8 +490,10 @@ Proof.
   Admitted.
 
 
-Theorem add_sorted :
-  forall sigma msg, strictly_sorted sigma -> in_state msg sigma -> add_in_sorted msg sigma sigma.
+Theorem add_sorted : forall sigma msg, 
+  strictly_sorted sigma -> 
+  in_state msg sigma -> 
+  add_in_sorted msg sigma sigma.
 Proof. 
   Admitted.
 
@@ -539,7 +555,6 @@ Inductive fault_weight_state : state -> R -> Prop :=
 .
 
 
-
 (*******************************)
 (** Protocol state conditions **) 
 (*******************************)
@@ -572,16 +587,13 @@ Inductive protocol_state : state -> Prop :=
       protocol_state sigma''
 .
 
-
 Theorem protocol_state_sorted : forall state,
   protocol_state state -> strictly_sorted state.
 Proof.
   intros.
   induction H.
   - constructor.
-  - apply (add_in_sorted_sorted (c,v,sigma) sigma').
-    + assumption.
-    + assumption.
+  - apply (add_in_sorted_sorted (c,v,sigma) sigma'); try assumption.
 Qed.
 
 (* NOT needed anymore

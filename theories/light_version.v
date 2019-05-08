@@ -158,9 +158,9 @@ Definition state_lt := @list_lex message message_lt.
 Inductive Hstate : state -> list hash -> Prop :=
   | Hstate_nil :  Hstate [] []
   | Hstate_cons : forall msg sigma hs hs',
-    Hstate sigma hs ->
-    add_in_hash_set (Hash msg) hs hs' ->
-    Hstate (msg :: sigma) hs'.
+       Hstate sigma hs ->
+       add_in_hash_set (Hash msg) hs hs' ->
+       Hstate (msg :: sigma) hs'.
 
 Theorem Hstate_sorted : forall sigma hs,
   Hstate sigma hs -> LocallySorted hash_lt hs.
