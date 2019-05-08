@@ -1,9 +1,12 @@
 Require Import Coq.Reals.Reals.
+Require Import Coq.Sorting.Sorted.
+Require Import Coq.Classes.RelationClasses.
+Require Import Coq.Relations.Relation_Definitions.
+Require Import Coq.Structures.Orders.
 
 From Casper
 Require Import sorted_lists.
 
-Import ListNotations.
 
 (**
   TODO: Prove that all Inductive defining functions yield total functions.
