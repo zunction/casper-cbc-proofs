@@ -437,6 +437,11 @@ Qed.
 Definition state_incl (sigma sigma' : state) : Prop :=
   forall msg, in_state msg sigma -> in_state msg sigma'.
 
+Theorem state_incl_reflexive : forall sigma, state_incl sigma sigma.
+Proof.
+  - intro; intro; intros; assumption.
+Qed.
+
 Lemma not_next_state_incl_empty : forall msg sigma,
   ~ state_incl (next msg sigma) Empty.
 Proof.
@@ -461,6 +466,11 @@ Corollary not_empty_state_set_eq_next : forall msg sigma,
   ~ state_set_eq Empty (next msg sigma).
 Proof.
   intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H0).
+Qed.
+
+Corollary state_set_eq_reflexive : forall sigma, state_set_eq sigma sigma.
+Proof.
+  intros. split; apply state_incl_reflexive.
 Qed.
 
 Inductive locally_sorted : state -> Prop :=
@@ -524,6 +534,19 @@ Qed.
 
 (** Work in progress **)
 
+Lemma state_set_In : forall msg1 msg2 sigma,
+  locally_sorted (next msg2 sigma) ->
+  in_state msg1 sigma ->
+  msg_lt msg2 msg1.
+Proof.
+  intros. generalize dependent msg1. generalize dependent msg2. induction sigma.
+  - intros. inversion H0. destruct msg as [(c, v) j] . inversion H1.
+  - intros. rewrite add_is_next in *. inversion H0; clear H0; subst. destruct msg as [(c', v') j'].
+    inversion H1; clear H1; subst. destruct msg2 as [(c2, v2) j2]. inversion H; subst; clear H.
+     destruct msg' as [(c', v') j']. inversion H5; clear H5; subst. inversion H3; subst; try assumption.
+    apply (msg_lt_transitive (c2, v2, j2) (c, v, sigma1) msg1 H6).
+    apply IHsigma2; assumption.
+Qed.
 
 Lemma state_set_eq_first_equal : forall c1 v1 j1 c2 v2 j2 sigma1 sigma2,
   (state_set_eq j1 j2 -> j1 = j2 ) ->
@@ -531,6 +554,9 @@ Lemma state_set_eq_first_equal : forall c1 v1 j1 c2 v2 j2 sigma1 sigma2,
   locally_sorted (next (c2, v2, j2) sigma2) ->
   state_set_eq (next (c1, v1, j1) sigma1) (next (c2, v2, j2) sigma2) ->
   (c1, v1, j1) = (c2, v2, j2) /\ state_set_eq sigma1 sigma2.
+Proof.
+  intros. destruct H2.  split.
+  - assert (H21 := H2 (c1,v1,j1)).
 Admitted.
 
 Theorem state_set_eq_equality : forall sigma1 sigma2,
@@ -544,7 +570,7 @@ Proof.
     induction H as
     [
     | c v j LSj
-    | c v j [(c', v') j'] sigma1 LSj _  LT LS1
+    | c v j [(c', v') j'] sigma1 LSj HLSj  LT LS1
     ]
     ; intros sigma2 LS2; destruct sigma2
     .
@@ -563,7 +589,21 @@ Proof.
     + intros. exfalso. apply (not_next_state_set_eq_empty _ _ H).
     + intros. rewrite add_is_next in *.
       inversion LS2; subst.
-Admitted.
+      * exfalso. apply (not_next_state_set_eq_empty (c', v', j') sigma1).
+      apply proj2 with (A := (c, v, j) = (c0, v0, sigma2_1)).
+      apply state_set_eq_first_equal; try assumption.
+      { apply HLSj. assumption. }
+      { apply LSorted_Next; assumption. }
+      * assert (HSplit :  (c, v, j) = (c0, v0, sigma2_1) /\ state_set_eq (next (c', v', j') sigma1) (next msg' sigma)).
+        { apply state_set_eq_first_equal; try assumption.
+          - apply HLSj; assumption.
+          -  apply LSorted_Next; assumption.
+        }
+        destruct HSplit as [HSplit1 HSplit2].
+        inversion_clear HSplit1; subst.
+        apply (IHLS1 _ H6) in HSplit2. rewrite HSplit2. reflexivity.
+  - intro; subst. apply state_set_eq_reflexive.
+Qed.
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
