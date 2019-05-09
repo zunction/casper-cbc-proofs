@@ -314,34 +314,12 @@ Proof.
     * right. right. apply state_lt_C; try assumption.
 Qed.
 
-Inductive in_state : message -> state -> Prop :=
-  | InStateNow : forall msg msg' sigma', 
-          msg = msg' -> 
-          in_state msg (next msg' sigma')
-  | InStateNext : forall msg msg' sigma', 
-          in_state msg sigma' -> 
-          in_state msg (next msg' sigma')
-  .
-
-
 (*****************************************************)
-
-Inductive strictly_sorted : state -> Prop :=
-  | sorted_Empty : strictly_sorted Empty
-  | sorted_Singleton : forall msg, 
-          strictly_sorted (next msg Empty)
-  | sorted_Next : forall msg  msg' sigma, 
-          msg_lt msg msg' -> 
-          strictly_sorted (next msg' sigma) -> 
-          strictly_sorted (next msg (next msg' sigma))
-  .
-
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
           add_in_sorted msg Empty (next msg Empty)
-   | add_in_Next_eq : forall msg msg' sigma,
-          msg = msg' ->
-          add_in_sorted msg (next msg' sigma) (next msg' sigma)
+   | add_in_Next_eq : forall msg sigma,
+          add_in_sorted msg (next msg sigma) (next msg sigma)
    | add_in_Next_lt : forall msg msg' sigma,
           msg_lt msg msg' ->  
           add_in_sorted msg (next msg' sigma) (next msg (next msg' sigma))
@@ -351,49 +329,241 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
           add_in_sorted msg (next msg' sigma) (next msg' sigma')
   .
 
-
-(** Work in progress **)
 Lemma add_is_next : forall c v j sigma,
   add (c, v, j)to sigma = next (c, v, j) sigma.
 Proof.
   intros. unfold next. reflexivity.
 Qed.
 
-
-Theorem add_in_sorted_sorted : forall msg sigma sigma',
-  strictly_sorted sigma -> add_in_sorted msg sigma sigma' -> strictly_sorted sigma'.
+Lemma add_in_empty : forall msg sigma,
+  add_in_sorted msg Empty sigma -> sigma = (next msg Empty).
 Proof.
-  intros msg sigma sigma' Hsorted. 
-  generalize dependent msg. generalize dependent sigma'.
-  induction Hsorted.
-  - intros. inversion H; subst;
-    try (inversion H; destruct msg' as [(c', v') j']; unfold next in H0; inversion H0); 
-    try constructor. 
-  - intros. inversion H; subst.
-    + destruct msg as [(c', v') j']. unfold next in H2. inversion H2.
-    + rewrite H0. constructor.
-    + constructor. assumption. rewrite H0. constructor.
-    + destruct msg as [(c', v') j'].      destruct msg' as [(c'', v'') j'']. 
-      unfold next in H0. inversion H0; subst.
-      inversion H3; subst;
-      try (destruct msg' as [(c'', v'') j'']; unfold next in H2; inversion H2).
-      * constructor. assumption. constructor.
-  - intros. inversion H0; subst; 
-        try (destruct msg as [(c, v) j]; destruct msg' as [(c', v') j'];  
-              destruct msg'0 as [(c'0, v'0) j'0]; 
-              unfold next in H1; inversion H1; subst).
-    + constructor.
-    + rewrite (add_is_next c' v' j' sigma); try (constructor; assumption).
-    + constructor. assumption.
-      rewrite (add_is_next c' v' j' sigma); try (constructor; assumption).
-    + (* 
-      apply (IHHsorted _ msg0). 
-      rewrite add_is_next in H4.
-      apply (add_in_Next_gt _ _ _ _ H2) in H0.
-      *)
-    Admitted.
+  intros [(c, v) j] sigma AddA. 
+  inversion AddA as 
+    [ [(ca, va) ja] A AEmpty C
+    | [(ca, va) ja] sigmaA A ANext C
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA smsg smsg' smsg1
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddA' A B C]
+  ; clear AddA; subst.
+  - reflexivity.
+Qed.
 
-(** **)
+Theorem add_in_sorted_functional : forall msg sigma1 sigma2 sigma2',
+  add_in_sorted msg sigma1 sigma2 ->
+  add_in_sorted msg sigma1 sigma2' ->
+  sigma2 = sigma2'.
+Proof.
+  intros. generalize dependent msg. generalize dependent sigma2. generalize dependent sigma2'.
+  induction sigma1 as [ | c1 v1 j1 _ ] ; intros sigma2' sigma2 [(c, v) j] AddA AddB.
+  - inversion AddA as 
+    [ [(ca, va) ja] A AEmpty C
+    | [(ca, va) ja] sigmaA A ANext C
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA smsg smsg' smsg1
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddA' A B C]
+    ; clear AddA; subst.
+    inversion AddB as 
+    [ [(cb, vb) jb] A BEmpty C
+    | [(cb, vb) jb] sigmaB A BNext C
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB A B C
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' A B C]
+    ; clear AddB; subst.
+    reflexivity.
+  - inversion AddA as 
+    [ [(ca, va) ja] AA AEmpty AC
+    | [(ca, va) ja] sigmaA AA ANext AC
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA AA AB AC
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddA' AA AB AC]
+    ; inversion AddB as 
+    [ [(cb, vb) jb] BA BEmpty BC
+    | [(cb, vb) jb] sigmaB BA BNext BC
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB BA BB BC
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' BA BB BC]
+    ;  clear AddA; clear AddB; subst
+    ; try reflexivity
+    ; try (apply (msg_lt_transitive _ _ _ LTA) in LTB)
+    ; try (destruct (msg_lt_irreflexive _ LTB))
+    ; try (destruct (msg_lt_irreflexive _ LTA)).
+    apply (IHsigma1_1 _ _ _ AddA') in AddB'; subst.
+    reflexivity.
+Qed.
+
+Theorem add_in_sorted_total : forall msg sigma,
+  exists sigma', add_in_sorted msg sigma sigma'.
+Proof.
+  intros. generalize dependent msg.
+  induction sigma as [ | sc sv sj _ ] 
+  ; intros [(c, v) j]
+  ; try (rewrite add_is_next in *).
+  - exists (next (c,v,j) Empty). apply add_in_Empty.
+  - destruct (msg_lt_total (c,v,j) (sc,sv,sj)) as [Heq | [LT | GT]].
+    + inversion Heq; subst. exists (next (sc,sv,sj) sigma1).
+      apply add_in_Next_eq.
+    + exists (next (c,v,j) (next (sc, sv, sj) sigma1)).
+      apply add_in_Next_lt. apply LT.
+    + destruct (IHsigma1 (c, v, j)) as [sigma1' Hsigma1'].
+      exists (next (sc, sv, sj) sigma1').
+      apply add_in_Next_gt; assumption.
+Qed.
+
+Inductive in_state : message -> state -> Prop :=
+  | InState : forall msg' msg sigma, 
+          msg' = msg \/ in_state msg' sigma -> 
+          in_state msg' (next msg sigma)
+  .
+
+Theorem add_in_sorted_in : forall msg sigma sigma',
+  add_in_sorted msg sigma sigma' ->
+  forall msg', in_state msg' sigma' -> msg' = msg \/ in_state msg' sigma.
+Proof.
+  intros msg sigma sigma' H.
+  induction H as
+  [ [(hc, hv) hj]
+  | [(hc, hv) hj] Hsigma
+  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma HLT
+  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma Hsigma' HGT HAdd H_H 
+  ]; intros [(c', v') j'] HIn
+  ; inversion HIn as [[(inc, inv) inj] [(inc', inv') inj'] insigma [HInEq | HIn'] X Y ]
+    ; clear HIn; subst
+  ; try (right; assumption)
+  ; try (left; assumption)
+  . 
+  - right. constructor. right. assumption.
+  - inversion HInEq; clear HInEq; subst. right. constructor. left. reflexivity.
+  - apply H_H in HIn'. destruct HIn' as [HInEq | HIn'].
+    + left. assumption.
+    + right. constructor. right. assumption.
+Qed.
+
+Definition state_incl (sigma sigma' : state) : Prop :=
+  forall msg, in_state msg sigma -> in_state msg sigma'.
+
+Lemma not_next_state_incl_empty : forall msg sigma,
+  ~ state_incl (next msg sigma) Empty.
+Proof.
+  intros. intro. 
+  assert (H1 := H msg).
+  assert (H2 : in_state msg (next msg sigma)).
+  { constructor. left. reflexivity. }
+  apply H1 in H2. inversion H2; subst.
+  destruct msg0 as [(c0, v0) j0]. inversion H0.
+Qed.
+
+Definition state_set_eq (sigma sigma' : state) : Prop :=
+  state_incl sigma sigma' /\ state_incl sigma' sigma.
+
+Corollary not_next_state_set_eq_empty : forall msg sigma,
+  ~ state_set_eq (next msg sigma) Empty.
+Proof.
+  intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H).
+Qed.
+
+Corollary not_empty_state_set_eq_next : forall msg sigma,
+  ~ state_set_eq Empty (next msg sigma).
+Proof.
+  intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H0).
+Qed.
+
+Inductive locally_sorted : state -> Prop :=
+  | LSorted_Empty : locally_sorted Empty
+  | LSorted_Singleton : forall c v j,
+          locally_sorted j ->
+          locally_sorted (next (c, v, j) Empty)
+  | LSorted_Next : forall c v j msg' sigma, 
+          locally_sorted j  ->
+          msg_lt (c, v, j) msg' -> 
+          locally_sorted (next msg' sigma) -> 
+          locally_sorted (next (c, v, j) (next msg' sigma))
+  .
+
+Lemma locally_sorted_head : forall c v j sigma,
+  locally_sorted (next (c,v,j) sigma) ->
+  locally_sorted j.
+Proof.
+  intros. inversion H; subst; assumption.
+Qed.
+
+Theorem add_in_sorted_sorted : forall c v j sigma sigma',
+  locally_sorted sigma ->
+  locally_sorted j ->
+  add_in_sorted (c, v, j) sigma sigma' -> locally_sorted sigma'.
+Proof.
+  intros c v j sigma sigma' Hsorted. 
+  generalize dependent sigma'.
+  generalize dependent j. generalize dependent v. generalize dependent c.
+  induction Hsorted as
+  [
+  | sc sv sj LSsj
+  | sc sv sj [(sc', sv') sj'] ssigma LSsj _  LT LSs
+  ]
+  ; intros c v j sigma' LSj AddA
+  ; inversion AddA as 
+    [ [(ca, va) ja] AA AEmpty AC
+    | [(ca, va) ja] sigmaA AA ANext AC
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA AA AB AC
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddB AA AB AC]
+  ; clear AddA; subst
+  ; try (rewrite add_is_next in *)
+  ; try (apply LSorted_Singleton)
+  ; try (apply LSorted_Next; try assumption; constructor)
+  ; try assumption
+  .
+  - apply add_in_empty in AddB. subst. apply LSorted_Next; try assumption; constructor. assumption.
+  - inversion AddB as 
+    [ [(cb, vb) jb] BA BEmpty BC
+    | [(cb, vb) jb] sigmaB BA BNext BC
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB BA BB BC
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' BA BB BC]
+    ; clear AddB; subst
+    ; try (apply LSorted_Next; assumption)
+    .
+    + repeat (apply LSorted_Next; try assumption).
+    + apply LSorted_Next; try assumption.
+      apply (IHLSs c v j _); try assumption.
+      apply add_in_Next_gt; assumption.
+Qed.
+
+(** Work in progress **)
+
+
+Lemma state_set_eq_first_equal : forall c1 v1 j1 c2 v2 j2 sigma1 sigma2,
+  (state_set_eq j1 j2 -> j1 = j2 ) ->
+  locally_sorted (next (c1, v1, j1) sigma1) ->
+  locally_sorted (next (c2, v2, j2) sigma2) ->
+  state_set_eq (next (c1, v1, j1) sigma1) (next (c2, v2, j2) sigma2) ->
+  (c1, v1, j1) = (c2, v2, j2) /\ state_set_eq sigma1 sigma2.
+Admitted.
+
+Theorem state_set_eq_equality : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  state_set_eq sigma1 sigma2 <-> sigma1 = sigma2.
+Proof.
+  intros.
+  split.
+  - generalize dependent sigma2.
+    induction H as
+    [
+    | c v j LSj
+    | c v j [(c', v') j'] sigma1 LSj _  LT LS1
+    ]
+    ; intros sigma2 LS2; destruct sigma2
+    .
+    + intros. reflexivity.
+    + intros. rewrite add_is_next in *.
+      exfalso. apply (not_empty_state_set_eq_next _ _ H).
+    + intros.
+      exfalso. apply (not_next_state_set_eq_empty _ _ H).
+    + intros. rewrite add_is_next in *.
+      inversion LS2; subst; assert (LS1 : locally_sorted (next (c, v, j) Empty));
+      try ( constructor; assumption). 
+      * apply (state_set_eq_first_equal _ _ _ _ _ _ _ _ (IHLSj _ H1) LS1 LS2) in H.
+        destruct H. inversion H; subst. reflexivity.
+      * apply (state_set_eq_first_equal _ _ _ _ _ _ _ _ (IHLSj _ H3) LS1 LS2) in H.
+        destruct H. exfalso. apply (not_empty_state_set_eq_next _ _ H0).
+    + intros. exfalso. apply (not_next_state_set_eq_empty _ _ H).
+    + intros. rewrite add_is_next in *.
+      inversion LS2; subst.
+Admitted.
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -407,8 +577,8 @@ Inductive sorted_subset : state -> state -> Prop :=
   .
 
 Theorem sorted_subset_elements: forall msg sigma1 sigma2, 
-    strictly_sorted(sigma1) -> 
-    strictly_sorted(sigma2) ->
+    locally_sorted(sigma1) -> 
+    locally_sorted(sigma2) ->
     sorted_subset sigma1 sigma2 -> 
     in_state msg sigma1 -> 
     in_state msg sigma2.
@@ -418,7 +588,7 @@ Proof.
 (** Work in progress **)
 
 Theorem add_sorted : forall sigma msg, 
-  strictly_sorted sigma -> 
+  locally_sorted sigma -> 
   in_state msg sigma -> 
   add_in_sorted msg sigma sigma.
 Proof.
@@ -517,7 +687,7 @@ Inductive protocol_state : state -> Prop :=
 .
 
 Theorem protocol_state_sorted : forall state,
-  protocol_state state -> strictly_sorted state.
+  protocol_state state -> locally_sorted state.
 Proof.
   intros.
   induction H.
