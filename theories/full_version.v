@@ -495,14 +495,36 @@ Inductive state_inclusion : state -> state -> Prop :=
       state_inclusion (next msg1 (next msg1' sigma1)) sigma2
   .
 
-(**
-Theorem state_set_eq_equality : forall sigma1 sigma2,
+Definition set_in_state (msg : message) (sigma : state) : Prop :=
+  state_inclusion (next msg Empty) sigma.
+
+Theorem state_inclusion_reflexive : forall sigma, state_inclusion sigma sigma.
+Admitted.
+
+
+Definition state_eq (sigma1 sigma2 : state) : Prop :=
+  state_inclusion sigma1 sigma2 /\ state_inclusion sigma2 sigma1.
+
+Theorem state_eq_reflexive : forall sigma, state_eq sigma sigma.
+Admitted.
+
+Theorem set_in_state_syntactic : forall msg sigma,
+  in_state msg sigma ->
+  set_in_state msg sigma.
+Admitted.
+
+Theorem set_in_state_sorted : forall c v j sigma,
+  locally_sorted sigma ->
+  locally_sorted j ->
+  set_in_state (c,v,j) sigma <-> in_state (c, v, j) sigma.
+Admitted.
+
+
+Theorem state_eq_equality_predicate : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
-  state_set_eq sigma1 sigma2 <-> sigma1 = sigma2.
-Proof.
-  Admitted.
-**)
+  state_eq sigma1 sigma2 <-> sigma1 = sigma2.
+Admitted.
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -515,6 +537,16 @@ Inductive sorted_subset : state -> state -> Prop :=
           sorted_subset sigma (next msg sigma')
   .
 
+Notation "sigma1 '=>' sigma2" :=
+  (sorted_subset sigma1 sigma2)
+  (at level 20).
+
+Theorem sorted_subset_inclusion : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  sorted_subset sigma1 sigma2 <-> state_inclusion sigma1 sigma2.
+Admitted.
+
 Theorem sorted_subset_elements: forall msg sigma1 sigma2, 
     locally_sorted(sigma1) -> 
     locally_sorted(sigma2) ->
@@ -524,15 +556,11 @@ Theorem sorted_subset_elements: forall msg sigma1 sigma2,
 Proof.
   Admitted.
 
-(** Work in progress **)
-
 Theorem add_sorted : forall sigma msg, 
   locally_sorted sigma -> 
   in_state msg sigma -> 
   add_in_sorted msg sigma sigma.
 Proof.
-  Admitted.
-
 (*
   intros sigma msg is_sorted is_in_state.
   induction is_sorted as [| msg' | msg''].
@@ -551,8 +579,39 @@ apply in_state_decompose in is_in_state.
       simpl in is_in_state_not_first.
       simpl. rewrite is_in_state_not_first.
 *)
-(** **)
+  Admitted.
 
+(******************************)
+(** Union of (sorted) states **)
+(******************************)
+
+Inductive sorted_union : state -> state -> state -> Prop :=
+  | Sorted_union_Empty_left : forall sigma, sorted_union Empty sigma sigma
+  | Sorted_union_Empty_right : forall sigma, sorted_union sigma Empty sigma
+  | Sorted_union_Next_eq : forall msg sigma1 sigma2 sigma',
+      sorted_union sigma1 sigma2 sigma' ->
+      sorted_union (next msg sigma1) (next msg sigma2) (next msg sigma')
+  | Sorted_union_Next_lt : forall msg1 sigma1 msg2 sigma2 sigma',
+      msg_lt msg1 msg2 ->
+      sorted_union sigma1 (next msg2 sigma2) sigma' ->
+      sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg1 sigma')
+  | Sorted_union_Next_gt : forall msg1 sigma1 msg2 sigma2 sigma',
+      msg_lt msg2 msg1 ->
+      sorted_union (next msg1 sigma1) sigma2 sigma' ->
+      sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg2 sigma')
+  .
+
+(** TODO: Properties **)
+
+
+(****************************)
+(** Fault Weight of States **)
+(****************************)
+
+(**
+Note that this includes equivocation fault weight, as we defaulted 
+the weight of non-equivocating messages to 0
+**)
 
 Inductive fault_weight_msg : message -> message -> R -> Prop :=
   | fault_weight_v_diff: forall c1 c2 v1 v2 j1 j2,
@@ -573,6 +632,16 @@ Inductive fault_weight_msg : message -> message -> R -> Prop :=
       fault_weight_msg (c1,v,j1) (c2,v,j2) (weight v)
   .
 
+Theorem fault_weight_msg_functional : forall msg1 msg2 r1 r2,
+  fault_weight_msg msg1 msg2 r1 ->
+  fault_weight_msg msg1 msg2 r2 ->
+  r1 = r2.
+Admitted.
+
+Theorem fault_weight_msg_total : forall msg1 msg2,
+  exists r, fault_weight_msg msg1 msg2 r.
+Admitted.
+
 Inductive fault_weight_message_state : message -> state -> R -> Prop :=
   | fault_weight_message_state_Empty: forall msg,
       fault_weight_message_state msg Empty 0
@@ -581,6 +650,16 @@ Inductive fault_weight_message_state : message -> state -> R -> Prop :=
       fault_weight_msg msg1 msg2 r2 ->
       fault_weight_message_state msg1 (next msg2 sigma) (r1 + r2)%R
 .
+
+Theorem fault_weight_message_state_functional : forall msg sigma r1 r2,
+  fault_weight_message_state msg sigma r1 ->
+  fault_weight_message_state msg sigma r2 ->
+  r1 = r2.
+Admitted.
+
+Theorem fault_weight_message_state_total : forall msg sigma,
+  exists r, fault_weight_message_state msg sigma r.
+Admitted.
 
 Inductive fault_weight_state : state -> R -> Prop :=
   | fault_weight_state_Empty: 
@@ -591,6 +670,16 @@ Inductive fault_weight_state : state -> R -> Prop :=
       fault_weight_state (next msg sigma) (r1 + r2)%R
 .
 
+
+Theorem fault_weight_state_functional : forall sigma r1 r2,
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma r2 ->
+  r1 = r2.
+Admitted.
+
+Theorem fault_weight_state_total : forall sigma,
+  exists r, fault_weight_state sigma r.
+Admitted.
 
 (*******************************)
 (** Protocol state conditions **) 
@@ -622,7 +711,7 @@ Inductive protocol_state : state -> Prop :=
       add_in_sorted (c, v, sigma) sigma' sigma'' ->
       fault_tolerance_condition sigma'' ->
       protocol_state sigma''
-.
+  .
 
 Theorem protocol_state_sorted : forall state,
   protocol_state state -> locally_sorted state.
@@ -630,8 +719,13 @@ Proof.
   intros.
   induction H.
   - constructor.
-  - apply (add_in_sorted_sorted (c,v,sigma) sigma'); try assumption.
+  - apply (add_in_sorted_sorted c v sigma sigma'); try assumption.
 Qed.
+
+
+
+
+(**  **)
 
 (* NOT needed anymore
 

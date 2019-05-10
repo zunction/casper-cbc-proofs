@@ -2,3 +2,4 @@
 theories/sorted_lists.v
 theories/light_version.v
 theories/full_version.v
+theories/common_futures.v
