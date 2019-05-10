@@ -73,7 +73,6 @@ Variable t : R.
 Axiom threshold_nonnegative : (t >= 0)%R .
 
 (** TODO: Strictly smaller than the total validator weigths **)
-(** TODO: Do we really need this assumption? **)
 
 
 (************)
@@ -101,32 +100,6 @@ Axiom epsilon_total : forall s : state, exists c : C, epsilon s c.
 (********************)
 (* State properties *)
 (********************)
-
-Inductive state_eq : state -> state -> Prop :=
-  | state_eq_Empty : state_eq Empty Empty 
-  | state_eq_Next : forall c v j1 j2 sigma1 sigma2,
-      state_eq j1 j2 ->
-      state_eq sigma1 sigma2 ->
-      state_eq (add (c,v,j1) to sigma1) (add (c,v,j2) to sigma2)
-  .
-
-Theorem state_eq_reflexive:
-  forall sigma, state_eq sigma sigma.
-Proof.
-  induction sigma.
-  - constructor.
-  - constructor; (try assumption; reflexivity).
-Qed.
-
-Theorem state_equality_predicate:
-  forall sigma1 sigma2, sigma1 = sigma2 <-> state_eq sigma1 sigma2.
-Proof.
-  split.
-  - intros. subst. apply state_eq_reflexive.
-  - intros. induction H.
-    + reflexivity.
-    + subst. reflexivity.
-Qed.
 
 Inductive state_lt : state -> state -> Prop :=
   | state_lt_Empty : forall c v j sigma, 
@@ -237,7 +210,9 @@ Proof.
         }
 Qed.
 
+(**************)
 (** Messages **)
+(**************)
 
 Definition message := (C * V * state)%type.
 
@@ -245,20 +220,6 @@ Definition next (msg : message) (sigma : state) : state :=
   match msg with
   | (c, v, j) => add (c, v, j) to sigma
   end.
-
-Definition msg_eq (msg1 msg2 : message) : Prop :=
-  state_eq (next msg1 Empty) (next msg2 Empty).
-
-Corollary msg_equality_predicate:
-  forall msg1 msg2, msg1 = msg2 <-> msg_eq msg1 msg2.
-Proof.
-  destruct msg1 as [(c1,v1) j1].
-  destruct msg2 as [(c2,v2) j2].
-  unfold msg_eq. unfold next.
-  split; intros.
-  - inversion H; subst. apply state_equality_predicate. reflexivity.
-  - apply state_equality_predicate in H. inversion H; subst. reflexivity.
-Qed.
 
 Definition msg_lt (msg1 msg2 : message) : Prop :=
   state_lt (next msg1 Empty) (next msg2 Empty).
@@ -290,7 +251,6 @@ Proof.
   - apply msg_lt_transitive.
 Qed.
 
-
 Corollary msg_lt_total: TotalOrder msg_lt.
 Proof.
   unfold TotalOrder. 
@@ -314,7 +274,11 @@ Proof.
     * right. right. apply state_lt_C; try assumption.
 Qed.
 
-(*****************************************************)
+
+(****************************************)
+(** Canonical representation of states **)
+(****************************************)
+
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
           add_in_sorted msg Empty (next msg Empty)
@@ -405,74 +369,7 @@ Proof.
       apply add_in_Next_gt; assumption.
 Qed.
 
-Inductive in_state : message -> state -> Prop :=
-  | InState : forall msg' msg sigma, 
-          msg' = msg \/ in_state msg' sigma -> 
-          in_state msg' (next msg sigma)
-  .
-
-Theorem add_in_sorted_in : forall msg sigma sigma',
-  add_in_sorted msg sigma sigma' ->
-  forall msg', in_state msg' sigma' -> msg' = msg \/ in_state msg' sigma.
-Proof.
-  intros msg sigma sigma' H.
-  induction H as
-  [ [(hc, hv) hj]
-  | [(hc, hv) hj] Hsigma
-  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma HLT
-  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma Hsigma' HGT HAdd H_H 
-  ]; intros [(c', v') j'] HIn
-  ; inversion HIn as [[(inc, inv) inj] [(inc', inv') inj'] insigma [HInEq | HIn'] X Y ]
-    ; clear HIn; subst
-  ; try (right; assumption)
-  ; try (left; assumption)
-  . 
-  - right. constructor. right. assumption.
-  - inversion HInEq; clear HInEq; subst. right. constructor. left. reflexivity.
-  - apply H_H in HIn'. destruct HIn' as [HInEq | HIn'].
-    + left. assumption.
-    + right. constructor. right. assumption.
-Qed.
-
-Definition state_incl (sigma sigma' : state) : Prop :=
-  forall msg, in_state msg sigma -> in_state msg sigma'.
-
-Theorem state_incl_reflexive : forall sigma, state_incl sigma sigma.
-Proof.
-  - intro; intro; intros; assumption.
-Qed.
-
-Lemma not_next_state_incl_empty : forall msg sigma,
-  ~ state_incl (next msg sigma) Empty.
-Proof.
-  intros. intro. 
-  assert (H1 := H msg).
-  assert (H2 : in_state msg (next msg sigma)).
-  { constructor. left. reflexivity. }
-  apply H1 in H2. inversion H2; subst.
-  destruct msg0 as [(c0, v0) j0]. inversion H0.
-Qed.
-
-Definition state_set_eq (sigma sigma' : state) : Prop :=
-  state_incl sigma sigma' /\ state_incl sigma' sigma.
-
-Corollary not_next_state_set_eq_empty : forall msg sigma,
-  ~ state_set_eq (next msg sigma) Empty.
-Proof.
-  intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H).
-Qed.
-
-Corollary not_empty_state_set_eq_next : forall msg sigma,
-  ~ state_set_eq Empty (next msg sigma).
-Proof.
-  intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H0).
-Qed.
-
-Corollary state_set_eq_reflexive : forall sigma, state_set_eq sigma sigma.
-Proof.
-  intros. split; apply state_incl_reflexive.
-Qed.
-
+(** Sorted states **)
 Inductive locally_sorted : state -> Prop :=
   | LSorted_Empty : locally_sorted Empty
   | LSorted_Singleton : forall c v j,
@@ -532,7 +429,37 @@ Proof.
       apply add_in_Next_gt; assumption.
 Qed.
 
-(** Work in progress **)
+(** State equality **)
+
+(** Syntactic membership predicate **)
+Inductive in_state : message -> state -> Prop :=
+  | InState : forall msg' msg sigma, 
+          msg' = msg \/ in_state msg' sigma -> 
+          in_state msg' (next msg sigma)
+  .
+
+Theorem add_in_sorted_in : forall msg sigma sigma',
+  add_in_sorted msg sigma sigma' ->
+  forall msg', in_state msg' sigma' -> msg' = msg \/ in_state msg' sigma.
+Proof.
+  intros msg sigma sigma' H.
+  induction H as
+  [ [(hc, hv) hj]
+  | [(hc, hv) hj] Hsigma
+  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma HLT
+  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma Hsigma' HGT HAdd H_H 
+  ]; intros [(c', v') j'] HIn
+  ; inversion HIn as [[(inc, inv) inj] [(inc', inv') inj'] insigma [HInEq | HIn'] X Y ]
+    ; clear HIn; subst
+  ; try (right; assumption)
+  ; try (left; assumption)
+  . 
+  - right. constructor. right. assumption.
+  - inversion HInEq; clear HInEq; subst. right. constructor. left. reflexivity.
+  - apply H_H in HIn'. destruct HIn' as [HInEq | HIn'].
+    + left. assumption.
+    + right. constructor. right. assumption.
+Qed.
 
 Lemma state_set_In : forall msg1 msg2 sigma,
   locally_sorted (next msg2 sigma) ->
@@ -548,62 +475,34 @@ Proof.
     apply IHsigma2; assumption.
 Qed.
 
-Lemma state_set_eq_first_equal : forall c1 v1 j1 c2 v2 j2 sigma1 sigma2,
-  (state_set_eq j1 j2 -> j1 = j2 ) ->
-  locally_sorted (next (c1, v1, j1) sigma1) ->
-  locally_sorted (next (c2, v2, j2) sigma2) ->
-  state_set_eq (next (c1, v1, j1) sigma1) (next (c2, v2, j2) sigma2) ->
-  (c1, v1, j1) = (c2, v2, j2) /\ state_set_eq sigma1 sigma2.
-Proof.
-  intros. destruct H2.  split.
-  - assert (H21 := H2 (c1,v1,j1)).
-Admitted.
+(** Work in progress **)
 
+(** State equality (as sets) **)
+
+Inductive state_inclusion : state -> state -> Prop :=
+  | State_inclusion_Empty: forall sigma,
+      state_inclusion Empty sigma
+  | State_inclusion_Singleton_head: forall sigma c v j j1,
+      state_inclusion j j1 ->
+      state_inclusion j1 j ->
+      state_inclusion (next (c,v,j) Empty) (next (c,v,j1) sigma)
+  | State_inclusion_Singleton_tail: forall sigma msg1 msg2,
+      state_inclusion (next msg1 Empty) sigma ->
+      state_inclusion (next msg1 Empty) (next msg2 sigma)
+  | State_inclusion_Next: forall sigma1 sigma2 msg1 msg1',
+      state_inclusion (next msg1 Empty) sigma2 ->
+      state_inclusion (next msg1' sigma1) sigma2 ->
+      state_inclusion (next msg1 (next msg1' sigma1)) sigma2
+  .
+
+(**
 Theorem state_set_eq_equality : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   state_set_eq sigma1 sigma2 <-> sigma1 = sigma2.
 Proof.
-  intros.
-  split.
-  - generalize dependent sigma2.
-    induction H as
-    [
-    | c v j LSj
-    | c v j [(c', v') j'] sigma1 LSj HLSj  LT LS1
-    ]
-    ; intros sigma2 LS2; destruct sigma2
-    .
-    + intros. reflexivity.
-    + intros. rewrite add_is_next in *.
-      exfalso. apply (not_empty_state_set_eq_next _ _ H).
-    + intros.
-      exfalso. apply (not_next_state_set_eq_empty _ _ H).
-    + intros. rewrite add_is_next in *.
-      inversion LS2; subst; assert (LS1 : locally_sorted (next (c, v, j) Empty));
-      try ( constructor; assumption). 
-      * apply (state_set_eq_first_equal _ _ _ _ _ _ _ _ (IHLSj _ H1) LS1 LS2) in H.
-        destruct H. inversion H; subst. reflexivity.
-      * apply (state_set_eq_first_equal _ _ _ _ _ _ _ _ (IHLSj _ H3) LS1 LS2) in H.
-        destruct H. exfalso. apply (not_empty_state_set_eq_next _ _ H0).
-    + intros. exfalso. apply (not_next_state_set_eq_empty _ _ H).
-    + intros. rewrite add_is_next in *.
-      inversion LS2; subst.
-      * exfalso. apply (not_next_state_set_eq_empty (c', v', j') sigma1).
-      apply proj2 with (A := (c, v, j) = (c0, v0, sigma2_1)).
-      apply state_set_eq_first_equal; try assumption.
-      { apply HLSj. assumption. }
-      { apply LSorted_Next; assumption. }
-      * assert (HSplit :  (c, v, j) = (c0, v0, sigma2_1) /\ state_set_eq (next (c', v', j') sigma1) (next msg' sigma)).
-        { apply state_set_eq_first_equal; try assumption.
-          - apply HLSj; assumption.
-          -  apply LSorted_Next; assumption.
-        }
-        destruct HSplit as [HSplit1 HSplit2].
-        inversion_clear HSplit1; subst.
-        apply (IHLS1 _ H6) in HSplit2. rewrite HSplit2. reflexivity.
-  - intro; subst. apply state_set_eq_reflexive.
-Qed.
+  Admitted.
+**)
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -668,10 +567,9 @@ Inductive fault_weight_msg : message -> message -> R -> Prop :=
       in_state (c2,v,j2) j1 ->
       fault_weight_msg (c1,v,j1) (c2,v,j2) 0
   | fault_weight_next: forall c1 c2 v j1 j2,
-      c1 <> c2 ->
-      j1 <> j2 ->
+      c1 <> c2 \/ j1 <> j2 ->
       not (in_state (c1,v,j1) j2) ->
-      not (in_state (c2,v,j2) j2) ->
+      not (in_state (c2,v,j2) j1) ->
       fault_weight_msg (c1,v,j1) (c2,v,j2) (weight v)
   .
 
@@ -755,8 +653,144 @@ Inductive fault_weight_msgs : list message -> R -> Prop :=
   .
 
 
+Inductive state_eq : state -> state -> Prop :=
+  | state_eq_Empty : state_eq Empty Empty 
+  | state_eq_Next : forall c v j1 j2 sigma1 sigma2,
+      state_eq j1 j2 ->
+      state_eq sigma1 sigma2 ->
+      state_eq (add (c,v,j1) to sigma1) (add (c,v,j2) to sigma2)
+  .
 
+Theorem state_eq_reflexive:
+  forall sigma, state_eq sigma sigma.
+Proof.
+  induction sigma.
+  - constructor.
+  - constructor; (try assumption; reflexivity).
+Qed.
 
+Theorem state_equality_predicate:
+  forall sigma1 sigma2, sigma1 = sigma2 <-> state_eq sigma1 sigma2.
+Proof.
+  split.
+  - intros. subst. apply state_eq_reflexive.
+  - intros. induction H.
+    + reflexivity.
+    + subst. reflexivity.
+Qed.
+
+Definition msg_eq (msg1 msg2 : message) : Prop :=
+  state_eq (next msg1 Empty) (next msg2 Empty).
+
+Corollary msg_equality_predicate:
+  forall msg1 msg2, msg1 = msg2 <-> msg_eq msg1 msg2.
+Proof.
+  destruct msg1 as [(c1,v1) j1].
+  destruct msg2 as [(c2,v2) j2].
+  unfold msg_eq. unfold next.
+  split; intros.
+  - inversion H; subst. apply state_equality_predicate. reflexivity.
+  - apply state_equality_predicate in H. inversion H; subst. reflexivity.
+Qed.
+
+Lemma state_set_eq_first_equal : forall c1 v1 j1 c2 v2 j2 sigma1 sigma2,
+  (state_set_eq j1 j2 -> j1 = j2 ) ->
+  locally_sorted (next (c1, v1, j1) sigma1) ->
+  locally_sorted (next (c2, v2, j2) sigma2) ->
+  state_set_eq (next (c1, v1, j1) sigma1) (next (c2, v2, j2) sigma2) ->
+  (c1, v1, j1) = (c2, v2, j2) /\ state_set_eq sigma1 sigma2.
+Proof.
+  intros. destruct H2.  split.
+  - assert (H21 := H2 (c1,v1,j1)).
+Admitted.
+
+Theorem state_set_eq_equality : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  state_set_eq sigma1 sigma2 <-> sigma1 = sigma2.
+Proof.
+  intros.
+  split.
+  - generalize dependent sigma2.
+    induction H as
+    [
+    | c v j LSj
+    | c v j [(c', v') j'] sigma1 LSj HLSj  LT LS1
+    ]
+    ; intros sigma2 LS2; destruct sigma2
+    .
+    + intros. reflexivity.
+    + intros. rewrite add_is_next in *.
+      exfalso. apply (not_empty_state_set_eq_next _ _ H).
+    + intros.
+      exfalso. apply (not_next_state_set_eq_empty _ _ H).
+    + intros. rewrite add_is_next in *.
+      inversion LS2; subst; assert (LS1 : locally_sorted (next (c, v, j) Empty));
+      try ( constructor; assumption). 
+      * apply (state_set_eq_first_equal _ _ _ _ _ _ _ _ (IHLSj _ H1) LS1 LS2) in H.
+        destruct H. inversion H; subst. reflexivity.
+      * apply (state_set_eq_first_equal _ _ _ _ _ _ _ _ (IHLSj _ H3) LS1 LS2) in H.
+        destruct H. exfalso. apply (not_empty_state_set_eq_next _ _ H0).
+    + intros. exfalso. apply (not_next_state_set_eq_empty _ _ H).
+    + intros. rewrite add_is_next in *.
+      inversion LS2; subst.
+      * exfalso. apply (not_next_state_set_eq_empty (c', v', j') sigma1).
+      apply proj2 with (A := (c, v, j) = (c0, v0, sigma2_1)).
+      apply state_set_eq_first_equal; try assumption.
+      { apply HLSj. assumption. }
+      { apply LSorted_Next; assumption. }
+      * assert (HSplit :  (c, v, j) = (c0, v0, sigma2_1) /\ state_set_eq (next (c', v', j') sigma1) (next msg' sigma)).
+        { apply state_set_eq_first_equal; try assumption.
+          - apply HLSj; assumption.
+          -  apply LSorted_Next; assumption.
+        }
+        destruct HSplit as [HSplit1 HSplit2].
+        inversion_clear HSplit1; subst.
+        apply (IHLS1 _ H6) in HSplit2. rewrite HSplit2. reflexivity.
+  - intro; subst. apply state_set_eq_reflexive.
+Qed.
+
+(** work in progress (syntactic inclusion) **)
+
+Definition state_incl (sigma sigma' : state) : Prop :=
+  forall msg, in_state msg sigma -> in_state msg sigma'.
+
+Theorem state_incl_reflexive : forall sigma, state_incl sigma sigma.
+Proof.
+  - intro; intro; intros; assumption.
+Qed.
+
+Lemma not_next_state_incl_empty : forall msg sigma,
+  ~ state_incl (next msg sigma) Empty.
+Proof.
+  intros. intro. 
+  assert (H1 := H msg).
+  assert (H2 : in_state msg (next msg sigma)).
+  { constructor. left. reflexivity. }
+  apply H1 in H2. inversion H2; subst.
+  destruct msg0 as [(c0, v0) j0]. inversion H0.
+Qed.
+
+Definition state_set_eq (sigma sigma' : state) : Prop :=
+  state_incl sigma sigma' /\ state_incl sigma' sigma.
+
+Corollary not_next_state_set_eq_empty : forall msg sigma,
+  ~ state_set_eq (next msg sigma) Empty.
+Proof.
+  intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H).
+Qed.
+
+Corollary not_empty_state_set_eq_next : forall msg sigma,
+  ~ state_set_eq Empty (next msg sigma).
+Proof.
+  intros. intro. destruct H. apply (not_next_state_incl_empty _ _ H0).
+Qed.
+
+Corollary state_set_eq_reflexive : forall sigma, state_set_eq sigma sigma.
+Proof.
+  intros. split; apply state_incl_reflexive.
+Qed.
+(** end of work in progress **)
 *)
 
 
