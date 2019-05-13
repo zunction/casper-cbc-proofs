@@ -2,6 +2,12 @@ From Casper
 Require Import full_version.
 
 (** work in progress **)
+
+Lemma protocol_state_next_backwards_justification : forall c v j sigma,
+  protocol_state (next (c,v,j) sigma) ->
+  protocol_state j.
+Admitted.
+
 Lemma union_state_empty_left : forall sigma1 sigma2,
   sorted_union Empty sigma1 sigma2 -> sigma1 = sigma2.
 Proof.
@@ -28,14 +34,29 @@ Proof.
     inversion H0.
 Qed.
 
-Lemma protocol_state_backwards : forall msg sigma,
+Lemma next_equal : forall msg1 msg2 state1 state2,
+  next msg1 state1 = next msg2 state2 ->
+  (msg1 = msg2 /\ state1 = state2).
+Admitted.
+
+Lemma sorted_union_noduplicates_left: forall msg sigma1 sigma2 sigma,
+  sorted_union (next msg sigma1) (next msg sigma2) (next msg sigma) ->
+  sorted_union sigma1 (next msg sigma2) (next msg sigma).
+Admitted.
+
+Lemma protocol_state_next_backwards_state : forall msg sigma,
   protocol_state (next msg sigma) -> protocol_state sigma.
 Admitted.
 
-Lemma protocol_state_next : forall msg sigma,
-  protocol_state sigma ->
-  fault_tolerance_condition (next msg sigma) ->
-  protocol_state (next msg sigma).
+
+Lemma protocol_state_next_backwards_valid_message : forall c v j sigma,
+  protocol_state (next (c,v,j) sigma) ->
+  valid_msg_condition c j.
+Admitted.
+
+Lemma protocol_state_next_inclusion : forall c v j sigma,
+  protocol_state (next (c,v,j) sigma) ->
+  j => sigma.
 Admitted.
 
 Lemma fault_tolerance_condition_backwards: forall msg sigma,
@@ -43,9 +64,27 @@ Lemma fault_tolerance_condition_backwards: forall msg sigma,
   fault_tolerance_condition sigma.
 Admitted.
 
-Lemma next_equal : forall msg1 msg2 state1 state2,
-  next msg1 state1 = next msg2 state2 ->
-  (msg1 = msg2 /\ state1 = state2).
+Lemma sorted_union_subset_left : forall sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  sigma1 => sigma.
+Admitted.
+
+Lemma sorted_union_subset_right : forall sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  sigma2 => sigma.
+Admitted.
+
+Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
+  sigma1 => sigma2 ->
+  sigma2 => sigma3 ->
+  sigma1 => sigma3.
+Admitted. 
+
+Lemma sorted_union_min : forall msg1 msg2 sigma1 sigma2 sigma,
+  msg_lt msg1 msg2 ->
+  sorted_union sigma1 (next msg2 sigma2) sigma ->
+  sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg1 sigma) ->
+  add_in_sorted msg1 sigma (next msg1 sigma).
 Admitted.
 
 Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
@@ -56,20 +95,39 @@ Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
   protocol_state sigma.
 Proof.
   intros sigma1 sigma2 sigma H1 H2 HUnion HFault.
-  generalize dependent sigma1.
   generalize dependent sigma2.
-  induction sigma as [ | sc sv sj _]; try intros.
-  - constructor.
+  generalize dependent sigma.
+  induction sigma1 as [ | sc1 sv1 sj1 _]; try intros.
+  - apply union_state_empty_left in HUnion; subst. assumption.
   - rewrite add_is_next in *.
-    apply protocol_state_next; try assumption.
-    inversion HUnion; subst.
-    + apply protocol_state_backwards in H2. assumption.
-    + apply protocol_state_backwards in H1. assumption.
+    inversion HUnion; subst; try assumption.
     + rewrite add_is_next in H.
-      apply fault_tolerance_condition_backwards in HFault.
-      apply protocol_state_backwards in H1.
-      apply protocol_state_backwards in H2.
-      apply (IHsigma1 HFault sigma4 H2 sigma3 H1).
       apply next_equal in H. destruct H; subst.
-      assumption.
-    + Admitted.
+      apply sorted_union_noduplicates_left in HUnion.
+      apply protocol_state_next_backwards_state in H1.
+      apply (IHsigma1_1 H1 (next (sc1,sv1,sj1) sigma') 
+                        HFault (next (sc1,sv1,sj1) sigma0) H2 HUnion).
+    + rewrite add_is_next in H.
+      apply next_equal in H. destruct H; subst.
+      apply protocol_state_next_backwards_state in H1 as H1_1.
+      apply fault_tolerance_condition_backwards in HFault as HFault_1.
+      apply IHsigma1_1 with (sigma') (next msg2 sigma0) in H1_1 as H_sigma'; try assumption.
+      apply protocol_state_next with (sc1) (sv1) (sj1) (sigma'); try assumption.
+      * apply protocol_state_next_backwards_justification in H1. assumption.
+      * unfold full_node_condition.
+        apply protocol_state_next_inclusion in H1.
+        apply sorted_union_subset_left in H3.
+        apply (sorted_subset_transitive sj1 sigma1_1 sigma' H1 H3).
+      * apply protocol_state_next_backwards_valid_message in H1. assumption.
+      * apply (sorted_union_min (sc1, sv1, sj1) msg2 sigma1_1 sigma0 sigma' H0 H3 HUnion).
+    + rewrite add_is_next in H.
+      apply next_equal in H. destruct H; subst.
+      destruct msg2 as [(sc2,sv2) sj2].
+      apply protocol_state_next with (sc2) (sv2) (sj2) (sigma'); try assumption.
+      * apply protocol_state_next_backwards_justification in H2. assumption.
+      * Admitted.
+
+
+
+
+
