@@ -498,33 +498,98 @@ Inductive state_inclusion : state -> state -> Prop :=
 Definition set_in_state (msg : message) (sigma : state) : Prop :=
   state_inclusion (next msg Empty) sigma.
 
-Theorem state_inclusion_reflexive : forall sigma, state_inclusion sigma sigma.
-Admitted.
+Lemma state_inclusion_next : forall c v j sigma sigma',
+  state_inclusion sigma sigma' -> state_inclusion sigma (next (c,v,j) sigma').
+Proof.
+  intros c v j sigma. generalize dependent j. generalize dependent v . generalize dependent c.
+  induction sigma; intros.
+  - apply State_inclusion_Empty.
+  - inversion H; subst; repeat (rewrite add_is_next in *).
+    + apply State_inclusion_Singleton_tail. apply H.
+    + repeat (apply State_inclusion_Singleton_tail). apply H1.
+    + apply State_inclusion_Next.
+      *  apply State_inclusion_Singleton_tail. apply H1.
+      * destruct msg1 as [(c1, v1) j1]; inversion H0; subst.
+        apply IHsigma2. apply H2.
+Qed.
 
+Lemma state_inclusion_empty : forall sigma,
+  state_inclusion sigma Empty -> sigma = Empty.
+Proof.
+  intros.
+  remember Empty as sigma1.
+  induction H; try inversion Heqsigma1; subst; try reflexivity.
+  - destruct msg2 as [(c2, v2) j2]; inversion H1.
+  - destruct msg1 as [(c1, v1) j1]; inversion H; subst; clear H.
+    + destruct msg2 as [(c2, v2) j2]; inversion H3.
+    + destruct msg1 as [(c1', v1') j1']; inversion H2; subst; clear H2.
+      destruct msg1'0 as [(c1'0, v1'0) j1'0]; inversion H8.
+Qed.
+
+Theorem state_inclusion_reflexive : forall sigma, state_inclusion sigma sigma.
+Proof.
+  induction sigma.
+  - apply State_inclusion_Empty.
+  - destruct sigma2.
+    + apply State_inclusion_Singleton_head; apply IHsigma1.
+    + rewrite add_is_next in *. rewrite add_is_next in *. apply State_inclusion_Next;
+      try (apply State_inclusion_Singleton_head; assumption).
+      apply state_inclusion_next. apply IHsigma2.
+Qed.
 
 Definition state_eq (sigma1 sigma2 : state) : Prop :=
   state_inclusion sigma1 sigma2 /\ state_inclusion sigma2 sigma1.
 
 Theorem state_eq_reflexive : forall sigma, state_eq sigma sigma.
-Admitted.
+Proof.
+  intros. split; apply state_inclusion_reflexive.
+Qed.
 
 Theorem set_in_state_syntactic : forall msg sigma,
   in_state msg sigma ->
   set_in_state msg sigma.
-Admitted.
+Proof.
+  intros. destruct msg as [(c, v) j]. generalize dependent j. generalize dependent v. generalize dependent c.
+  induction sigma; intros.
+  - inversion H; subst. destruct msg as [(c', v') j']. inversion H0.
+  - inversion H; subst; clear H. destruct msg as [(c', v') j']. inversion H0; subst; clear H0.
+    destruct H2.
+    + inversion H; subst; clear H. apply State_inclusion_Singleton_head; apply state_inclusion_reflexive.
+    +apply  State_inclusion_Singleton_tail. apply IHsigma2. apply H.
+Qed.
 
-Theorem set_in_state_sorted : forall c v j sigma,
-  locally_sorted sigma ->
-  locally_sorted j ->
-  set_in_state (c,v,j) sigma <-> in_state (c, v, j) sigma.
-Admitted.
 
 
 Theorem state_eq_equality_predicate : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
-  state_eq sigma1 sigma2 <-> sigma1 = sigma2.
+  state_eq sigma1 sigma2 -> sigma1 = sigma2.
+Proof.
+  intros sigma1 sigma2 H. generalize dependent sigma2.
+  induction H; intros sigma2 LS2 EQ; destruct EQ as [I12 I21].
+  - destruct sigma2; try reflexivity. inversion I21; subst; clear I21.
+    + destruct msg2 as [(c2, v2) j2]. inversion H0.
+    +
+    
+  
 Admitted.
+
+
+Theorem set_in_state_sorted : forall c v j sigma,
+  locally_sorted sigma ->
+  locally_sorted j ->
+  set_in_state (c,v,j) sigma -> in_state (c, v, j) sigma.
+Proof.
+  intros c v j sigma H. generalize dependent j. generalize dependent v. generalize dependent c.
+  induction H; intros.
+  - inversion H0; subst; clear H0. 
+    + destruct msg2 as [(c2, v2) j2]. inversion H2.
+    + destruct msg1 as [(c1, v1) j1]. inversion H1; subst; clear H1.
+      destruct msg1' as [(c1', v1') j1']. inversion H7.
+  - inversion H1; subst; clear H1.
+    + unfold in_state. apply State_inclusion_Singleton_head.
+Admitted.
+
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
