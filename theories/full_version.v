@@ -540,9 +540,31 @@ Qed.
 Definition state_eq (sigma1 sigma2 : state) : Prop :=
   state_inclusion sigma1 sigma2 /\ state_inclusion sigma2 sigma1.
 
+Lemma state_inclusion_singleton : forall msg msg',
+  state_inclusion (next msg Empty) (next msg' Empty) ->
+  exists c v j j', msg = (c, v, j) /\ msg' = (c, v, j') /\ state_eq j j'.
+Proof.
+  intros.
+  destruct msg as [(c, v) j]. destruct msg' as [(c', v') j'].
+  inversion H; subst.
+  - exists c'. exists v'. exists j. exists j'.
+    repeat (split; try reflexivity); assumption.
+  - destruct msg2 as [(c2, v2) j2]. inversion H1; subst.
+    apply state_inclusion_empty in H2. 
+    destruct msg1 as [(c1, v1) j1]. inversion H2.
+  - destruct msg1 as [(c1, v1) j1]. inversion H0; subst.
+    destruct msg1' as [(c1', v1') j1']. inversion H7.
+Qed.
+
 Theorem state_eq_reflexive : forall sigma, state_eq sigma sigma.
 Proof.
   intros. split; apply state_inclusion_reflexive.
+Qed.
+
+Theorem state_eq_commutative : forall sigma1 sigma2,
+  state_eq sigma1 sigma2 -> state_eq sigma2 sigma1.
+Proof.
+  intros. destruct H. split; assumption.
 Qed.
 
 Theorem set_in_state_syntactic : forall msg sigma,
@@ -555,7 +577,7 @@ Proof.
   - inversion H; subst; clear H. destruct msg as [(c', v') j']. inversion H0; subst; clear H0.
     destruct H2.
     + inversion H; subst; clear H. apply State_inclusion_Singleton_head; apply state_inclusion_reflexive.
-    +apply  State_inclusion_Singleton_tail. apply IHsigma2. apply H.
+    + apply  State_inclusion_Singleton_tail. apply IHsigma2. apply H.
 Qed.
 
 
@@ -569,9 +591,51 @@ Proof.
   induction H; intros sigma2 LS2 EQ; destruct EQ as [I12 I21].
   - destruct sigma2; try reflexivity. inversion I21; subst; clear I21.
     + destruct msg2 as [(c2, v2) j2]. inversion H0.
-    +
-    
-  
+    + apply state_inclusion_empty in H0. destruct msg1 as [(c1, v1) j1]. inversion H0.
+  - inversion I21; subst.
+    + apply state_inclusion_empty in I12. inversion I12.
+    + assert (Eqj : j = j0).
+      { apply locally_sorted_head in LS2.
+        apply (IHlocally_sorted j0 LS2).
+        split; assumption.
+      }
+      subst. reflexivity.
+    + apply state_inclusion_singleton in I12.
+      destruct I12 as [c0 [v0 [j0 [j' [EQ1 [EQ2 EQ3]]]]]].
+      inversion EQ1; subst; clear EQ1.
+      apply locally_sorted_head in LS2.
+      apply (IHlocally_sorted j' LS2) in EQ3.
+      subst.
+      reflexivity.
+    + apply state_inclusion_singleton in H0.
+      destruct H0 as [c0 [v0 [j0 [j' [EQ1 [EQ2 EQ3]]]]]].
+      inversion EQ2; subst; clear EQ2.
+      destruct msg1' as [(c1', v1') j1'].
+      inversion LS2; subst.
+      inversion H1; subst.
+      * inversion LS2; subst.
+        destruct msg' as [(c'', v'') j''].
+        apply state_eq_commutative in EQ3.
+        apply (IHlocally_sorted j0 H4) in EQ3.
+        subst.
+        destruct msg'0 as [(c'0, v'0) j'0].
+        inversion H10; subst; clear H10.
+        apply  locally_sorted_head in H12.
+        assert (j0 = j1').
+        { apply IHlocally_sorted; try assumption. split; assumption. }
+        subst.
+        apply msg_lt_irreflexive in H11.
+        inversion H11.
+      * destruct msg1 as [(c1, v1) j1]. inversion H0; subst; clear H0.
+        destruct msg2 as [(c2, v2) j2]. inversion H2; subst; clear H2.
+        destruct msg' as [(c'', v'') j'']. inversion H5; subst; clear H5.
+        apply state_inclusion_empty in H3. inversion H3.
+      * destruct msg1 as [(c1, v1) j1].  inversion H0; subst; clear H0.
+        destruct msg' as [(c'', v'') j'']. inversion H5; subst; clear H5.
+        apply state_inclusion_singleton in H2.
+        destruct H2 as [c2 [v2 [j2 [j2' [EQ21 [EQ22 EQ23]]]]]].
+        inversion EQ21; subst; clear EQ21.
+        inversion EQ22; subst; clear EQ22.
 Admitted.
 
 
