@@ -115,45 +115,46 @@ Proof.
   induction sigma as [ | sc sv sj _]; try intros.
   + constructor.
   + rewrite add_is_next in *.
-    inversion HUnion; subst; 
-    try (assumption || 
-         rewrite add_is_next in H; apply next_equal in H; destruct H; subst).
-    (** case msg1 = msg2 **)
-    - apply protocol_state_next_backwards_state in H2 as H2_next.
-      apply protocol_state_next_backwards_state in H1 as H1_next.
-      apply fault_tolerance_condition_backwards in HFault as HFault_next.
-      apply IHsigma1 with (sigma4) (sigma3) in HFault_next as H_sigma1; try assumption.
-      apply protocol_state_next with (sc) (sv) (sj) (sigma1); try assumption.
-      * apply protocol_state_next_backwards_justification in H1. assumption.
-      * unfold full_node_condition.
-        apply protocol_state_next_inclusion in H1.
-        apply sorted_union_subset_left in H4.
-        apply (sorted_subset_transitive sj sigma3 sigma1 H1 H4).
-      * apply protocol_state_next_backwards_valid_message in H1. assumption.
-      * apply (sorted_union_first_eq (sc, sv, sj) sigma3 sigma4 sigma1 H4 HUnion).
+    inversion HUnion as 
+      [ gamma U1 U2 UNext
+      | gamma U1 U2 UNext
+      | msg gamma1 gamma2 gamma' HUnion_next U1 U2 UNext
+      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next U1 U2 UNext
+      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next U1 U2 UNext
+      ]
+    ; subst
+    ; try assumption
+    ; rewrite add_is_next in *
+    ; apply next_equal in UNext
+    ; destruct UNext
+    ; subst
+    ; apply fault_tolerance_condition_backwards in HFault as HFault_next
+    ; apply protocol_state_next_backwards_state in H2 as H2_next
+    ; apply protocol_state_next_backwards_state in H1 as H1_next
+    ; apply IHsigma1  in HUnion_next as H_sigma1 ; try assumption
+    ; apply protocol_state_next with (sc) (sv) (sj) (sigma1); try assumption
+    ; try (apply protocol_state_next_backwards_justification in H1;  assumption)
+    ; try (apply protocol_state_next_backwards_justification in H2;  assumption)
+    ; try unfold full_node_condition
+    ; try (
+        apply sorted_union_subset_left in HUnion_next
+      ; apply protocol_state_next_inclusion in H1
+      ; apply (sorted_subset_transitive sj gamma1 sigma1 H1 HUnion_next)
+      )
+    ; try (
+        apply sorted_union_subset_right in HUnion_next
+      ; apply protocol_state_next_inclusion in H2
+      ; apply (sorted_subset_transitive sj gamma2 sigma1 H2 HUnion_next)
+      )
+    ; try apply protocol_state_next_backwards_valid_message in H1
+    ; try apply protocol_state_next_backwards_valid_message in H2
+    ; try assumption
+    .
+    (** case msg1 == msg2 **)
+      * apply (sorted_union_first_eq (sc, sv, sj) gamma1 gamma2 sigma1 HUnion_next HUnion).
     (** case msg1 < msg2 **)
-    - apply protocol_state_next_backwards_state in H1 as H1_next.
-      apply fault_tolerance_condition_backwards in HFault as HFault_next.
-      apply IHsigma1 with (next msg2 sigma4) (sigma3) in HFault_next as H_sigma1; try assumption.
-      apply protocol_state_next with (sc) (sv) (sj) (sigma1); try assumption.
-      * apply protocol_state_next_backwards_justification in H1. assumption.
-      * unfold full_node_condition.
-        apply protocol_state_next_inclusion in H1.
-        apply sorted_union_subset_left in H5.
-        apply (sorted_subset_transitive sj sigma3 sigma1 H1 H5).
-      * apply protocol_state_next_backwards_valid_message in H1. assumption.
-      * apply (sorted_union_first_lt (sc, sv, sj) msg2 sigma3 sigma4 sigma1 H0 H5 HUnion).
+      * apply (sorted_union_first_lt (sc, sv, sj) msg2 gamma1 gamma2 sigma1 LT HUnion_next HUnion).
      (** case msg1 > msg2 **)
-    - apply protocol_state_next_backwards_state in H2 as H2_next.
-      apply fault_tolerance_condition_backwards in HFault as HFault_next.
-      apply IHsigma1 with (sigma4) (next msg1 sigma3) in HFault_next as H_sigma1; try assumption.
-      apply protocol_state_next with (sc) (sv) (sj) (sigma1); try assumption.
-      * apply protocol_state_next_backwards_justification in H2. assumption.
-      * unfold full_node_condition.
-        apply protocol_state_next_inclusion in H2.
-        apply sorted_union_subset_right in H5.
-        apply (sorted_subset_transitive sj sigma4 sigma1 H2 H5).
-      * apply protocol_state_next_backwards_valid_message in H2. assumption.
-      * apply (sorted_union_first_gt msg1 (sc, sv, sj) sigma3 sigma4 sigma1 H0 H5 HUnion).
+      * apply (sorted_union_first_gt msg1 (sc, sv, sj) gamma1 gamma2 sigma1 GT HUnion_next HUnion).
 Qed.
 
