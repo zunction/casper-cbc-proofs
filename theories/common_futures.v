@@ -3,17 +3,18 @@ Require Import full_version.
 
 (** work in progress **)
 
-Lemma locally_sorted_next_message : forall msg sigma,
-  locally_sorted (next msg sigma) ->
-  add_in_sorted msg sigma (next msg sigma).
-Admitted.
-
-Lemma sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  sorted_union sigma1 sigma2 sigma ->
-  locally_sorted sigma.
-Admitted.
+Lemma next_equal : forall msg1 msg2 state1 state2,
+  next msg1 state1 = next msg2 state2 ->
+  (msg1 = msg2 /\ state1 = state2).
+Proof.
+  intros.
+  destruct msg1 as [(c1,v1) j1].
+  destruct msg2 as [(c2,v2) j2].
+  rewrite <- add_is_next in H.
+  rewrite <- add_is_next in H.
+  inversion H; subst.
+  split; try reflexivity.
+Qed.
 
 Lemma sorted_union_subset_left : forall sigma1 sigma2 sigma,
   sorted_union sigma1 sigma2 sigma ->
@@ -34,33 +35,85 @@ Admitted.
 Lemma union_state_empty_left : forall sigma1 sigma2,
   sorted_union Empty sigma1 sigma2 -> sigma1 = sigma2.
 Proof.
-  intros.
-  inversion H; try (subst; reflexivity).
-  - destruct msg as [(c,v) j]. unfold next in H0.
-    inversion H0.
-  - destruct msg1 as [(c,v) j]. unfold next in H0.
-    inversion H0.
-  - destruct msg1 as [(c,v) j]. unfold next in H0.
-    inversion H0.
+  intros sigma1 sigma2 HUnion.
+  inversion HUnion as
+     [ gamma U1 U2 UNext
+      | gamma U1 U2 UNext
+      | msg1 gamma1 gamma2 gamma' HUnion_next U1 U2 UNext
+      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next U1 U2 UNext
+      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next U1 U2 UNext
+      ]
+  ; subst 
+  ; try reflexivity 
+  ; destruct msg1 as [(c,v) j]
+  ; unfold next in U1
+  ; inversion U1.
 Qed.
 
 Lemma union_state_empty_right : forall sigma1 sigma2,
   sorted_union sigma1 Empty sigma2 -> sigma1 = sigma2.
 Proof.
-  intros.
-  inversion H; try (subst; reflexivity).
-  - destruct msg as [(c,v) j]. unfold next in H0.
-    inversion H0.
-  - destruct msg2 as [(c,v) j]. unfold next in H0.
-    inversion H0.
-  - destruct msg2 as [(c,v) j]. unfold next in H0.
-    inversion H0.
+  intros sigma1 sigma2 HUnion.
+  inversion HUnion as
+     [ gamma U1 U2 UNext
+      | gamma U1 U2 UNext
+      | msg2 gamma1 gamma2 gamma' HUnion_next U1 U2 UNext
+      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next U1 U2 UNext
+      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next U1 U2 UNext
+      ]
+  ; subst 
+  ; try reflexivity 
+  ; destruct msg2 as [(c,v) j]
+  ; unfold next in U2
+  ; inversion U2.
 Qed.
 
-Lemma next_equal : forall msg1 msg2 state1 state2,
-  next msg1 state1 = next msg2 state2 ->
-  (msg1 = msg2 /\ state1 = state2).
+Lemma locally_sorted_next_message : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  add_in_sorted msg sigma (next msg sigma).
+Proof.
+  intros.
+  inversion H as
+    [ M 
+    | c v j Hj M 
+    | c v j msg' gamma Hj LT LocS M 
+    ]
+   ; subst
+   ; try ( rewrite add_is_next in *
+         ; apply next_equal in M
+         ; destruct M; subst
+         ; constructor
+         ; assumption
+         )
+   .
+  - destruct msg as [(sc, sv) sj].
+    rewrite <- add_is_next in M. inversion M.
+Qed.
+
+Lemma sorted_union_all_messages : forall msg sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  in_state msg sigma ->
+  (in_state msg sigma1 \/ in_state msg sigma2).
 Admitted.
+
+Lemma sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->  
+  locally_sorted sigma.
+Proof.
+  intros sigma1 sigma2 sigma HUnion.
+  induction HUnion as 
+      [ gamma
+      | gamma
+      | msg gamma1 gamma2 gamma' HUnion_next
+      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next
+      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next
+      ]
+  ; intros
+  ; try assumption
+  .
+  Admitted.
 
 (** Protocol state properties **)
 
