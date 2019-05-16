@@ -3,6 +3,46 @@ Require Import full_version.
 
 (** work in progress **)
 
+Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
+  sigma1 => sigma2 ->
+  sigma2 => sigma3 ->
+  sigma1 => sigma3.
+Admitted. 
+
+Lemma sorted_union_all_messages : forall msg sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  in_state msg sigma ->
+  (in_state msg sigma1 \/ in_state msg sigma2).
+Admitted.
+
+Lemma sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->  
+  locally_sorted sigma.
+Proof.
+  intros sigma1 sigma2 sigma HUnion.
+  induction HUnion as 
+      [ gamma
+      | gamma
+      | msg gamma1 gamma2 gamma' HUnion_next
+      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next
+      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next
+      ]
+  ; intros
+  ; try assumption
+  .
+  Admitted.
+
+Corollary sorted_subset_reflexive : forall sigma, 
+  locally_sorted sigma ->
+  sorted_subset sigma sigma.
+Proof.
+  intros.
+  apply sorted_subset_inclusion; try assumption.
+  apply state_inclusion_reflexive.
+Qed.
+
 Lemma next_equal : forall msg1 msg2 state1 state2,
   next msg1 state1 = next msg2 state2 ->
   (msg1 = msg2 /\ state1 = state2).
@@ -16,21 +56,77 @@ Proof.
   split; try reflexivity.
 Qed.
 
+Lemma state_inclusion_next_right : forall msg sigma,
+  locally_sorted sigma ->
+  sigma => (next msg sigma).
+Admitted.
+
+Lemma sorted_subset_next : forall msg sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  sigma1 => sigma2 ->
+  (next msg sigma1) => (next msg sigma2).
+Admitted.
+
+Lemma locally_sorted_next_backwards : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  locally_sorted sigma.
+Admitted.
+
+
 Lemma sorted_union_subset_left : forall sigma1 sigma2 sigma,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
   sorted_union sigma1 sigma2 sigma ->
   sigma1 => sigma.
-Admitted.
+Proof.
+  intros sigma1 sigma2 sigma LocS_sigma1 LocS_sigma2 HUnion.
+  induction HUnion.
+  - constructor.
+  - apply sorted_subset_reflexive. assumption.
+  - apply locally_sorted_next_backwards in LocS_sigma1.
+    apply locally_sorted_next_backwards in LocS_sigma2.
+    assert (Hincl := IHHUnion LocS_sigma1 LocS_sigma2).
+    assert (Hlsorted := sorted_union_locally_sorted sigma1 sigma2 sigma' HUnion LocS_sigma1 LocS_sigma2).
+    apply sorted_subset_next; try assumption.
+  - apply locally_sorted_next_backwards in LocS_sigma1.
+    assert (Hincl := IHHUnion LocS_sigma1 LocS_sigma2).
+    assert (Hlsorted := sorted_union_locally_sorted sigma1 (next msg2 sigma2) sigma' HUnion LocS_sigma1 LocS_sigma2).
+    apply sorted_subset_next; try assumption.
+  - apply locally_sorted_next_backwards in LocS_sigma2.
+    assert (Hincl := IHHUnion LocS_sigma1 LocS_sigma2).
+    assert (Hlsorted := sorted_union_locally_sorted (next msg1 sigma1) sigma2 sigma' HUnion LocS_sigma1 LocS_sigma2).
+    assert (Hincl_next := state_inclusion_next_right msg2 sigma' Hlsorted).
+    apply (sorted_subset_transitive (next msg1 sigma1) sigma' (next msg2 sigma') Hincl Hincl_next).
+Qed.
+
 
 Lemma sorted_union_subset_right : forall sigma1 sigma2 sigma,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
   sorted_union sigma1 sigma2 sigma ->
   sigma2 => sigma.
-Admitted.
+Proof.
+  intros sigma1 sigma2 sigma LocS_sigma1 LocS_sigma2 HUnion.
+  induction HUnion.
+  - apply sorted_subset_reflexive. assumption.
+  - constructor.
+  - apply locally_sorted_next_backwards in LocS_sigma1.
+    apply locally_sorted_next_backwards in LocS_sigma2.
+    assert (Hincl := IHHUnion LocS_sigma1 LocS_sigma2).
+    assert (Hlsorted := sorted_union_locally_sorted sigma1 sigma2 sigma' HUnion LocS_sigma1 LocS_sigma2).
+    apply sorted_subset_next; try assumption.
+  - apply locally_sorted_next_backwards in LocS_sigma1.
+    assert (Hincl := IHHUnion LocS_sigma1 LocS_sigma2).
+    assert (Hlsorted := sorted_union_locally_sorted sigma1 (next msg2 sigma2) sigma' HUnion LocS_sigma1 LocS_sigma2).
+    assert (Hincl_next := state_inclusion_next_right msg1 sigma' Hlsorted).
+    apply (sorted_subset_transitive (next msg2 sigma2) sigma' (next msg1 sigma') Hincl Hincl_next).
+  - apply locally_sorted_next_backwards in LocS_sigma2.
+    assert (Hincl := IHHUnion LocS_sigma1 LocS_sigma2).
+    assert (Hlsorted := sorted_union_locally_sorted (next msg1 sigma1) sigma2 sigma' HUnion LocS_sigma1 LocS_sigma2).
+    apply sorted_subset_next; try assumption.
+Qed.
 
-Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
-  sigma1 => sigma2 ->
-  sigma2 => sigma3 ->
-  sigma1 => sigma3.
-Admitted. 
 
 Lemma union_state_empty_left : forall sigma1 sigma2,
   sorted_union Empty sigma1 sigma2 -> sigma1 = sigma2.
@@ -90,30 +186,6 @@ Proof.
     rewrite <- add_is_next in M. inversion M.
 Qed.
 
-Lemma sorted_union_all_messages : forall msg sigma1 sigma2 sigma,
-  sorted_union sigma1 sigma2 sigma ->
-  in_state msg sigma ->
-  (in_state msg sigma1 \/ in_state msg sigma2).
-Admitted.
-
-Lemma sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
-  sorted_union sigma1 sigma2 sigma ->
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->  
-  locally_sorted sigma.
-Proof.
-  intros sigma1 sigma2 sigma HUnion.
-  induction HUnion as 
-      [ gamma
-      | gamma
-      | msg gamma1 gamma2 gamma' HUnion_next
-      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next
-      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next
-      ]
-  ; intros
-  ; try assumption
-  .
-  Admitted.
 
 (** Protocol state properties **)
 
@@ -179,40 +251,50 @@ Proof.
     ; try (apply protocol_state_next_backwards_justification in H1 as H1_j;  assumption)
     ; try (apply protocol_state_next_backwards_justification in H2 as H2_J;  assumption)
     ; try unfold full_node_condition
-    ; try (
-        apply sorted_union_subset_left in HUnion_next
-      ; apply protocol_state_next_inclusion in H1 as H1
-      ; apply (sorted_subset_transitive sj gamma1 sigma1 H1 HUnion_next)
-      )
-    ; try (
-        apply sorted_union_subset_right in HUnion_next
-      ; apply protocol_state_next_inclusion in H2
-      ; apply (sorted_subset_transitive sj gamma2 sigma1 H2 HUnion_next)
-      )
+    ; try assert (LS_gamma1 := protocol_state_sorted gamma1 H1_next)
+    ; try assert (LS_gamma2 := protocol_state_sorted gamma2 H2_next)
+    ; try assert (LS_nextgamma1 := protocol_state_sorted (next (sc, sv, sj) gamma1) H1)
+    ; try assert (LS_nextgamma2 := protocol_state_sorted (next (sc, sv, sj) gamma2) H2)
+    ; try assert (LS_nextmsg1gamma1 := protocol_state_sorted (next msg1 gamma1) H1)
+    ; try assert (LS_nextmsg2gamma2 := protocol_state_sorted (next msg2 gamma2) H2)
     ; try apply protocol_state_next_backwards_valid_message in H1 as H1_valid
     ; try apply protocol_state_next_backwards_valid_message in H2 as H2_valid
     ; try assumption
-    ; apply locally_sorted_next_message
-    ; apply protocol_state_sorted in H1
-    ; apply protocol_state_sorted in H2
-    . 
+    .
     (** case msg1 == msg2 **)
-      * apply (sorted_union_locally_sorted 
+      * apply (sorted_union_subset_left gamma1 gamma2 sigma1 LS_gamma1 LS_gamma2) in HUnion_next.  
+        apply protocol_state_next_inclusion in H1 as H1.
+        apply (sorted_subset_transitive sj gamma1 sigma1 H1 HUnion_next).
+
+      * apply locally_sorted_next_message.
+        apply (sorted_union_locally_sorted 
                 (next (sc,sv,sj) gamma1) 
                 (next (sc,sv,sj) gamma2) 
                 (next (sc,sv,sj) sigma1) 
-                H1 H2 HUnion).
+                HUnion LS_nextgamma1 LS_nextgamma2).
+
     (** case msg1 < msg2 **)
-      * apply (sorted_union_locally_sorted 
+      * apply (sorted_union_subset_left gamma1 (next msg2 gamma2) sigma1 LS_gamma1 LS_nextmsg2gamma2) in HUnion_next.  
+        apply protocol_state_next_inclusion in H1 as H1.
+        apply (sorted_subset_transitive sj gamma1 sigma1 H1 HUnion_next).
+
+      * apply locally_sorted_next_message.
+        apply (sorted_union_locally_sorted 
                 (next (sc,sv,sj) gamma1) 
                 (next msg2 gamma2) 
                 (next (sc,sv,sj) sigma1) 
-                H1 H2 HUnion).
-    (** case msg1 > msg2 **)
-      * apply (sorted_union_locally_sorted 
+                HUnion LS_nextgamma1 LS_nextmsg2gamma2).
+
+    (** case msg1 > msg2 **) 
+      * apply (sorted_union_subset_right (next msg1 gamma1) gamma2 sigma1 LS_nextmsg1gamma1 LS_gamma2) in HUnion_next.
+        apply protocol_state_next_inclusion in H2.
+        apply (sorted_subset_transitive sj gamma2 sigma1 H2 HUnion_next).
+
+ 
+      * apply locally_sorted_next_message.
+        apply (sorted_union_locally_sorted 
                 (next msg1 gamma1) 
                 (next (sc,sv,sj) gamma2) 
                 (next (sc,sv,sj) sigma1) 
-                H1 H2 HUnion).
+                HUnion LS_nextmsg1gamma1 LS_nextgamma2).
 Qed.
-
