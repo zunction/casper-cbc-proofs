@@ -221,6 +221,29 @@ Definition next (msg : message) (sigma : state) : state :=
   | (c, v, j) => add (c, v, j) to sigma
   end.
 
+Lemma add_is_next : forall c v j sigma,
+  add (c, v, j)to sigma = next (c, v, j) sigma.
+Proof.
+  intros. unfold next. reflexivity.
+Qed.
+
+Lemma no_confusion_next : forall msg1 msg2 sigma1 sigma2,
+  next msg1 sigma1 = next msg2 sigma2 ->
+  msg1 = msg2 /\ sigma1 = sigma2.
+Proof.
+  intros.
+  destruct msg1 as [(c1, v1) j1].
+  destruct msg2 as [(c2, v2) j2].
+  inversion H; subst; clear H.
+  split; reflexivity.
+Qed.
+
+Lemma no_confusion_next_empty : forall msg sigma,
+  next msg sigma <> Empty.
+Proof.
+  intros. intro. destruct msg as [(c, v) j]. inversion H.
+Qed.
+
 Definition msg_lt (msg1 msg2 : message) : Prop :=
   state_lt (next msg1 Empty) (next msg2 Empty).
 
@@ -292,12 +315,6 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
           add_in_sorted msg sigma sigma' ->
           add_in_sorted msg (next msg' sigma) (next msg' sigma')
   .
-
-Lemma add_is_next : forall c v j sigma,
-  add (c, v, j)to sigma = next (c, v, j) sigma.
-Proof.
-  intros. unfold next. reflexivity.
-Qed.
 
 Lemma add_in_empty : forall msg sigma,
   add_in_sorted msg Empty sigma -> sigma = (next msg Empty).
@@ -438,6 +455,12 @@ Inductive in_state : message -> state -> Prop :=
           in_state msg' (next msg sigma)
   .
 
+Lemma in_empty_state : forall msg, ~ in_state msg Empty.
+Proof.
+  intros. intro. inversion H; subst.
+  apply no_confusion_next_empty in H0; inversion H0.
+Qed.
+
 Theorem add_in_sorted_in : forall msg sigma sigma',
   add_in_sorted msg sigma sigma' ->
   forall msg', in_state msg' sigma' -> msg' = msg \/ in_state msg' sigma.
@@ -466,11 +489,13 @@ Lemma state_set_In : forall msg1 msg2 sigma,
   in_state msg1 sigma ->
   msg_lt msg2 msg1.
 Proof.
-  intros. generalize dependent msg1. generalize dependent msg2. induction sigma.
-  - intros. inversion H0. destruct msg as [(c, v) j] . inversion H1.
-  - intros. rewrite add_is_next in *. inversion H0; clear H0; subst. destruct msg as [(c', v') j'].
-    inversion H1; clear H1; subst. destruct msg2 as [(c2, v2) j2]. inversion H; subst; clear H.
-     destruct msg' as [(c', v') j']. inversion H5; clear H5; subst. inversion H3; subst; try assumption.
+  intros. generalize dependent msg1. generalize dependent msg2. induction sigma; intros.
+  - apply in_empty_state in H0; inversion H0.
+  - rewrite add_is_next in *. inversion H0; clear H0; subst. 
+    rewrite add_is_next in *. apply no_confusion_next in H1. destruct H1; subst.
+     destruct msg2 as [(c2, v2) j2]. inversion H; subst; clear H.
+    rewrite add_is_next in *.  apply no_confusion_next in H5. destruct H5; subst.
+    destruct H3; subst; try assumption.
     apply (msg_lt_transitive (c2, v2, j2) (c, v, sigma1) msg1 H6).
     apply IHsigma2; assumption.
 Qed.
@@ -509,7 +534,7 @@ Proof.
     + repeat (apply State_inclusion_Singleton_tail). apply H1.
     + apply State_inclusion_Next.
       *  apply State_inclusion_Singleton_tail. apply H1.
-      * destruct msg1 as [(c1, v1) j1]; inversion H0; subst.
+      * apply no_confusion_next in H0; destruct H0; subst.
         apply IHsigma2. apply H2.
 Qed.
 
@@ -519,11 +544,12 @@ Proof.
   intros.
   remember Empty as sigma1.
   induction H; try inversion Heqsigma1; subst; try reflexivity.
-  - destruct msg2 as [(c2, v2) j2]; inversion H1.
-  - destruct msg1 as [(c1, v1) j1]; inversion H; subst; clear H.
-    + destruct msg2 as [(c2, v2) j2]; inversion H3.
-    + destruct msg1 as [(c1', v1') j1']; inversion H2; subst; clear H2.
-      destruct msg1'0 as [(c1'0, v1'0) j1'0]; inversion H8.
+  - apply no_confusion_next_empty in H1. inversion H1.
+  - inversion H; subst; clear H.
+    + symmetry in H3. apply no_confusion_next_empty in H3. inversion H3.
+    + apply no_confusion_next_empty in H3. inversion H3.
+    + apply no_confusion_next in H2. destruct H2; subst.
+      apply no_confusion_next_empty in H2. inversion H2.
 Qed.
 
 Theorem state_inclusion_reflexive : forall sigma, state_inclusion sigma sigma.
@@ -532,10 +558,11 @@ Proof.
   - apply State_inclusion_Empty.
   - destruct sigma2.
     + apply State_inclusion_Singleton_head; apply IHsigma1.
-    + rewrite add_is_next in *. rewrite add_is_next in *. apply State_inclusion_Next;
+    + repeat rewrite add_is_next in *. apply State_inclusion_Next;
       try (apply State_inclusion_Singleton_head; assumption).
       apply state_inclusion_next. apply IHsigma2.
 Qed.
+
 
 Definition state_eq (sigma1 sigma2 : state) : Prop :=
   state_inclusion sigma1 sigma2 /\ state_inclusion sigma2 sigma1.
@@ -545,15 +572,20 @@ Lemma state_inclusion_singleton : forall msg msg',
   exists c v j j', msg = (c, v, j) /\ msg' = (c, v, j') /\ state_eq j j'.
 Proof.
   intros.
-  destruct msg as [(c, v) j]. destruct msg' as [(c', v') j'].
   inversion H; subst.
-  - exists c'. exists v'. exists j. exists j'.
+  - symmetry in H1. apply no_confusion_next_empty in H1. inversion H1.
+  - exists c. exists v. exists j. exists j1.
+    repeat rewrite add_is_next in *. 
+    apply no_confusion_next in H0; destruct H0; subst.
+    apply no_confusion_next in H1; destruct H1; subst.
     repeat (split; try reflexivity); assumption.
-  - destruct msg2 as [(c2, v2) j2]. inversion H1; subst.
+  - apply no_confusion_next in H1; destruct H1; subst.
     apply state_inclusion_empty in H2. 
-    destruct msg1 as [(c1, v1) j1]. inversion H2.
-  - destruct msg1 as [(c1, v1) j1]. inversion H0; subst.
-    destruct msg1' as [(c1', v1') j1']. inversion H7.
+    apply no_confusion_next_empty in H2. 
+    inversion H2.
+  - apply no_confusion_next in H0; destruct H0; subst.
+    apply no_confusion_next_empty in H3. 
+    inversion H3.
 Qed.
 
 Theorem state_eq_reflexive : forall sigma, state_eq sigma sigma.
@@ -567,18 +599,90 @@ Proof.
   intros. destruct H. split; assumption.
 Qed.
 
+Lemma state_eq_empty : forall sigma,
+  state_eq sigma Empty -> sigma = Empty.
+Proof.
+  intros. destruct H. apply state_inclusion_empty. assumption.
+Qed.
+
+
 Theorem set_in_state_syntactic : forall msg sigma,
   in_state msg sigma ->
   set_in_state msg sigma.
 Proof.
-  intros. destruct msg as [(c, v) j]. generalize dependent j. generalize dependent v. generalize dependent c.
-  induction sigma; intros.
-  - inversion H; subst. destruct msg as [(c', v') j']. inversion H0.
-  - inversion H; subst; clear H. destruct msg as [(c', v') j']. inversion H0; subst; clear H0.
-    destruct H2.
-    + inversion H; subst; clear H. apply State_inclusion_Singleton_head; apply state_inclusion_reflexive.
+  intros. generalize dependent msg. induction sigma; intros; inversion H; subst; clear H. 
+  - apply no_confusion_next_empty in H0. inversion H0.
+  - repeat rewrite add_is_next in *.
+    apply no_confusion_next in H0. destruct H0; subst.
+    destruct H2; subst.
+    + apply State_inclusion_Singleton_head; apply state_inclusion_reflexive.
     + apply  State_inclusion_Singleton_tail. apply IHsigma2. apply H.
 Qed.
+
+Theorem in_state_inclusion : forall sigma1 sigma2,
+  state_inclusion sigma1 sigma2 ->
+  forall msg, in_state msg sigma1 -> set_in_state msg sigma2.
+Proof.
+  intros sigma1 sigma2 Incl. unfold set_in_state.
+  induction Incl; intros; inversion H; subst; clear H.
+  - apply no_confusion_next_empty in H0; inversion H0.
+  - rewrite add_is_next in H0. apply no_confusion_next in H0; destruct H0; subst.
+    destruct H2; subst.
+    + apply State_inclusion_Singleton_head; assumption.
+    + apply in_empty_state in H; inversion H.
+  - apply State_inclusion_Singleton_tail. apply no_confusion_next in H0; destruct H0; subst. 
+    destruct H2; subst; try assumption.
+    apply in_empty_state in H; inversion H. 
+  - apply no_confusion_next in H0; destruct H0; subst.
+    destruct H2; subst; try assumption.
+    + apply IHIncl2. assumption.
+Qed.
+
+Lemma sorted_state_inclusion_in_singleton : forall sigma,
+  locally_sorted sigma ->
+  forall c v j,
+  locally_sorted j ->
+  state_inclusion sigma (next (c, v, j) Empty) ->
+  sigma = Empty
+  \/
+  sigma = next (c, v, j) Empty.
+Proof.
+  intros sigma LS.
+  induction LS; intros.
+  - left. reflexivity.
+  - right.
+    apply state_inclusion_singleton in H0 as Hsingleton; clear H0;
+    destruct Hsingleton as [csing [vsing [jsing [jsing' [EQsing1 [EQsing2 StateEQsing]]]]]];
+    inversion EQsing1; inversion EQsing2; clear EQsing1; clear EQsing2; subst.
+Admitted.
+
+
+Lemma sorted_state_eq_head : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  state_eq sigma1 sigma2 ->
+  (sigma1 = Empty /\ sigma2 = Empty)
+  \/
+  exists msg sigma1' sigma2', 
+    sigma1 = next msg sigma1' /\
+    sigma2 = next msg sigma2' /\
+    state_eq sigma1' sigma2'.
+Proof.
+  intros sigma1 sigma2 LS1.
+  generalize dependent sigma2.
+  induction LS1; intros.
+  - left. split; try reflexivity.
+    apply state_eq_empty.
+    apply state_eq_commutative.
+    assumption.
+  - right. exists (c,v,j). exists Empty. exists Empty.
+    split; try reflexivity.
+    split; try apply state_eq_reflexive.
+    destruct H0.
+Admitted.
+
+
+
 
 
 
@@ -651,7 +755,9 @@ Proof.
     + destruct msg1 as [(c1, v1) j1]. inversion H1; subst; clear H1.
       destruct msg1' as [(c1', v1') j1']. inversion H7.
   - inversion H1; subst; clear H1.
-    + unfold in_state. apply State_inclusion_Singleton_head.
+    + assert (j0 = j) . 
+      { apply state_eq_equality_predicate; try assumption. split; try assumption. }
+     subst. constructor. left. reflexivity.
 Admitted.
 
 
