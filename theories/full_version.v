@@ -171,7 +171,6 @@ Proof.
   - apply state_lt_transitive.
 Qed.
 
-
 Theorem state_lt_total : TotalOrder state_lt.
 Proof.
   unfold TotalOrder.
@@ -406,6 +405,20 @@ Proof.
   intros. inversion H; subst; assumption.
 Qed.
 
+Lemma locally_sorted_tail : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  locally_sorted sigma.
+Proof.
+  intros.
+  inversion H; subst; clear H
+  ; try (rewrite add_is_next in *; apply no_confusion_next in H0; destruct H0; subst)
+  .
+  - exfalso. symmetry in H1. apply (no_confusion_next_empty _ _ H1) . 
+  - constructor.
+  - assumption. 
+Qed.
+
+
 Theorem add_in_sorted_sorted : forall c v j sigma sigma',
   locally_sorted sigma ->
   locally_sorted j ->
@@ -459,6 +472,32 @@ Lemma in_empty_state : forall msg, ~ in_state msg Empty.
 Proof.
   intros. intro. inversion H; subst.
   apply no_confusion_next_empty in H0; inversion H0.
+Qed.
+
+Lemma in_singleton_state : forall msg msg',
+  in_state msg (next msg' Empty) -> msg = msg'.
+Proof.
+  intros.
+  inversion H; subst; clear H.
+  apply no_confusion_next in H0; destruct H0; subst.
+  destruct H2; try assumption.
+  exfalso. apply (in_empty_state _ H).
+Qed.
+
+Lemma in_sorted_state : forall sigma,
+  locally_sorted sigma ->
+   forall c v j,
+  in_state (c, v, j) sigma ->
+  locally_sorted j.
+Proof.
+  intros sigma H. induction H; intros.
+  - exfalso. apply (in_empty_state _ H).
+  - apply in_singleton_state in H0. inversion H0; subst; clear H0. assumption.
+  - inversion H2; subst; clear H2. rewrite add_is_next in H3.
+    apply no_confusion_next in H3; destruct H3; subst.
+    destruct H5.
+    + inversion H2; subst; assumption.
+    + apply IHlocally_sorted2 with c0 v0; assumption.
 Qed.
 
 Theorem add_in_sorted_state_preservation : forall msg sigma sigma',
@@ -593,41 +632,69 @@ Proof.
   apply (no_confusion_next_empty msg' sigma' H).
 Qed.
 
-Theorem in_state_sort : forall sigma sigmas,
-  sort sigma sigmas ->
-  forall c v j,
-  in_state (c, v, j) sigma ->
-  exists j', sort j j' /\ in_state (c, v, j') sigmas.
+Definition msg_sort (msg : message) (msgs : message) : Prop :=
+  sort (next msg Empty) (next msgs Empty).
+
+Lemma msg_sort_construct : forall c v j js,
+  sort j js -> msg_sort (c, v, j) (c, v, js).
 Proof.
-  intros sigma sigmas H. induction H; intros.
+  intros.
+  unfold msg_sort. apply Sort_next with js Empty; try assumption; constructor.
+Qed.
+
+Lemma msg_sort_destruct : forall msg msgs,
+  msg_sort msg msgs ->
+  exists c v j js, msg = (c,v,j) /\ msgs = (c,v,js) /\ sort j js.
+Proof.
+  intros.
+  inversion H; subst; clear H.
+  - exfalso. symmetry in H1. apply (no_confusion_next_empty _ _ H1).
+  - rewrite add_is_next in *.
+    apply no_confusion_next in H0; destruct H0; subst.
+    inversion H2; subst; clear H2.
+    apply add_in_empty in H3.
+    apply no_confusion_next in H3; destruct H3; subst. clear H0.
+    exists c. exists v. exists j. exists js.
+    repeat split; try reflexivity.
+    assumption.
+Qed.
+
+Definition in_state_sorted (msg : message) (sigmas : state) : Prop :=
+  exists msgs,  msg_sort msg msgs /\ in_state msgs sigmas .
+
+Theorem in_sorted_state_all : forall sigma sigmas,
+  sort sigma sigmas ->
+  forall msg, in_state msg sigma -> in_state_sorted msg sigmas.
+Proof.
+  intros sigma sigmas H. unfold in_state_sorted. induction H; intros.
   - exfalso. apply (in_empty_state _ H).
   - inversion H2; subst; clear H2.
     rewrite add_is_next in H3.
     apply no_confusion_next in H3; destruct H3; subst.
-    destruct H5.
-    + inversion H2; subst; clear H2.
-      exists js. split; try assumption.
-      apply add_in_sorted_msg_preservation with sigmas. assumption.
+    destruct H5; subst.
+    + exists (c,v,js). split; try assumption.
+      * apply msg_sort_construct; assumption.
+      * apply add_in_sorted_msg_preservation with sigmas; assumption.
     + apply IHsort2 in H2.
-      destruct H2 as [j0s [Hj0s Hin]].
-      exists j0s. split; try assumption.
-      apply (add_in_sorted_state_preservation _ _ _ H1 (c0, v0, j0s) Hin).
+      destruct H2 as [msgs [Hmsgs Hin]].
+      exists msgs. split; try assumption.
+      apply (add_in_sorted_state_preservation _ _ _ H1 msgs Hin).
 Qed.
 
 Theorem in_sort_state : forall sigma sigmas,
   sort sigma sigmas ->
-  forall c v js,
-  in_state (c, v, js) sigmas ->
-  exists j, sort j js /\ in_state (c, v, j) sigma.
+  forall msgs,
+  in_state msgs sigmas ->
+  exists msg, msg_sort msg msgs /\ in_state msg sigma.
 Proof.
   intros sigma sigmas H.
   induction H; intros.
   - exfalso. apply (in_empty_state _ H).
   - apply (add_in_sorted_no_junk _ _ _ H1) in H2.
-    destruct H2.
-    + inversion H2; subst; clear H2.
-      exists j. split; try assumption.
-      constructor. left. reflexivity.
+    destruct H2; subst.
+    + exists (c, v, j). split.
+      * apply msg_sort_construct; assumption.
+      * constructor. left. reflexivity.
     + apply IHsort2 in H2.
       destruct H2 as [js' [Hjs' Hin]].
       exists js'. split; try assumption.
@@ -708,44 +775,140 @@ Qed.
 Definition msg_eq (msg1 : message) (msg2 : message) : Prop :=
   state_eq (next msg1 Empty) (next msg2 Empty).
 
-Theorem in_state_eq : forall sigma1 sigma2,
-  state_eq sigma1 sigma2 ->
-  forall msg1,
-  in_state msg1 sigma1 ->
-  exists msg2, in_state msg2 sigma2 /\ msg_eq msg1 msg2.
+Lemma msg_sort_eq : forall msg1 msg2 msgs,
+  msg_sort msg1 msgs -> msg_sort msg2 msgs -> msg_eq msg1 msg2.
 Proof.
-  intros. inversion H; subst.
-  destruct H1 as [sigmas [Hsigma1s Hsigma2s]].
-  destruct msg1 as [(c, v) j].
-  apply (in_state_sort _ _ Hsigma1s) in H0.
-  destruct H0 as [js [Hjs Hin]].
-  apply (in_sort_state _ _ Hsigma2s) in Hin.
-  destruct Hin as [j' [Hj's Hin]].
-  exists (c, v, j').
-  split; try assumption.
-  constructor. exists (next (c, v, js) Empty).
-  split; apply Sort_next with js Empty; try assumption; constructor.
+  unfold msg_sort. unfold msg_eq. intros.
+  constructor. exists (next msgs Empty).
+  split; assumption.
 Qed.
 
+Lemma msg_eq_reflexive : Reflexive msg_eq.
+Proof.
+  unfold Reflexive. unfold msg_eq. intro. apply state_eq_reflexive.
+Qed.
+
+Lemma msg_eq_transitive : Transitive msg_eq.
+Proof.
+  unfold Transitive.
+  unfold msg_eq. intros msg1 msg2 msg3. apply state_eq_transitive.
+Qed.
+
+Lemma msg_eq_construct : forall msg1 msg2,
+  msg_eq msg1 msg2
+  -> exists c v j1 j2, msg1 = (c, v, j1)/\ msg2 = (c, v, j2) /\ state_eq j1 j2.
+Proof.
+  intros. inversion H; subst; clear H.
+  destruct H0 as [msgs [H1s H2s]].
+  inversion H1s; subst; clear H1s; try (exfalso; symmetry in H0; apply (no_confusion_next_empty _ _ H0)).
+  rename H0 into Hjs.
+  inversion H2s; subst; clear H2s; try (exfalso; symmetry in H3; apply (no_confusion_next_empty _ _ H3)).
+  rewrite add_is_next in *.
+  apply no_confusion_next in H; destruct H; subst.
+  apply no_confusion_next in H0; destruct H0; subst.
+  inversion H1; subst; clear H1.
+  inversion H4; subst; clear H4.
+  apply add_in_empty in H2; subst.
+  apply add_in_empty in H5.
+  apply no_confusion_next in H5. destruct H5 as [H5 _]. inversion H5; subst; clear H5.
+  exists c0. exists v0. exists j. exists j0. repeat (split; try reflexivity).
+  exists js0. split;assumption.
+Qed.
+
+
+Definition in_state_eq (msg : message) (sigma' : state) : Prop :=
+  exists msg', in_state msg' sigma' /\ msg_eq msg msg'.
+
+Lemma in_state_eq_empty : forall msg, ~ in_state_eq msg Empty.
+Proof.
+  intro. intro. inversion H; subst; clear H. destruct H0.
+  apply (in_empty_state _ H).
+Qed.
+
+Lemma in_state_eq_next : forall msg msg' sigma',
+  in_state_eq msg (next msg' sigma') ->
+  msg_eq msg msg' \/ in_state_eq msg sigma'.
+Proof.
+  unfold in_state_eq.
+  intros. destruct H as [msg'' [Hin Heq]].
+  inversion Hin;  subst; clear Hin.
+  apply no_confusion_next in H; destruct H; subst.
+  destruct H1; subst.
+  - left; assumption.
+  - right.  exists msg''. split; assumption.
+Qed.
+
+Definition state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
+  forall msg, in_state_eq msg sigma1 -> in_state_eq msg sigma2.
+
+Lemma state_inclusion_empty : forall sigma, state_inclusion Empty sigma.
+Proof.
+  intros. unfold state_inclusion. intros. exfalso; apply (in_state_eq_empty _ H).
+Qed.
+
+Lemma state_inclusion_next_l : forall msg sigma sigma',
+  state_inclusion sigma sigma' ->
+  state_inclusion (next msg sigma) (next msg sigma').
+Proof.
+  unfold state_inclusion.
+  intros. apply in_state_eq_next in H0.
+  unfold in_state_eq.
+  destruct H0.
+  - exists msg. split; try assumption.
+    constructor. left. reflexivity.
+  - apply H in H0. destruct H0 as [msg0' [Hin Heq]].
+    exists msg0'. split; try assumption.
+    constructor. right. assumption.
+Qed.
+
+Lemma state_inclusion_next_r : forall msg sigma sigma',
+  state_inclusion sigma sigma' ->
+  state_inclusion sigma (next msg sigma').
+Proof.
+  unfold state_inclusion. intros.
+  apply H in H0. destruct H0 as [msg0' [Hin Heq]].
+    exists msg0'. split; try assumption.
+    constructor. right. assumption.
+Qed.
+
+Theorem state_eq_inclusion : forall sigma1 sigma2,
+  state_eq sigma1 sigma2 ->
+  state_inclusion sigma1 sigma2.
+Proof.
+  unfold state_inclusion.
+  intros. inversion H; subst; clear H.
+  destruct H1 as [sigmas [Hsigma1s Hsigma2s]].
+  inversion H0; subst; clear H0. destruct H.
+  apply (in_sorted_state_all _ _ Hsigma1s) in H.
+  destruct H as [xs [Hxs Hin]].
+  unfold in_state_eq.
+  apply (in_sort_state _ _ Hsigma2s) in Hin.
+  destruct Hin as [x' [Hx's Hin]]. 
+  exists x'. split; try assumption.
+  apply (msg_sort_eq _ _ _ Hxs) in Hx's.
+  apply (msg_eq_transitive msg x x'); assumption.
+Qed.
 
 (**** TODO(traian): continue from here **)
 
 Theorem set_in_state_sorted : forall c v j sigma,
   locally_sorted sigma ->
   locally_sorted j ->
-  set_in_state (c,v,j) sigma -> in_state (c, v, j) sigma.
+  in_state_eq (c,v,j) sigma -> in_state (c, v, j) sigma.
 Proof.
-  intros c v j sigma H. generalize dependent j. generalize dependent v. generalize dependent c.
-  induction H; intros.
-  - inversion H0; subst; clear H0. 
-    + destruct msg2 as [(c2, v2) j2]. inversion H2.
-    + destruct msg1 as [(c1, v1) j1]. inversion H1; subst; clear H1.
-      destruct msg1' as [(c1', v1') j1']. inversion H7.
-  - inversion H1; subst; clear H1.
-    + assert (j0 = j) . 
-      { apply state_eq_equality_predicate; try assumption. split; try assumption. }
-     subst. constructor. left. reflexivity.
-Admitted.
+  intros.
+  inversion H1; subst; clear H1. destruct H2.
+  apply msg_eq_construct in H2.
+  destruct H2 as [c0 [v0 [j1 [j2 [EQ1 [EQ2 SEQ]]]]]]; inversion EQ1; subst; clear EQ1.
+  apply in_sorted_state in H1 as Hj2s; try assumption.
+  inversion SEQ; subst; clear SEQ.
+  destruct H2 as [js [Hj1s Hj2s']].
+  apply sort_sorted_idem in H0.
+  apply sort_sorted_idem in Hj2s.
+  apply (sort_functional _ _ _ H0) in Hj1s; subst; clear H0.
+  apply (sort_functional _ _ _ Hj2s) in Hj2s'; subst; clear Hj2s.
+  assumption.
+Qed.
 
 
 Inductive sorted_subset : state -> state -> Prop :=
@@ -767,6 +930,26 @@ Theorem sorted_subset_inclusion : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   sorted_subset sigma1 sigma2 <-> state_inclusion sigma1 sigma2.
+Proof.
+  intros. split; intros; generalize dependent H0; generalize dependent H. 
+  - induction H1; intros.
+    + apply state_inclusion_empty.
+    + apply state_inclusion_next_l.
+      apply locally_sorted_tail in H0. 
+      apply locally_sorted_tail in H. 
+      apply IHsorted_subset; assumption.
+    +  apply state_inclusion_next_r.
+      apply locally_sorted_tail in H0. 
+      apply IHsorted_subset; assumption.
+  - unfold state_inclusion in H1.
+    intro. induction H ; intros.
+    + constructor.
+    + assert (Hin : in_state_eq (c, v, j) sigma2).
+      { apply H1. unfold in_state_eq. exists (c, v, j).
+        split; try (apply msg_eq_reflexive).
+        constructor. left. reflexivity.
+      }
+      apply set_in_state_sorted in Hin; try assumption.
 Admitted.
 
 Theorem sorted_subset_elements: forall msg sigma1 sigma2, 
@@ -777,6 +960,15 @@ Theorem sorted_subset_elements: forall msg sigma1 sigma2,
     in_state msg sigma2.
 Proof.
   Admitted.
+
+Theorem inclusion_state_eq : forall sigma1 sigma2,
+  state_inclusion sigma1 sigma2 ->
+  state_inclusion sigma2 sigma1 ->
+  state_eq sigma1 sigma2.
+Proof.
+  intros.
+Admitted.
+
 
 Theorem add_sorted : forall sigma msg, 
   locally_sorted sigma -> 
