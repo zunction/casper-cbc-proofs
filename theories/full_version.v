@@ -29,12 +29,11 @@ Axiom C_non_empty : exists c : C, True.
 
 Variable c_lt : C -> C -> Prop.
 
-Axiom c_lt_storder: StrictOrder c_lt.
+Axiom c_lt_strict_order: StrictOrder c_lt.
 
 (** C totally ordered **)
 
-Axiom C_totally_ordered: TotalOrder c_lt.
-
+Axiom c_lt_total_order: TotalOrder c_lt.
 
 (**************************************)
 (** Non-empty set of validator names **)
@@ -48,12 +47,11 @@ Axiom V_non_empty : exists v : V, True.
 
 Variable v_lt : V -> V -> Prop.
 
-Axiom v_lt_storder: StrictOrder v_lt.
+Axiom v_lt_strict_order: StrictOrder v_lt.
 
 (** V totally ordered **)
 
-Axiom V_totally_ordered: TotalOrder v_lt.
-
+Axiom v_lt_total_order: TotalOrder v_lt.
 
 (***********************)
 (** Validator weights **)
@@ -120,8 +118,8 @@ Inductive state_lt : state -> state -> Prop :=
 
 Lemma state_lt_irreflexive : Irreflexive state_lt.
 Proof.
- assert (SOc : StrictOrder c_lt); try apply c_lt_storder.
- assert (SOv : StrictOrder v_lt); try apply v_lt_storder. 
+ assert (SOc : StrictOrder c_lt); try apply c_lt_strict_order.
+ assert (SOv : StrictOrder v_lt); try apply v_lt_strict_order. 
  assert (EE : not(state_lt Empty Empty)); try (unfold not; intros; inversion H).
  unfold Irreflexive. unfold Reflexive. induction x.
     + apply EE.
@@ -136,8 +134,8 @@ Qed.
 
 Lemma state_lt_transitive: Transitive state_lt.
 Proof.
-  assert (SOc : StrictOrder c_lt); try apply c_lt_storder.
-  assert (SOv : StrictOrder v_lt); try apply v_lt_storder.
+  assert (SOc : StrictOrder c_lt); try apply c_lt_strict_order.
+  assert (SOv : StrictOrder v_lt); try apply v_lt_strict_order.
   destruct SOc as [_ Soc]. 
   destruct SOv as [_ Sov]. 
   unfold Transitive in *.
@@ -164,14 +162,14 @@ Proof.
     + apply state_lt_Next. apply IHstate_lt. assumption.
 Qed.
 
-Lemma state_lt_storder : StrictOrder state_lt.
+Lemma state_lt_strict_order : StrictOrder state_lt.
 Proof.
   constructor.
   - apply state_lt_irreflexive.
   - apply state_lt_transitive.
 Qed.
 
-Theorem state_lt_total : TotalOrder state_lt.
+Theorem state_lt_total_order : TotalOrder state_lt.
 Proof.
   unfold TotalOrder.
   intros. generalize dependent c2.
@@ -181,8 +179,8 @@ Proof.
     + right. left. apply state_lt_Empty.
   - induction c2.
     + right. right. apply state_lt_Empty.
-    + destruct (C_totally_ordered c c0); subst.
-      * destruct (V_totally_ordered v v0); subst.
+    + destruct (c_lt_total_order c c0); subst.
+      * destruct (v_lt_total_order v v0); subst.
         { destruct (IHc1_1 c2_1); subst.
             { destruct (IHc1_2 c2_2); subst.
                 { left. reflexivity. }
@@ -207,6 +205,40 @@ Proof.
         { right. right. apply state_lt_C. 
           {assumption. }
         }
+Qed.
+
+Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
+  StrictOrder rel ->
+  TotalOrder rel ->
+  forall x y : A, x = y \/ x <> y.
+Proof.
+  intros.
+  destruct H.
+  destruct (H0 x y) as [Heq | [H | H]]
+  ; try (left; assumption)
+  ; try (right; intro; subst; apply (StrictOrder_Irreflexive _ H); assumption)
+  .
+Qed.
+
+Corollary C_eq_dec : forall x y : C, x = y \/ x <> y.
+Proof.
+  apply strict_total_order_eq_dec with c_lt.
+  - apply c_lt_strict_order.
+  - apply c_lt_total_order.
+Qed.
+
+Corollary V_eq_dec : forall x y : V, x = y \/ x <> y.
+Proof.
+  apply strict_total_order_eq_dec with v_lt.
+  - apply v_lt_strict_order.
+  - apply v_lt_total_order.
+Qed.
+
+Corollary state_eq_dec : forall x y : state, x = y \/ x <> y.
+Proof.
+  apply strict_total_order_eq_dec with state_lt.
+  - apply state_lt_strict_order.
+  - apply state_lt_total_order.
 Qed.
 
 (**************)
@@ -266,23 +298,23 @@ Proof.
   apply state_lt_transitive with (add (c2, v2, j2)to Empty); assumption.
 Qed.
 
-Lemma msg_lt_storder : StrictOrder msg_lt.
+Lemma msg_lt_strict_order : StrictOrder msg_lt.
 Proof.
   constructor.
   - apply msg_lt_irreflexive.
   - apply msg_lt_transitive.
 Qed.
 
-Corollary msg_lt_total: TotalOrder msg_lt.
+Corollary msg_lt_total_order: TotalOrder msg_lt.
 Proof.
   unfold TotalOrder. 
   unfold msg_lt.
   destruct c1 as [(c1, v1) j1].
   destruct c2 as [(c2, v2) j2].
   unfold next.
-  destruct (C_totally_ordered c1 c2); subst.
-  + destruct (V_totally_ordered v1 v2); subst.
-    * destruct (state_lt_total j1 j2); subst.
+  destruct (c_lt_total_order c1 c2); subst.
+  + destruct (v_lt_total_order v1 v2); subst.
+    * destruct (state_lt_total_order j1 j2); subst.
       { left. reflexivity. }
       { destruct H.
           { right. left. apply state_lt_M; try reflexivity || assumption. }
@@ -295,6 +327,14 @@ Proof.
     * right. left. apply state_lt_C; try assumption.
     * right. right. apply state_lt_C; try assumption.
 Qed.
+
+Corollary message_eq_dec : forall x y : message, x = y \/ x <> y.
+Proof.
+  apply strict_total_order_eq_dec with msg_lt.
+  - apply msg_lt_strict_order.
+  - apply msg_lt_total_order.
+Qed.
+
 
 
 (****************************************)
@@ -375,7 +415,7 @@ Proof.
   ; intros [(c, v) j]
   ; try (rewrite add_is_next in *).
   - exists (next (c,v,j) Empty). apply add_in_Empty.
-  - destruct (msg_lt_total (c,v,j) (sc,sv,sj)) as [Heq | [LT | GT]].
+  - destruct (msg_lt_total_order (c,v,j) (sc,sv,sj)) as [Heq | [LT | GT]].
     + inversion Heq; subst. exists (next (sc,sv,sj) sigma1).
       apply add_in_Next_eq.
     + exists (next (c,v,j) (next (sc, sv, sj) sigma1)).
@@ -468,14 +508,31 @@ Inductive in_state : message -> state -> Prop :=
           in_state msg' (next msg sigma)
   .
 
-Definition syntactic_state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
-  forall msg, in_state msg sigma1 -> in_state msg sigma2.
-
 Lemma in_empty_state : forall msg, ~ in_state msg Empty.
 Proof.
   intros. intro. inversion H; subst.
   apply no_confusion_next_empty in H0; inversion H0.
 Qed.
+
+Theorem in_state_dec : forall msg sigma, 
+  in_state msg sigma \/ ~ in_state msg sigma.
+Proof.
+  induction sigma.
+  - right. apply in_empty_state.
+  - rewrite add_is_next in *.
+    clear IHsigma1.
+    destruct (message_eq_dec msg (c,v,sigma1)).
+    + left. constructor. left. assumption.
+    + destruct IHsigma2.
+      * left. constructor. right. assumption.
+      * right. intro. inversion H1; subst; clear H1.
+        rewrite add_is_next in *.
+        apply no_confusion_next in H2; destruct H2; subst.
+        destruct H4; try apply (H H1); apply (H0 H1).
+Qed.
+
+Definition syntactic_state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
+  forall msg, in_state msg sigma1 -> in_state msg sigma2.
 
 Lemma in_singleton_state : forall msg msg',
   in_state msg (next msg' Empty) -> msg = msg'.
@@ -620,10 +677,53 @@ Proof.
       apply (msg_lt_irreflexive _ H3).
 Qed.
 
+Lemma sorted_syntactic_state_inclusion_eq_ind : forall sigma1 sigma2 msg1 msg2,
+  locally_sorted (next msg1 sigma1) ->
+  locally_sorted (next msg2 sigma2) ->
+  syntactic_state_inclusion (next msg1 sigma1) (next msg2 sigma2) ->
+  syntactic_state_inclusion (next msg2 sigma2) (next msg1 sigma1) ->
+  msg1 = msg2 /\ syntactic_state_inclusion sigma1 sigma2 /\ syntactic_state_inclusion sigma2 sigma1.
+Proof.
+  intros.
+  apply sorted_syntactic_state_inclusion in H1; try assumption.
+  apply sorted_syntactic_state_inclusion in H2; try assumption.
+  destruct H1; destruct H2; destruct H1; destruct H2; subst.
+  - repeat (split; try reflexivity; try assumption).
+  - exfalso. apply (msg_lt_irreflexive _ H2).
+  - exfalso. apply (msg_lt_irreflexive _ H1).
+  - exfalso. apply (msg_lt_transitive _ _ _ H1) in H2. apply (msg_lt_irreflexive _ H2).
+Qed.
+
+Theorem sorted_syntactic_state_inclusion_equality_predicate : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  syntactic_state_inclusion sigma1 sigma2 ->
+  syntactic_state_inclusion sigma2 sigma1 ->
+  sigma1 = sigma2.
+Proof.
+  induction sigma1; intros; destruct sigma2; repeat rewrite add_is_next in *.
+  - reflexivity.
+  - assert (Hin : in_state (c,v, sigma2_1) Empty).
+    { apply H2. constructor. left. reflexivity. }
+    inversion Hin; subst; clear Hin. exfalso. apply (no_confusion_next_empty _ _ H3).
+  - assert (Hin : in_state (c,v, sigma1_1) Empty).
+    { apply H1. constructor. left. reflexivity. }
+    inversion Hin; subst; clear Hin. exfalso. apply (no_confusion_next_empty _ _ H3).
+  - apply sorted_syntactic_state_inclusion_eq_ind in H2; try assumption.
+    destruct H2 as [Heq [Hin12 Hin21]].
+    inversion Heq; subst; clear Heq.
+    apply locally_sorted_tail in H.
+    apply locally_sorted_tail in H0.
+    apply IHsigma1_2 in Hin21; try assumption.
+    subst.
+    reflexivity.
+Qed.
+
+
 (** Work in progress **)
 
-(** State equality (as sets) **)
 
+(** (Insertion) sorting function **)
 
 Inductive sort : state -> state -> Prop :=
   | Sort_empty : sort Empty Empty
@@ -757,6 +857,10 @@ Proof.
       constructor. right. assumption.
 Qed.
 
+
+(** State equality (as sets) **)
+
+
 Inductive state_eq : state -> state -> Prop :=
   | State_eq : forall sigma1 sigma2,
       (exists sigmas, sort sigma1 sigmas /\ sort sigma2 sigmas) ->
@@ -826,6 +930,18 @@ Proof.
   destruct H as [yzs [Hys' Hzs]].
   apply (sort_functional _ _ _ Hys) in Hys'; subst; clear Hys.
   exists yzs. split; assumption.
+Qed.
+
+
+Theorem sort_state_eq : forall sigma sigmas,
+  sort sigma sigmas -> state_eq sigma sigmas.
+Proof.
+  intros. constructor.
+  exists sigmas.
+  split; try assumption.
+  apply sort_sorted_idem.
+  apply sort_is_sorted with sigma.
+  assumption.
 Qed.
 
 Definition msg_eq (msg1 : message) (msg2 : message) : Prop :=
@@ -931,6 +1047,13 @@ Proof.
     constructor. right. assumption.
 Qed.
 
+
+Theorem state_inclusion_transitive : Transitive state_inclusion.
+Proof.
+  intros sigma1 sigma2 sigma3 H12 H23 msg Hin.
+  apply H12 in Hin. apply (H23 _ Hin).
+Qed.
+
 Theorem state_eq_inclusion : forall sigma1 sigma2,
   state_eq sigma1 sigma2 ->
   state_inclusion sigma1 sigma2.
@@ -1027,37 +1150,6 @@ Proof.
   - constructor. right.  apply IHsorted_subset. assumption.
 Qed.
 
-(** Not needed **)
-
-Inductive state_suffix : state -> state -> Prop :=
-  | state_suffix_reflexive : forall sigma, state_suffix sigma sigma
-  | state_suffix_tail : forall sigma sigma' msg, 
-    state_suffix sigma sigma' -> state_suffix sigma (next msg sigma').
-
-Theorem sorted_subset_suffix : forall sigma sigma' msg,
-  sorted_subset (next msg sigma) sigma' <->
-  exists sigma'', state_suffix (next msg sigma'') sigma' /\ sorted_subset sigma sigma''.
-Proof.
-  intros. split; intros.
-  { remember (next msg sigma) as sigma1.
-  induction H.
-  - exfalso. symmetry in Heqsigma1. apply (no_confusion_next_empty _ _ Heqsigma1).
-  - apply no_confusion_next in Heqsigma1; destruct Heqsigma1; subst.
-   exists sigma'. split; try assumption. constructor.
-  - apply IHsorted_subset in Heqsigma1.
-    destruct Heqsigma1 as [sigma'' [Hsuffix Hsubset]].
-    exists sigma''. split; try assumption.
-    apply state_suffix_tail. assumption.
-  }
-  { destruct H as [sigma'' [Hsuffix Hsubset]]. 
-    remember (next msg sigma'') as sigma1.
-    induction Hsuffix; subst.
-    - apply SubSet_Next_l; assumption.
-    - apply SubSet_Next_r. apply IHHsuffix. reflexivity.
-  }
-Qed.
-
-(** End not needed **)
 
 Lemma syntactic_inclusion_sorted_subset : forall sigma sigma',
   locally_sorted sigma ->
@@ -1100,22 +1192,44 @@ Proof.
     apply sorted_state_inclusion; assumption.
 Qed.
 
-Theorem sorted_subset_elements: forall msg sigma1 sigma2, 
-    locally_sorted(sigma1) -> 
-    locally_sorted(sigma2) ->
-    sorted_subset sigma1 sigma2 -> 
-    in_state msg sigma1 -> 
-    in_state msg sigma2.
-Proof.
-  Admitted.
-
 Theorem inclusion_state_eq : forall sigma1 sigma2,
   state_inclusion sigma1 sigma2 ->
   state_inclusion sigma2 sigma1 ->
   state_eq sigma1 sigma2.
 Proof.
   intros.
-Admitted.
+  destruct (sort_total sigma1) as [sigma1s Hsort1].
+  destruct (sort_total sigma2) as [sigma2s Hsort2].
+  apply sort_is_sorted in Hsort1 as Hsigma1s.
+  apply sort_is_sorted in Hsort2 as Hsigma2s.
+  apply sort_state_eq in Hsort1.
+  apply sort_state_eq in Hsort2.
+  apply state_eq_inclusion in Hsort1 as Hinsigma1s.
+  apply state_eq_symmetric in Hsort1.
+  apply state_eq_inclusion in Hsort1 as Hinsigma1s'.
+
+  apply state_eq_inclusion in Hsort2 as Hinsigma2s.
+  apply state_eq_symmetric in Hsort2.
+  apply state_eq_inclusion in Hsort2 as Hinsigma2s'.
+
+  apply (state_inclusion_transitive _ _ _ H) in Hinsigma2s.
+  apply (state_inclusion_transitive _ _ _ Hinsigma1s') in Hinsigma2s.
+  apply (state_inclusion_transitive _ _ _ H0) in Hinsigma1s.
+  apply (state_inclusion_transitive _ _ _ Hinsigma2s') in Hinsigma1s.
+  clear H. clear H0. clear Hinsigma1s'. clear Hinsigma2s'.
+  
+  apply sorted_subset_inclusion in Hinsigma1s; try assumption.
+  apply sorted_subset_inclusion in Hinsigma2s; try assumption.
+
+  apply sorted_subset_syntactic_inclusion in Hinsigma1s.
+  apply sorted_subset_syntactic_inclusion in Hinsigma2s.
+
+  apply sorted_syntactic_state_inclusion_equality_predicate in Hinsigma2s
+  ; try assumption.
+  subst.
+  apply state_eq_symmetric in Hsort1.
+  apply (state_eq_transitive _ _ _ Hsort1 Hsort2).
+Qed.
 
 
 Theorem add_sorted : forall sigma msg, 
@@ -1123,25 +1237,18 @@ Theorem add_sorted : forall sigma msg,
   in_state msg sigma -> 
   add_in_sorted msg sigma sigma.
 Proof.
-(*
-  intros sigma msg is_sorted is_in_state.
-  induction is_sorted as [| msg' | msg''].
-  - inversion is_in_state.
-  - destruct (msg_compare msg msg') eqn:mc; try (simpl in is_in_state; rewrite mc in is_in_state; inversion is_in_state).
-    { simpl. rewrite mc. reflexivity. }
-  - destruct (msg_compare msg msg'') eqn:mc''.
-    + rewrite <- (IHis_sorted (in_state_decompose_LT _ _ _ is_in_state mc0)) at 2.
-      apply  in mc0.
-    + 
-apply in_state_decompose in is_in_state.
-    +
-    destruct is_in_state as [is_in_state_first | is_in_state_not_first].
-    + unfold add. rewrite is_in_state_first. reflexivity.
-    + apply IHis_sorted in is_in_state_not_first.
-      simpl in is_in_state_not_first.
-      simpl. rewrite is_in_state_not_first.
-*)
-  Admitted.
+  induction sigma; intros; repeat rewrite add_is_next in *.
+  - exfalso. apply (in_empty_state _ H0).
+  - inversion H0; subst; clear H0.
+    rewrite add_is_next in *.
+    apply no_confusion_next in H1; destruct H1; subst.
+    destruct H3.
+    + subst. constructor.
+    + apply (state_set_In _ _ _ H) in H0 as Hlt.
+      apply locally_sorted_tail in H.
+      apply IHsigma2 in H0; try assumption.
+      constructor; assumption.
+Qed.
 
 (******************************)
 (** Union of (sorted) states **)
@@ -1198,11 +1305,41 @@ Theorem fault_weight_msg_functional : forall msg1 msg2 r1 r2,
   fault_weight_msg msg1 msg2 r1 ->
   fault_weight_msg msg1 msg2 r2 ->
   r1 = r2.
-Admitted.
+Proof.
+  intros. inversion H; subst; clear H; inversion H0; subst; clear H0
+  ; try reflexivity
+  ; try contradiction.
+  - destruct H6; contradiction.
+  - destruct H1; contradiction.
+Qed.
 
 Theorem fault_weight_msg_total : forall msg1 msg2,
   exists r, fault_weight_msg msg1 msg2 r.
-Admitted.
+Proof.
+  intros.
+  destruct msg1 as [(c1, v1) j1].
+  destruct msg2 as [(c2, v2) j2].
+  destruct (V_eq_dec v1 v2).
+  - destruct (C_eq_dec c1 c2).
+    + destruct (state_eq_dec j1 j2); subst.
+      * exists 0%R. apply fault_weight_c_msg.
+      * destruct (in_state_dec (c2, v2, j1) j2).
+        { exists 0%R. apply fault_weight_msg1. assumption. }
+        destruct (in_state_dec (c2, v2, j2) j1).
+        { exists 0%R. apply fault_weight_msg2. assumption. }
+        exists (weight v2).
+        apply fault_weight_next; try assumption.
+        right. assumption.
+    + subst.
+      destruct (in_state_dec (c1, v2, j1) j2).
+      { exists 0%R. apply fault_weight_msg1. assumption. }
+      destruct (in_state_dec (c2, v2, j2) j1).
+      { exists 0%R. apply fault_weight_msg2. assumption. }
+      exists (weight v2).
+      apply fault_weight_next; try assumption.
+      left. assumption.
+  - exists 0%R. apply fault_weight_v_diff. assumption.
+Qed.
 
 Inductive fault_weight_message_state : message -> state -> R -> Prop :=
   | fault_weight_message_state_Empty: forall msg,
