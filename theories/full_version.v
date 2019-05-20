@@ -926,6 +926,64 @@ Notation "sigma1 '=>' sigma2" :=
   (sorted_subset sigma1 sigma2)
   (at level 20).
 
+
+Lemma sorted_subset_in_state : forall sigma sigma',
+  sorted_subset sigma sigma' ->
+  forall msg, in_state msg sigma -> in_state msg sigma'.
+Proof.
+  intros sigma sigma' H. induction H; intros.
+  - exfalso. apply (in_empty_state _ H).
+  - inversion H0; subst; clear H0. 
+    apply no_confusion_next in H1; destruct H1; subst.
+    destruct H3; subst.
+    + constructor. left. reflexivity.
+    + constructor. right. apply IHsorted_subset. assumption.
+  - constructor. right.  apply IHsorted_subset. assumption.
+Qed.
+
+Inductive state_suffix : state -> state -> Prop :=
+  | state_suffix_reflexive : forall sigma, state_suffix sigma sigma
+  | state_suffix_tail : forall sigma sigma' msg, 
+    state_suffix sigma sigma' -> state_suffix sigma (next msg sigma').
+
+Theorem sorted_subset_suffix : forall sigma sigma' msg,
+  sorted_subset (next msg sigma) sigma' <->
+  exists sigma'', state_suffix (next msg sigma'') sigma' /\ sorted_subset sigma sigma''.
+Proof.
+  intros. split; intros.
+  { remember (next msg sigma) as sigma1.
+  induction H.
+  - exfalso. symmetry in Heqsigma1. apply (no_confusion_next_empty _ _ Heqsigma1).
+  - apply no_confusion_next in Heqsigma1; destruct Heqsigma1; subst.
+   exists sigma'. split; try assumption. constructor.
+  - apply IHsorted_subset in Heqsigma1.
+    destruct Heqsigma1 as [sigma'' [Hsuffix Hsubset]].
+    exists sigma''. split; try assumption.
+    apply state_suffix_tail. assumption.
+  }
+  { destruct H as [sigma'' [Hsuffix Hsubset]]. 
+    remember (next msg sigma'') as sigma1.
+    induction Hsuffix; subst.
+    - apply SubSet_Next_l; assumption.
+    - apply SubSet_Next_r. apply IHHsuffix. reflexivity.
+  }
+Qed.
+
+Lemma in_state_sorted_subset : forall sigma sigma',
+  locally_sorted sigma ->
+  locally_sorted sigma' ->
+  (forall msg, in_state msg sigma -> in_state msg sigma') ->
+  sorted_subset sigma sigma'.
+Proof.
+  induction sigma; intros.
+  - constructor.
+  - rewrite add_is_next in *. apply sorted_subset_suffix.
+    assert (Hsigma' : forall msg : message, in_state msg sigma2 -> in_state msg sigma').
+    { intros. apply H1. constructor. right. assumption. }
+    apply locally_sorted_tail in H as LSsigma2.
+    apply (IHsigma2 _ LSsigma2 H0) in  Hsigma'.
+Admitted.
+
 Theorem sorted_subset_inclusion : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
