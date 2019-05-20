@@ -468,6 +468,9 @@ Inductive in_state : message -> state -> Prop :=
           in_state msg' (next msg sigma)
   .
 
+Definition syntactic_state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
+  forall msg, in_state msg sigma1 -> in_state msg sigma2.
+
 Lemma in_empty_state : forall msg, ~ in_state msg Empty.
 Proof.
   intros. intro. inversion H; subst.
@@ -562,6 +565,59 @@ Proof.
     destruct H3; subst; try assumption.
     apply (msg_lt_transitive (c2, v2, j2) (c, v, sigma1) msg1 H6).
     apply IHsigma2; assumption.
+Qed.
+
+Lemma sorted_syntactic_state_inclusion_first_equal : forall sigma sigma' msg,
+  locally_sorted (next msg sigma) ->
+  locally_sorted (next msg sigma') ->
+  syntactic_state_inclusion (next msg sigma) (next msg sigma') ->
+  syntactic_state_inclusion sigma sigma'.
+Proof.
+  intros.
+  intros msg' Hin.
+  apply (state_set_In _ _ _ H) in Hin as Hlt.
+  assert (Hin' : in_state msg' (next msg sigma)).
+  { constructor. right. assumption. }
+  apply H1 in Hin'. inversion Hin'; subst; clear Hin'.
+  apply no_confusion_next in H2; destruct H2; subst.
+  destruct H4; try assumption.
+  subst. exfalso. apply (msg_lt_irreflexive _ Hlt).
+Qed.
+
+Theorem sorted_syntactic_state_inclusion : forall sigma sigma' msg msg',
+  locally_sorted (next msg sigma) ->
+  locally_sorted (next msg' sigma') ->
+  syntactic_state_inclusion (next msg sigma) (next msg' sigma') ->
+  (msg = msg' /\ syntactic_state_inclusion sigma sigma')
+  \/
+  (msg_lt msg' msg /\ syntactic_state_inclusion (next msg sigma) sigma').
+Proof.
+  intros.
+  assert (Hin : in_state msg (next msg' sigma')).
+  { apply H1. constructor. left. reflexivity. }
+  inversion Hin; subst; clear Hin.
+  apply no_confusion_next in H2; destruct H2; subst.
+  destruct H4.
+  - left. subst. split; try reflexivity.
+    apply sorted_syntactic_state_inclusion_first_equal with msg'; assumption.
+  - right. apply (state_set_In _ _ _ H0) in H2.
+    split; try assumption.
+    intros msg1 Hin1.
+    inversion Hin1; subst.
+    apply no_confusion_next in H3; destruct H3; subst.
+    destruct H5; subst.
+    + apply H1 in Hin1.
+      inversion Hin1; subst.
+      apply no_confusion_next in H3; destruct H3; subst.
+      destruct H5; subst; try assumption.
+      exfalso. apply (msg_lt_irreflexive _ H2).
+    + apply (state_set_In _ _ _ H) in H3.
+      apply H1 in Hin1.
+      inversion Hin1; subst.
+      apply no_confusion_next in H4; destruct H4; subst.
+      destruct H6; subst; try assumption.
+      exfalso. apply (msg_lt_transitive _ _ _ H2) in H3.
+      apply (msg_lt_irreflexive _ H3).
 Qed.
 
 (** Work in progress **)
@@ -815,6 +871,9 @@ Proof.
   exists js0. split;assumption.
 Qed.
 
+(*******************************)
+(** Semantic state membership **)
+(*******************************)
 
 Definition in_state_eq (msg : message) (sigma' : state) : Prop :=
   exists msg', in_state msg' sigma' /\ msg_eq msg msg'.
@@ -840,6 +899,7 @@ Qed.
 
 Definition state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
   forall msg, in_state_eq msg sigma1 -> in_state_eq msg sigma2.
+
 
 Lemma state_inclusion_empty : forall sigma, state_inclusion Empty sigma.
 Proof.
@@ -894,9 +954,10 @@ Qed.
 Theorem set_in_state_sorted : forall c v j sigma,
   locally_sorted sigma ->
   locally_sorted j ->
-  in_state_eq (c,v,j) sigma -> in_state (c, v, j) sigma.
+  in_state_eq (c,v,j) sigma <-> in_state (c, v, j) sigma.
 Proof.
-  intros.
+  intros. split; intros.
+  {
   inversion H1; subst; clear H1. destruct H2.
   apply msg_eq_construct in H2.
   destruct H2 as [c0 [v0 [j1 [j2 [EQ1 [EQ2 SEQ]]]]]]; inversion EQ1; subst; clear EQ1.
@@ -908,8 +969,33 @@ Proof.
   apply (sort_functional _ _ _ H0) in Hj1s; subst; clear H0.
   apply (sort_functional _ _ _ Hj2s) in Hj2s'; subst; clear Hj2s.
   assumption.
+  }
+  {
+    exists (c, v, j). split; try assumption.
+    apply msg_eq_reflexive.
+  }
 Qed.
 
+Theorem sorted_state_inclusion : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  state_inclusion sigma1 sigma2 <-> syntactic_state_inclusion sigma1 sigma2.
+Proof.
+  intros.
+  split; intros.
+  { intros msg Hin.
+    destruct msg as [(c, v) j].
+    apply in_sorted_state in Hin as Hjs; try assumption.
+    apply (set_in_state_sorted _ _ _ _ H Hjs) in Hin.
+    apply H1 in Hin.
+    apply (set_in_state_sorted _ _ _ _ H0 Hjs) in Hin.
+    assumption.
+  }
+  {
+    intros msg Hin. inversion Hin; subst; clear Hin. destruct H2.
+    apply H1 in H2. unfold in_state_eq. exists x. split; assumption.
+  }
+Qed.
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -927,19 +1013,21 @@ Notation "sigma1 '=>' sigma2" :=
   (at level 20).
 
 
-Lemma sorted_subset_in_state : forall sigma sigma',
+Lemma sorted_subset_syntactic_inclusion : forall sigma sigma',
   sorted_subset sigma sigma' ->
-  forall msg, in_state msg sigma -> in_state msg sigma'.
+  syntactic_state_inclusion sigma sigma'.
 Proof.
   intros sigma sigma' H. induction H; intros.
-  - exfalso. apply (in_empty_state _ H).
-  - inversion H0; subst; clear H0. 
+  - intros msg H. exfalso. apply (in_empty_state _ H).
+  - intros msg' H0. inversion H0; subst; clear H0. 
     apply no_confusion_next in H1; destruct H1; subst.
     destruct H3; subst.
     + constructor. left. reflexivity.
     + constructor. right. apply IHsorted_subset. assumption.
   - constructor. right.  apply IHsorted_subset. assumption.
 Qed.
+
+(** Not needed **)
 
 Inductive state_suffix : state -> state -> Prop :=
   | state_suffix_reflexive : forall sigma, state_suffix sigma sigma
@@ -969,46 +1057,48 @@ Proof.
   }
 Qed.
 
-Lemma in_state_sorted_subset : forall sigma sigma',
+(** End not needed **)
+
+Lemma syntactic_inclusion_sorted_subset : forall sigma sigma',
   locally_sorted sigma ->
   locally_sorted sigma' ->
-  (forall msg, in_state msg sigma -> in_state msg sigma') ->
+  syntactic_state_inclusion sigma sigma' ->
   sorted_subset sigma sigma'.
 Proof.
-  induction sigma; intros.
-  - constructor.
-  - rewrite add_is_next in *. apply sorted_subset_suffix.
-    assert (Hsigma' : forall msg : message, in_state msg sigma2 -> in_state msg sigma').
-    { intros. apply H1. constructor. right. assumption. }
-    apply locally_sorted_tail in H as LSsigma2.
-    apply (IHsigma2 _ LSsigma2 H0) in  Hsigma'.
-Admitted.
+  intros sigma sigma'.
+  generalize dependent sigma.
+  induction sigma'; intros.
+  - destruct sigma.
+    + constructor.
+    + rewrite add_is_next in *. assert (H2 : in_state (c, v, sigma1) Empty).
+      { apply H1. constructor. left. reflexivity. }
+      exfalso. apply (in_empty_state _ H2).
+  - clear IHsigma'1. rewrite add_is_next in *.
+    apply locally_sorted_tail in H0 as LSsigma'2.
+    destruct sigma.
+    + constructor.
+    + rewrite add_is_next in *.
+      apply sorted_syntactic_state_inclusion in H1; try assumption.
+      destruct H1; destruct H1; apply locally_sorted_tail in H0.
+      * inversion H1; subst; clear H1.
+        apply SubSet_Next_l.
+        apply locally_sorted_tail in H.
+        apply IHsigma'2; assumption.
+      * apply SubSet_Next_r.
+        apply IHsigma'2; assumption.
+Qed.
 
 Theorem sorted_subset_inclusion : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   sorted_subset sigma1 sigma2 <-> state_inclusion sigma1 sigma2.
 Proof.
-  intros. split; intros; generalize dependent H0; generalize dependent H. 
-  - induction H1; intros.
-    + apply state_inclusion_empty.
-    + apply state_inclusion_next_l.
-      apply locally_sorted_tail in H0. 
-      apply locally_sorted_tail in H. 
-      apply IHsorted_subset; assumption.
-    +  apply state_inclusion_next_r.
-      apply locally_sorted_tail in H0. 
-      apply IHsorted_subset; assumption.
-  - unfold state_inclusion in H1.
-    intro. induction H ; intros.
-    + constructor.
-    + assert (Hin : in_state_eq (c, v, j) sigma2).
-      { apply H1. unfold in_state_eq. exists (c, v, j).
-        split; try (apply msg_eq_reflexive).
-        constructor. left. reflexivity.
-      }
-      apply set_in_state_sorted in Hin; try assumption.
-Admitted.
+  intros; split; intro.
+  - apply sorted_state_inclusion; try assumption.
+    apply sorted_subset_syntactic_inclusion. assumption.
+  - apply syntactic_inclusion_sorted_subset; try assumption.
+    apply sorted_state_inclusion; assumption.
+Qed.
 
 Theorem sorted_subset_elements: forall msg sigma1 sigma2, 
     locally_sorted(sigma1) -> 
