@@ -1,5 +1,10 @@
-From Casper
-Require Import full_version.
+Require Import Casper.full_version.
+Require Import Casper.full_messages.
+
+Require Import Casper.FullStates.add_in_sorted.
+Require Import Casper.FullStates.locally_sorted.
+Require Import Casper.FullStates.state_inclusion.
+Require Import Casper.FullStates.sorted_subset.
 
 (** work in progress **)
 

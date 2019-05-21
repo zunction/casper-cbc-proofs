@@ -1,6 +1,21 @@
 -Q theories Casper
 theories/preamble.v
+theories/consensus_values.v
+theories/validators.v
+theories/threshold.v
+theories/hash.v
 theories/sorted_lists.v
 theories/light_version.v
+theories/full_states.v
+theories/full_messages.v
+theories/FullStates/add_in_sorted.v
+theories/FullStates/locally_sorted.v
+theories/FullStates/in_state.v
+theories/FullStates/syntactic_state_inclusion.v
+theories/FullStates/sort.v
+theories/FullStates/state_eq.v
+theories/FullStates/state_inclusion.v
+theories/FullStates/sorted_subset.v
+theories/FullStates/fault_weights.v
 theories/full_version.v
 theories/common_futures.v

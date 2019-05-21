@@ -4,10 +4,8 @@ Require Import Coq.Sorting.Sorted.
 Require Import Coq.Classes.RelationClasses.
 Import ListNotations.
 
-From Casper
-Require Import preamble.
-From Casper
-Require Import sorted_lists.
+Require Import Casper.preamble.
+Require Import Casper.sorted_lists.
 
 
 (**
@@ -20,91 +18,16 @@ Require Import sorted_lists.
 
 (** Parameters of the protocol **)
 
-(***************************************)
-(** Non-empty set of consensus values **)
-(***************************************)
-
-Variable C : Set .
-
-Axiom C_non_empty : exists c : C, True.
-
-(** Less than order on consensus values **)
-
-Variable c_lt : C -> C -> Prop.
-
-Axiom c_lt_storder: StrictOrder c_lt.
-
-(** C totally ordered **)
-
-Axiom C_totally_ordered: TotalOrder c_lt.
-
-
-(**************************************)
-(** Non-empty set of validator names **)
-(**************************************)
-
-Variable V : Set .
-
-Axiom V_non_empty : exists v : V, True.
-
-
-(** Less than order on validator names **)
-
-Variable v_lt : V -> V -> Prop.
-
-Axiom v_lt_storder: StrictOrder v_lt.
-
-(** V totally ordered **)
-
-Axiom V_totally_ordered: TotalOrder v_lt.
-
-
-(***********************)
-(** Validator weights **)
-(***********************)
-
-Variable weight : V -> R.
-
-Axiom weight_positive : forall v : V, (weight v >= 0)%R.
-
-
-(************************************************************)
-(** Fault tolerance threshold (a non-negative real number) **)
-(************************************************************)
-
-Variable t : R.
-
-Axiom threshold_positive : (t >= 0)%R .
-
-(** TODO: Strictly smaller than the total validator weigths **)
-(** TODO: Do we really need this assumption? **)
-
-
-(*******************)
-(** Hash universe **)
-(*******************)
-
-Variable hash : Set .
-
-(** Less than order on hashes **)
-
-Variable hash_lt : hash -> hash -> Prop.
-
-Axiom hash_lt_storder: StrictOrder hash_lt.
-
-(** V totally ordered **)
-
-Axiom hash_totally_ordered: TotalOrder hash_lt.
-
-(** Hash sets **)
-Definition hash_lex := @list_lex hash hash_lt. 
-Definition add_in_hash_set := @add_in_sorted hash hash_lt.
+Require Import Casper.consensus_values.
+Require Import Casper.validators.
+Require Import Casper.threshold.
+Require Import Casper.hash.
 
 (** Messages **)
 
 Definition message : Set := C * V * list hash.
 
-Variable Hash : message -> hash.
+Parameter Hash : message -> hash.
 
 Definition message_lt (m1 : message) (m2 : message) : Prop :=
   match m1,m2 with
@@ -114,9 +37,9 @@ Definition message_lt (m1 : message) (m2 : message) : Prop :=
 
 Lemma message_lt_storder : StrictOrder message_lt.
 Proof.
-  assert (SOc : StrictOrder c_lt); try apply c_lt_storder.
-  assert (SOv : StrictOrder v_lt); try apply v_lt_storder.
-  assert (SOh : StrictOrder hash_lt); try apply hash_lt_storder.
+  assert (SOc : StrictOrder c_lt); try apply c_lt_strict_order.
+  assert (SOv : StrictOrder v_lt); try apply v_lt_strict_order.
+  assert (SOh : StrictOrder hash_lt); try apply hash_lt_strict_order.
   assert (SOhs : StrictOrder hash_lex); try apply (list_lex_storder hash hash_lt SOh).
   constructor.
   - unfold Irreflexive. unfold Reflexive. destruct x as [(c, v) h]. intro.
@@ -169,16 +92,16 @@ Proof.
   - inversion H; subst. constructor.
   - inversion H; subst. apply IHsigma in H2.
     apply (add_in_sorted_sorted hash_lt (Hash a) hs0); try assumption.
-    apply hash_lt_storder.
+    apply hash_lt_strict_order.
 Qed.
 
 (***************)
 (** Estimator **)
 (***************)
 
-Variable epsilon : state -> C -> Prop.
+Parameter epsilon : state -> C -> Prop.
 
-Axiom epsilon_total : forall s : state, exists c : C, epsilon s c.
+Parameter epsilon_total : forall s : state, exists c : C, epsilon s c.
 
 
 (********************)
