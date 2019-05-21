@@ -1,229 +1,20 @@
 Require Import Casper.full_version.
+Require Import Casper.full_states.
 Require Import Casper.full_messages.
 
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.state_inclusion.
 Require Import Casper.FullStates.sorted_subset.
+Require Import Casper.FullStates.sorted_union.
 
 (** work in progress **)
 
-Lemma locally_sorted_next_backwards : forall msg sigma,
-  locally_sorted (next msg sigma) ->
-  locally_sorted sigma.
-Proof.
-  intros.
-  inversion H
-    ; subst
-    ; try rewrite add_is_next in *
-    ; try apply no_confusion_next in H0
-    ; try destruct H0; subst
-    .
-  - symmetry in H1. apply no_confusion_next_empty in H1. inversion H1.
-  - constructor.
-  - assumption.
-Qed.
-
-(* 
-
-Maybe needed for sorted_subset_transitive
-
-Lemma sorted_subset_empty : forall sigma,
-  locally_sorted sigma ->
-  sigma => Empty -> 
-  sigma = Empty.
-Proof.
-  intros.
-  inversion H0
-    ; subst
-    ; try apply no_confusion_next_empty in H1
-    ; try inversion H1
-    .
-  - reflexivity.
-Qed.
-*)
-
-Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
-  sigma1 => sigma2 ->
-  sigma2 => sigma3 ->
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  locally_sorted sigma3 ->
-  sigma1 => sigma3.
-Admitted.
-
-(*
-
-Maybe needed for sorted_union_locally_sorted
-
-Lemma sorted_union_all_messages : forall msg sigma1 sigma2 sigma,
-  sorted_union sigma1 sigma2 sigma ->
-  in_state msg sigma ->
-  (in_state msg sigma1 \/ in_state msg sigma2).
-Admitted.
-*)
-
-Lemma sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
-  sorted_union sigma1 sigma2 sigma ->
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  locally_sorted sigma.
-Proof.
-  intros sigma1 sigma2 sigma HUnion.
-  induction HUnion as 
-      [ gamma
-      | gamma
-      | msg gamma1 gamma2 gamma' HUnion_next
-      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next
-      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next
-      ]
-  ; intros
-  ; try assumption
-  .
-  Admitted.
-
-Corollary sorted_subset_reflexive : forall sigma, 
-  locally_sorted sigma ->
-  sorted_subset sigma sigma.
-Proof.
-  intros.
-  apply sorted_subset_inclusion; try assumption.
-  apply state_inclusion_reflexive.
-Qed.
-
-
-Lemma sorted_union_subset_left : forall sigma1 sigma2 sigma,
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  sorted_union sigma1 sigma2 sigma ->
-  sigma1 => sigma.
-Proof.
-  intros sigma1 sigma2 sigma LocS_sigma1 LocS_sigma2 HUnion.
-  induction HUnion
-    ; try constructor
-  .
-  - apply sorted_subset_reflexive. assumption.
-  - apply locally_sorted_next_backwards in LocS_sigma1.
-    apply locally_sorted_next_backwards in LocS_sigma2.
-    apply (IHHUnion LocS_sigma1 LocS_sigma2).
-  - apply locally_sorted_next_backwards in LocS_sigma1.
-    apply (IHHUnion LocS_sigma1 LocS_sigma2).
-  - apply locally_sorted_next_backwards in LocS_sigma2.
-    apply (IHHUnion LocS_sigma1 LocS_sigma2).
-Qed.
-
-
-Lemma sorted_union_subset_right : forall sigma1 sigma2 sigma,
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  sorted_union sigma1 sigma2 sigma ->
-  sigma2 => sigma.
-Proof.
-  intros sigma1 sigma2 sigma LocS_sigma1 LocS_sigma2 HUnion.
-  induction HUnion
-    ; try constructor
-  .
-  - apply sorted_subset_reflexive. assumption.
-  - apply locally_sorted_next_backwards in LocS_sigma1.
-    apply locally_sorted_next_backwards in LocS_sigma2.
-    apply (IHHUnion LocS_sigma1 LocS_sigma2).
-  - apply locally_sorted_next_backwards in LocS_sigma1.
-    apply (IHHUnion LocS_sigma1 LocS_sigma2).
-  - apply locally_sorted_next_backwards in LocS_sigma2.
-    apply (IHHUnion LocS_sigma1 LocS_sigma2).
-Qed.
-
-(*
-
-I don't think these are needed anymore
-
-Lemma union_state_empty_left : forall sigma1 sigma2,
-  sorted_union Empty sigma1 sigma2 -> sigma1 = sigma2.
-Proof.
-  intros sigma1 sigma2 HUnion.
-  inversion HUnion as
-     [ gamma U1 U2 UNext
-      | gamma U1 U2 UNext
-      | msg1 gamma1 gamma2 gamma' HUnion_next U1 U2 UNext
-      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next U1 U2 UNext
-      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next U1 U2 UNext
-      ]
-  ; subst 
-  ; try reflexivity 
-  ; destruct msg1 as [(c,v) j]
-  ; unfold next in U1
-  ; inversion U1.
-Qed.
-
-Lemma union_state_empty_right : forall sigma1 sigma2,
-  sorted_union sigma1 Empty sigma2 -> sigma1 = sigma2.
-Proof.
-  intros sigma1 sigma2 HUnion.
-  inversion HUnion as
-     [ gamma U1 U2 UNext
-      | gamma U1 U2 UNext
-      | msg2 gamma1 gamma2 gamma' HUnion_next U1 U2 UNext
-      | msg1 gamma1 msg2 gamma2 gamma' LT HUnion_next U1 U2 UNext
-      | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next U1 U2 UNext
-      ]
-  ; subst 
-  ; try reflexivity 
-  ; destruct msg2 as [(c,v) j]
-  ; unfold next in U2
-  ; inversion U2.
-Qed.
-*)
-
-Lemma locally_sorted_next_message : forall msg sigma,
-  locally_sorted (next msg sigma) ->
-  add_in_sorted msg sigma (next msg sigma).
-Proof.
-  intros.
-  inversion H as
-    [ M 
-    | c v j Hj M 
-    | c v j msg' gamma Hj LT LocS M 
-    ]
-   ; subst
-   ; try ( rewrite add_is_next in *
-         ; apply no_confusion_next in M
-         ; destruct M; subst
-         ; constructor
-         ; assumption
-         )
-   .
-  - destruct msg as [(sc, sv) sj].
-    rewrite <- add_is_next in M. inversion M.
-Qed.
-
-
-(** Protocol state properties **)
-
-Lemma protocol_state_next_inclusion : forall c v j sigma,
-  protocol_state (next (c,v,j) sigma) ->
-  j => sigma.
-Admitted.
-
-Lemma protocol_state_next_backwards_state : forall msg sigma,
-  protocol_state (next msg sigma) -> 
-  protocol_state sigma.
-Admitted.
-
-Lemma protocol_state_next_backwards_justification : forall c v j sigma,
-  protocol_state (next (c,v,j) sigma) ->
-  protocol_state j.
-Admitted.
-
-Lemma protocol_state_next_backwards_valid_message : forall c v j sigma,
-  protocol_state (next (c,v,j) sigma) ->
-  valid_msg_condition c j.
-Admitted.
-
-Lemma fault_tolerance_condition_backwards: forall msg sigma,
-  fault_tolerance_condition (next msg sigma) ->
+Lemma fault_tolerance_condition_backwards: forall msg sigma sigma',
+   add_in_sorted msg sigma sigma' ->
+  fault_tolerance_condition sigma' ->
   fault_tolerance_condition sigma.
 Admitted.
-
 
 (** Two party common futures **)
 
@@ -234,12 +25,28 @@ Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
   fault_tolerance_condition sigma ->
   protocol_state sigma.
 Proof.
-  intros sigma1 sigma2 sigma H1 H2 HUnion HFault.
-  generalize dependent sigma1.
-  generalize dependent sigma2.
-  induction sigma as [ | sc sv sj _]; try intros.
-  + constructor.
-  + rewrite add_is_next in *.
+  intros sig1 sig2 sig H1. generalize dependent sig. generalize dependent sig2.
+  induction H1; intros sig2 sig Hsig2 HUnion HFault.
+  + apply union_state_empty_left in HUnion; subst; assumption.
+  + clear IHprotocol_state1. 
+    apply protocol_state_sorted in H1_0 as LS_sigma'.
+    apply protocol_state_sorted in Hsig2 as LS_sig2.
+    apply protocol_state_sorted in H1_ as LS_sigma.
+    apply (locally_sorted_msg_justification c v sigma) in LS_sigma as LS_msg.
+    destruct (sorted_union_total sigma' sig2) as [sigma2' HUnion2'].
+    apply (sorted_union_ac _ _ _ _ _ _ LS_sigma' LS_sig2 LS_msg H1 HUnion) in HUnion2' as Hadd2'.
+    apply protocol_state_next with c v sigma sigma2'; try assumption.
+    * apply IHprotocol_state2 with sig2; try assumption.
+      apply (fault_tolerance_condition_backwards _ _ _ Hadd2' HFault).
+    * apply sorted_union_subset_left in HUnion2' as Hsub2'; try assumption.
+      apply sorted_union_locally_sorted in HUnion2'; try assumption.
+      apply (sorted_subset_transitive _ _ _ LS_sigma LS_sigma' HUnion2' H Hsub2').
+Qed.
+
+(* Previous Proof
+
+
+rewrite add_is_next in *.
     inversion HUnion as 
       [ gamma U1 U2 UNext
       | gamma U1 U2 UNext
@@ -314,3 +121,37 @@ Proof.
                 (next (sc,sv,sj) sigma1) 
                 HUnion LS_nextmsg1gamma1 LS_nextgamma2).
 Qed.
+
+
+(* 
+
+Maybe needed for sorted_subset_transitive
+
+Lemma sorted_subset_empty : forall sigma,
+  locally_sorted sigma ->
+  sigma => Empty -> 
+  sigma = Empty.
+Proof.
+  intros.
+  inversion H0
+    ; subst
+    ; try apply no_confusion_next_empty in H1
+    ; try inversion H1
+    .
+  - reflexivity.
+Qed.
+*)
+
+(*
+
+Maybe needed for sorted_union_locally_sorted
+
+Lemma sorted_union_all_messages : forall msg sigma1 sigma2 sigma,
+  sorted_union sigma1 sigma2 sigma ->
+  in_state msg sigma ->
+  (in_state msg sigma1 \/ in_state msg sigma2).
+Admitted.
+*)
+
+
+*)

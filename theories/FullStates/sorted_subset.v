@@ -1,3 +1,5 @@
+Require Import Coq.Classes.RelationClasses.
+
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
 Require Import Casper.FullStates.locally_sorted.
@@ -76,3 +78,30 @@ Proof.
   - apply syntactic_inclusion_sorted_subset; try assumption.
     apply sorted_state_inclusion; assumption.
 Qed.
+
+
+Corollary sorted_subset_reflexive : forall sigma, 
+  locally_sorted sigma ->
+  sorted_subset sigma sigma.
+Proof.
+  intros.
+  apply sorted_subset_inclusion; try assumption.
+  apply state_inclusion_reflexive.
+Qed.
+
+
+
+Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  locally_sorted sigma3 ->
+  sigma1 => sigma2 ->
+  sigma2 => sigma3 ->
+  sigma1 => sigma3.
+Admitted.
+
+
+(*
+Theorem sorted_subset_transitive : Transitive sorted_subset.
+  Admitted.
+*)

@@ -20,7 +20,8 @@ Theorem sort_is_sorted : forall sigma sigmas,
 Proof.
   intros.
   induction H; try constructor.
-  apply add_in_sorted_sorted with c v js sigmas; assumption.
+  apply add_in_sorted_sorted with (c, v, js) sigmas; try assumption.
+  apply locally_sorted_msg_justification; assumption.
 Qed.
 
 Theorem sort_sorted_idem : forall sigma,

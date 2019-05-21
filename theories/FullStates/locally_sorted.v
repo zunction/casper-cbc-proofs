@@ -15,11 +15,23 @@ Inductive locally_sorted : state -> Prop :=
           locally_sorted (next (c, v, j) (next msg' sigma))
   .
 
-Lemma locally_sorted_head : forall c v j sigma,
-  locally_sorted (next (c,v,j) sigma) ->
-  locally_sorted j.
+
+Definition locally_sorted_msg (msg : message) : Prop :=
+  locally_sorted (next msg Empty).
+
+Lemma locally_sorted_msg_justification : forall c v j,
+  locally_sorted_msg (c,v,j) <-> locally_sorted j.
 Proof.
-  intros. inversion H; subst; assumption.
+  intros; split; intro.
+  - inversion H; subst; assumption.
+  - apply LSorted_Singleton. assumption.
+Qed.
+
+Lemma locally_sorted_head : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  locally_sorted_msg msg.
+Proof.
+  intros [(c, v) j] sigma H. inversion H; subst; apply locally_sorted_msg_justification; assumption.
 Qed.
 
 Lemma locally_sorted_tail : forall msg sigma,
@@ -36,20 +48,21 @@ Proof.
 Qed.
 
 
-Theorem add_in_sorted_sorted : forall c v j sigma sigma',
+Theorem add_in_sorted_sorted : forall msg sigma sigma',
   locally_sorted sigma ->
-  locally_sorted j ->
-  add_in_sorted (c, v, j) sigma sigma' -> locally_sorted sigma'.
+  locally_sorted_msg msg ->
+  add_in_sorted msg sigma sigma' -> locally_sorted sigma'.
 Proof.
-  intros c v j sigma sigma' Hsorted. 
+  intros msg sigma sigma' Hsorted. 
   generalize dependent sigma'.
-  generalize dependent j. generalize dependent v. generalize dependent c.
+  generalize dependent msg.
   induction Hsorted as
   [
   | sc sv sj LSsj
   | sc sv sj [(sc', sv') sj'] ssigma LSsj _  LT LSs
   ]
-  ; intros c v j sigma' LSj AddA
+  ; intros [(c, v) j] sigma' LSmsg AddA
+  ; apply locally_sorted_msg_justification in LSmsg as LSj
   ; inversion AddA as 
     [ [(ca, va) ja] AA AEmpty AC
     | [(ca, va) ja] sigmaA AA ANext AC
@@ -61,7 +74,7 @@ Proof.
   ; try (apply LSorted_Next; try assumption; constructor)
   ; try assumption
   .
-  - apply add_in_empty in AddB. subst. apply LSorted_Next; try assumption; constructor. assumption.
+  - apply add_in_empty in AddB. subst. apply LSorted_Next; try assumption; constructor.
   - inversion AddB as 
     [ [(cb, vb) jb] BA BEmpty BC
     | [(cb, vb) jb] sigmaB BA BNext BC
@@ -72,6 +85,30 @@ Proof.
     .
     + repeat (apply LSorted_Next; try assumption).
     + apply LSorted_Next; try assumption.
-      apply (IHLSs c v j _); try assumption.
+      apply (IHLSs (c, v, j) _); try assumption.
       apply add_in_Next_gt; assumption.
 Qed.
+
+Lemma locally_sorted_next_message : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  add_in_sorted msg sigma (next msg sigma).
+Proof.
+  intros.
+  inversion H as
+    [ M 
+    | c v j Hj M 
+    | c v j msg' gamma Hj LT LocS M 
+    ]
+   ; subst
+   ; try ( rewrite add_is_next in *
+         ; apply no_confusion_next in M
+         ; destruct M; subst
+         ; constructor
+         ; assumption
+         )
+   .
+  - destruct msg as [(sc, sv) sj].
+    rewrite <- add_is_next in M. inversion M.
+Qed.
+
+

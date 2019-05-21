@@ -81,11 +81,10 @@ Proof.
   intros.
   split; intros.
   { intros msg Hin.
-    destruct msg as [(c, v) j].
     apply in_sorted_state in Hin as Hjs; try assumption.
-    apply (set_in_state_sorted _ _ _ _ H Hjs) in Hin.
+    apply (set_in_state_sorted _ _ H Hjs) in Hin.
     apply H1 in Hin.
-    apply (set_in_state_sorted _ _ _ _ H0 Hjs) in Hin.
+    apply (set_in_state_sorted _ _ H0 Hjs) in Hin.
     assumption.
   }
   {

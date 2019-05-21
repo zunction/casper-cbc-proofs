@@ -47,18 +47,18 @@ Qed.
 
 Lemma in_sorted_state : forall sigma,
   locally_sorted sigma ->
-   forall c v j,
-  in_state (c, v, j) sigma ->
-  locally_sorted j.
+   forall msg,
+  in_state msg sigma ->
+  locally_sorted_msg msg.
 Proof.
   intros sigma H. induction H; intros.
   - exfalso. apply (in_empty_state _ H).
-  - apply in_singleton_state in H0. inversion H0; subst; clear H0. assumption.
+  - apply in_singleton_state in H0; subst. apply locally_sorted_msg_justification. assumption.
   - inversion H2; subst; clear H2. rewrite add_is_next in H3.
     apply no_confusion_next in H3; destruct H3; subst.
-    destruct H5.
-    + inversion H2; subst; assumption.
-    + apply IHlocally_sorted2 with c0 v0; assumption.
+    destruct H5; subst.
+    + apply locally_sorted_msg_justification. assumption.
+    + apply IHlocally_sorted2 ; assumption.
 Qed.
 
 Theorem add_in_sorted_msg_preservation : forall msg sigma sigma',

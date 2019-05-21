@@ -164,19 +164,21 @@ Proof.
 Qed.
 
 
-Theorem set_in_state_sorted : forall c v j sigma,
+Theorem set_in_state_sorted : forall msg sigma,
   locally_sorted sigma ->
-  locally_sorted j ->
-  in_state_eq (c,v,j) sigma <-> in_state (c, v, j) sigma.
+  locally_sorted_msg msg ->
+  in_state_eq msg sigma <-> in_state msg sigma.
 Proof.
   intros. split; intros.
   {
   inversion H1; subst; clear H1. destruct H2.
   apply msg_eq_construct in H2.
-  destruct H2 as [c0 [v0 [j1 [j2 [EQ1 [EQ2 SEQ]]]]]]; inversion EQ1; subst; clear EQ1.
+  destruct H2 as [c0 [v0 [j1 [j2 [EQ1 [EQ2 SEQ]]]]]]; subst.
   apply in_sorted_state in H1 as Hj2s; try assumption.
   inversion SEQ; subst; clear SEQ.
   destruct H2 as [js [Hj1s Hj2s']].
+  apply locally_sorted_msg_justification in H0.
+  apply locally_sorted_msg_justification in Hj2s.
   apply sort_sorted_idem in H0.
   apply sort_sorted_idem in Hj2s.
   apply (sort_functional _ _ _ H0) in Hj1s; subst; clear H0.
@@ -184,7 +186,7 @@ Proof.
   assumption.
   }
   {
-    exists (c, v, j). split; try assumption.
+    exists msg. split; try assumption.
     apply msg_eq_reflexive.
   }
 Qed.

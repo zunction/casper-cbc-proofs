@@ -89,30 +89,6 @@ Proof.
   apply (state_eq_transitive _ _ _ Hsort1 Hsort2).
 Qed.
 
-
-(******************************)
-(** Union of (sorted) states **)
-(******************************)
-
-Inductive sorted_union : state -> state -> state -> Prop :=
-  | Sorted_union_Empty_left : forall sigma, sorted_union Empty sigma sigma
-  | Sorted_union_Empty_right : forall sigma, sorted_union sigma Empty sigma
-  | Sorted_union_Next_eq : forall msg sigma1 sigma2 sigma',
-      sorted_union sigma1 sigma2 sigma' ->
-      sorted_union (next msg sigma1) (next msg sigma2) (next msg sigma')
-  | Sorted_union_Next_lt : forall msg1 sigma1 msg2 sigma2 sigma',
-      msg_lt msg1 msg2 ->
-      sorted_union sigma1 (next msg2 sigma2) sigma' ->
-      sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg1 sigma')
-  | Sorted_union_Next_gt : forall msg1 sigma1 msg2 sigma2 sigma',
-      msg_lt msg2 msg1 ->
-      sorted_union (next msg1 sigma1) sigma2 sigma' ->
-      sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg2 sigma')
-  .
-
-(** TODO: Properties **)
-
-
 (*******************************)
 (** Protocol state conditions **) 
 (*******************************)
@@ -155,7 +131,8 @@ Proof.
   intros.
   induction H.
   - constructor.
-  - apply (add_in_sorted_sorted c v sigma sigma'); try assumption.
+  - apply (add_in_sorted_sorted (c, v, sigma) sigma'); try assumption.
+  apply locally_sorted_msg_justification. assumption.
 Qed.
 
 
