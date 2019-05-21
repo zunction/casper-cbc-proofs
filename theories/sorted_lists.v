@@ -5,8 +5,8 @@ Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Structures.Orders.
 Import ListNotations.
 
-Class TotalOrder {A} (lt : relation A) : Prop :=
-   totality : forall c1 c2, c1 = c2 \/ lt c1 c2 \/ lt c2 c1.
+From Casper
+Require Import preamble.
 
 (** Sorted Lists **)
 

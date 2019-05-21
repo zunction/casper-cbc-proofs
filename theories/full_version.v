@@ -5,6 +5,8 @@ Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Structures.Orders.
 
 From Casper
+Require Import preamble.
+From Casper
 Require Import sorted_lists.
 
 
@@ -35,6 +37,13 @@ Axiom c_lt_strict_order: StrictOrder c_lt.
 
 Axiom c_lt_total_order: TotalOrder c_lt.
 
+Corollary C_eq_dec : forall x y : C, x = y \/ x <> y.
+Proof.
+  apply strict_total_order_eq_dec with c_lt.
+  - apply c_lt_strict_order.
+  - apply c_lt_total_order.
+Qed.
+
 (**************************************)
 (** Non-empty set of validator names **)
 (**************************************)
@@ -52,6 +61,13 @@ Axiom v_lt_strict_order: StrictOrder v_lt.
 (** V totally ordered **)
 
 Axiom v_lt_total_order: TotalOrder v_lt.
+
+Corollary V_eq_dec : forall x y : V, x = y \/ x <> y.
+Proof.
+  apply strict_total_order_eq_dec with v_lt.
+  - apply v_lt_strict_order.
+  - apply v_lt_total_order.
+Qed.
 
 (***********************)
 (** Validator weights **)
@@ -205,33 +221,6 @@ Proof.
         { right. right. apply state_lt_C. 
           {assumption. }
         }
-Qed.
-
-Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
-  StrictOrder rel ->
-  TotalOrder rel ->
-  forall x y : A, x = y \/ x <> y.
-Proof.
-  intros.
-  destruct H.
-  destruct (H0 x y) as [Heq | [H | H]]
-  ; try (left; assumption)
-  ; try (right; intro; subst; apply (StrictOrder_Irreflexive _ H); assumption)
-  .
-Qed.
-
-Corollary C_eq_dec : forall x y : C, x = y \/ x <> y.
-Proof.
-  apply strict_total_order_eq_dec with c_lt.
-  - apply c_lt_strict_order.
-  - apply c_lt_total_order.
-Qed.
-
-Corollary V_eq_dec : forall x y : V, x = y \/ x <> y.
-Proof.
-  apply strict_total_order_eq_dec with v_lt.
-  - apply v_lt_strict_order.
-  - apply v_lt_total_order.
 Qed.
 
 Corollary state_eq_dec : forall x y : state, x = y \/ x <> y.
@@ -508,7 +497,8 @@ Inductive in_state : message -> state -> Prop :=
           in_state msg' (next msg sigma)
   .
 
-Lemma in_empty_state : forall msg, ~ in_state msg Empty.
+Lemma in_empty_state : forall msg,
+  ~ in_state msg Empty.
 Proof.
   intros. intro. inversion H; subst.
   apply no_confusion_next_empty in H0; inversion H0.
@@ -562,11 +552,11 @@ Qed.
 
 Theorem add_in_sorted_state_preservation : forall msg sigma sigma',
   add_in_sorted msg sigma sigma' ->
-  forall msg', in_state msg' sigma -> in_state msg' sigma'.
+  syntactic_state_inclusion sigma sigma'.
 Proof.
-  intros msg sigma sigma' H.
+  intros msg sigma sigma' H. unfold syntactic_state_inclusion.
   induction H; intros; try assumption. 
-  - exfalso. apply (in_empty_state msg' H).
+  - exfalso. apply (in_empty_state msg0 H).
   - constructor. right. assumption.
   - inversion H1; subst; clear H1.
     apply no_confusion_next in H2; destruct H2; subst.
@@ -641,7 +631,7 @@ Proof.
   subst. exfalso. apply (msg_lt_irreflexive _ Hlt).
 Qed.
 
-Theorem sorted_syntactic_state_inclusion : forall sigma sigma' msg msg',
+Lemma sorted_syntactic_state_inclusion : forall sigma sigma' msg msg',
   locally_sorted (next msg sigma) ->
   locally_sorted (next msg' sigma') ->
   syntactic_state_inclusion (next msg sigma) (next msg' sigma') ->
@@ -718,9 +708,6 @@ Proof.
     subst.
     reflexivity.
 Qed.
-
-
-(** Work in progress **)
 
 
 (** (Insertion) sorting function **)
@@ -933,7 +920,7 @@ Proof.
 Qed.
 
 
-Theorem sort_state_eq : forall sigma sigmas,
+Lemma sort_state_eq : forall sigma sigmas,
   sort sigma sigmas -> state_eq sigma sigmas.
 Proof.
   intros. constructor.
@@ -1048,6 +1035,11 @@ Proof.
 Qed.
 
 
+Theorem state_inclusion_reflexive : Reflexive state_inclusion.
+Proof.
+  intros sigma msg H. assumption.
+Qed.
+
 Theorem state_inclusion_transitive : Transitive state_inclusion.
 Proof.
   intros sigma1 sigma2 sigma3 H12 H23 msg Hin.
@@ -1071,8 +1063,6 @@ Proof.
   apply (msg_sort_eq _ _ _ Hxs) in Hx's.
   apply (msg_eq_transitive msg x x'); assumption.
 Qed.
-
-(**** TODO(traian): continue from here **)
 
 Theorem set_in_state_sorted : forall c v j sigma,
   locally_sorted sigma ->
@@ -1180,7 +1170,7 @@ Proof.
         apply IHsigma'2; assumption.
 Qed.
 
-Theorem sorted_subset_inclusion : forall sigma1 sigma2,
+Corollary sorted_subset_inclusion : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   sorted_subset sigma1 sigma2 <-> state_inclusion sigma1 sigma2.
