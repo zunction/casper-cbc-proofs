@@ -6,6 +6,7 @@ Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.syntactic_state_inclusion.
 Require Import Casper.FullStates.state_inclusion.
+Require Import Casper.FullStates.add_in_sorted.
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -100,6 +101,17 @@ Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
   sigma1 => sigma3.
 Admitted.
 
+
+Lemma add_in_sorted_sorted_subset : forall msg sigma sigma',
+  locally_sorted sigma ->
+  locally_sorted sigma' ->
+  add_in_sorted msg sigma sigma' ->
+  sorted_subset sigma sigma'.
+Proof.
+  intros.
+  apply add_in_sorted_state_preservation in H1.
+  apply syntactic_inclusion_sorted_subset; try assumption.
+Qed.
 
 (*
 Theorem sorted_subset_transitive : Transitive sorted_subset.

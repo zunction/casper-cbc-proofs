@@ -5,6 +5,7 @@ Require Import Casper.consensus_values.
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
 Require Import Casper.FullStates.in_state.
+Require Import Casper.preamble.
 
 (****************************)
 (** Fault Weight of States **)
@@ -74,6 +75,18 @@ Proof.
   - exists 0%R. apply fault_weight_v_diff. assumption.
 Qed.
 
+Theorem fault_weight_msg_nonnegative : forall msg1 msg2 r,
+  fault_weight_msg msg1 msg2 r ->
+  (0 <= r)%R.
+Proof.
+  intros.
+  inversion H
+    ; subst
+    ; try apply Rle_refl.
+  left.
+  apply weight_positive.
+Qed.
+
 Inductive fault_weight_message_state : message -> state -> R -> Prop :=
   | fault_weight_message_state_Empty: forall msg,
       fault_weight_message_state msg Empty 0
@@ -92,6 +105,17 @@ Admitted.
 Theorem fault_weight_message_state_total : forall msg sigma,
   exists r, fault_weight_message_state msg sigma r.
 Admitted.
+
+Theorem fault_weight_message_state_nonnegative : forall msg sigma r,
+  fault_weight_message_state msg sigma r ->
+  (0 <= r)%R.
+Proof.
+  intros.
+  induction H.
+  - apply Rle_refl.
+  - apply fault_weight_msg_nonnegative in H0.
+    apply (Rplus_le_le_0_compat _ _ IHfault_weight_message_state H0).
+Qed.
 
 Inductive fault_weight_state : state -> R -> Prop :=
   | fault_weight_state_Empty: 
@@ -112,3 +136,42 @@ Admitted.
 Theorem fault_weight_state_total : forall sigma,
   exists r, fault_weight_state sigma r.
 Admitted.
+
+Theorem fault_weight_state_nonnegative : forall sigma r,
+  fault_weight_state sigma r ->
+  (0 <= r)%R.
+Proof.
+  intros.
+  induction H.
+  - apply Rle_refl.
+  - apply fault_weight_message_state_nonnegative in H.
+    apply (Rplus_le_le_0_compat _ _ H IHfault_weight_state).
+Qed.
+
+Lemma fault_weight_state_empty : forall r,
+  fault_weight_state Empty r ->
+  (r = 0)%R.
+Proof.
+  intros.
+  inversion H; subst.
+  - reflexivity.
+  - apply no_confusion_next_empty in H0. inversion H0.
+Qed.
+
+Lemma fault_weight_state_backwards : forall msg sigma r1 r2,
+  fault_weight_message_state msg sigma r1 ->
+  fault_weight_state (next msg sigma) r2 ->
+  fault_weight_state sigma (r2 - r1)%R.
+Proof.
+  intros.
+  inversion H0; subst.
+  - symmetry in H2.
+    apply no_confusion_next_empty in H2. inversion H2.
+  - apply no_confusion_next in H1. destruct H1; subst.
+    apply (fault_weight_message_state_functional msg sigma r1 r0 H) in H2; subst.
+    rewrite Rplusminus_assoc.
+    rewrite Rplus_minus.
+    assumption.
+Qed.
+
+

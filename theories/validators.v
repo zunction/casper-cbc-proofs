@@ -36,4 +36,4 @@ Qed.
 
 Parameter weight : V -> R.
 
-Parameter weight_positive : forall v : V, (weight v > 0)%R.
+Parameter weight_positive : forall v : V, (0 < weight v)%R.

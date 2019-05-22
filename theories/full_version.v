@@ -126,7 +126,8 @@ Inductive protocol_state : state -> Prop :=
   .
 
 Theorem protocol_state_sorted : forall state,
-  protocol_state state -> locally_sorted state.
+  protocol_state state -> 
+  locally_sorted state.
 Proof.
   intros.
   induction H.

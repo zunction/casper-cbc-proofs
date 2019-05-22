@@ -28,6 +28,21 @@ Proof.
   - reflexivity.
 Qed.
 
+Lemma no_confusion_add_in_sorted_empty : forall msg sigma,
+  ~ add_in_sorted msg sigma Empty.
+Proof.
+  unfold not. intros msg sigma Hadd.
+  inversion Hadd as
+    [ msg1 A B C 
+    | msg1 sig1 A B C
+    | msg1 sig1 sig2 H1 A B C
+    | msg1 sig1 sig2 H1 H2 A B D C
+    ]
+  ; subst
+  ; apply no_confusion_next_empty in C
+  ; assumption.
+Qed.
+
 Theorem add_in_sorted_functional : forall msg sigma1 sigma2 sigma2',
   add_in_sorted msg sigma1 sigma2 ->
   add_in_sorted msg sigma1 sigma2' ->
