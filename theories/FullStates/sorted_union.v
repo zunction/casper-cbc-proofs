@@ -84,10 +84,6 @@ Proof.
     apply (IHHUnion LocS_sigma1 LocS_sigma2).
 Qed.
 
-(*
-
-I don't think these are needed anymore
-*)
 
 Lemma union_state_empty_left : forall sigma1 sigma2,
   sorted_union Empty sigma1 sigma2 -> sigma1 = sigma2.
@@ -140,5 +136,5 @@ Lemma sorted_union_ac : forall msg sigma1 sigma2 sigma1' sigma sigma',
 Lemma sorted_union_total : forall sigma1 sigma2,
   exists sigma, sorted_union sigma1 sigma2 sigma.
   Admitted.
-  
+
 
