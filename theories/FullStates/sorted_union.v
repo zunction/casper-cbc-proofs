@@ -4,6 +4,8 @@ Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.sorted_subset.
+Require Import Casper.FullStates.syntactic_state_inclusion.
+Require Import Casper.FullStates.syntactic_state_union.
 
 (******************************)
 (** Union of (sorted) states **)
@@ -25,11 +27,11 @@ Inductive sorted_union : state -> state -> state -> Prop :=
       sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg2 sigma')
   .
 
-Theorem sorted_union_in_state : forall sigma1 sigma2 sigma12,
+Lemma sorted_union_to_syntactic_state_union : forall sigma1 sigma2 sigma12,
   sorted_union sigma1 sigma2 sigma12 ->
-  forall msg, in_state msg sigma12 <-> in_state msg sigma1 \/ in_state msg sigma2.
+  syntactic_state_union sigma1 sigma2 sigma12.
 Proof.
-  intros. 
+  intros. unfold syntactic_state_union.
   induction H as
     [ gamma
     | gamma
@@ -226,40 +228,6 @@ Proof.
         apply add_in_Next_gt; assumption.
 Qed.
 
-
-Lemma sorted_union_assoc : forall sigma1 sigma2 sigma3 sigma12 sigma23 sigma123,
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  locally_sorted sigma3 ->
-  sorted_union sigma1 sigma2 sigma12 ->
-  sorted_union sigma12 sigma3 sigma123 ->
-  sorted_union sigma2 sigma3 sigma23 ->
-  sorted_union sigma1 sigma23 sigma123.
-  Admitted.
-
-(* (sigma1 \cup { m }) \cup sigma2 = (sigma1 \cup sigma2) \cup { m } *) 
-Lemma sorted_union_ac : forall msg sigma1 sigma2 sigma1' sigma sigma',
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  locally_sorted_msg msg ->
-  add_in_sorted msg sigma1 sigma1' ->
-  sorted_union sigma1' sigma2 sigma' ->
-  sorted_union sigma1 sigma2 sigma ->
-  add_in_sorted msg sigma sigma'.
-  Admitted.
-
-Lemma sorted_union_total : forall sigma1 sigma2,
-  exists sigma, sorted_union sigma1 sigma2 sigma.
-Proof.
-  induction sigma1.
-  - intros. exists sigma2. constructor.
-  - clear IHsigma1_1. rename sigma1_1 into j. rename sigma1_2 into sigma1. rename IHsigma1_2 into IHsigma1.
-    intros. destruct sigma2; repeat rewrite add_is_next in *.
-    + exists (next (c, v, j) sigma1). constructor.
-    +  
-  Admitted.
-
-
 Lemma next_sorted_union_ind_left : forall msg1 msg2 gamma1 gamma2 gamma',
     locally_sorted (next msg1 gamma1) ->
     locally_sorted (next msg2 gamma2) ->
@@ -341,3 +309,111 @@ Proof.
     apply locally_sorted_tail in H0.
     apply IHHUnion_next; assumption.
 Qed.
+
+
+Lemma syntactic_state_union_to_sorted_union : forall sigma1 sigma2 sigma12,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  locally_sorted sigma12 ->
+  syntactic_state_union sigma1 sigma2 sigma12 ->
+  sorted_union sigma1 sigma2 sigma12.
+Proof.
+  intros sigma1 sigma2 sigma12.
+  generalize dependent sigma2. generalize dependent sigma1.
+  induction sigma12
+  ; intros sigma1 sigma2 H H0 LS12; intros
+  ; repeat rewrite add_is_next in *.
+  - destruct sigma1; destruct sigma2; repeat rewrite add_is_next in *.
+    + constructor.
+    + exfalso. apply (in_empty_state (c, v, sigma2_1)).
+      apply H1. right; constructor; left; reflexivity.
+    + exfalso. apply (in_empty_state (c, v, sigma1_1)).
+      apply H1. left; constructor; left; reflexivity.
+    + exfalso. apply (in_empty_state (c, v, sigma1_1)).
+      apply H1. left; constructor; left; reflexivity.
+  - clear IHsigma12_1. rename sigma12_1 into j.
+    rename sigma12_2 into sigma12. rename IHsigma12_2 into IHsigma12.
+    destruct sigma1; destruct sigma2; repeat rewrite add_is_next in *.
+    + exfalso. assert (Hin : in_state (c,v,j) (next (c, v, j) sigma12)).
+      { constructor; left; reflexivity. }
+      apply H1 in Hin.
+      destruct Hin as [Hin | Hin]; apply (in_empty_state _ Hin).
+    + assert (Heq : (next (c0, v0, sigma2_1) sigma2_2) = (next (c, v, j) sigma12)).
+      { apply sorted_syntactic_state_inclusion_equality_predicate; try assumption.
+        - intros msg Hin. apply H1. right; assumption.
+        - intros msg Hin. apply H1 in Hin. destruct Hin; try assumption.
+          exfalso. apply (in_empty_state _ H2).
+      }
+      rewrite Heq. constructor.
+    + assert (Heq : (next (c0, v0, sigma1_1) sigma1_2) = (next (c, v, j) sigma12)).
+      { apply sorted_syntactic_state_inclusion_equality_predicate; try assumption.
+        - intros msg Hin. apply H1. left; assumption.
+        - intros msg Hin. apply H1 in Hin. destruct Hin; try assumption.
+          exfalso. apply (in_empty_state _ H2).
+      }
+      rewrite Heq. constructor.
+    + apply sorted_syntactic_state_union_decomposition in H1; try assumption.
+      apply locally_sorted_tail in H as LS1_2.
+      apply locally_sorted_tail in H0 as LS2_2.
+      apply locally_sorted_tail in LS12 as LS12'.
+      destruct H1 as [[Eq1 [Eq2 HUnion]] | [[Eq1 [Lt HUnion]] | [Eq2 [Lt HUnion]]]]
+      ; try (inversion Eq1; clear Eq1); try (inversion Eq2; clear Eq2); subst
+      ; apply IHsigma12 in HUnion; try assumption.
+      * constructor. assumption.
+      * apply Sorted_union_Next_lt; assumption.
+      * apply Sorted_union_Next_gt; assumption.
+Qed.
+
+Theorem sorted_union_iff_syntactic_state_union : forall sigma1 sigma2 sigma12,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  locally_sorted sigma12 ->
+  syntactic_state_union sigma1 sigma2 sigma12 <->
+  sorted_union sigma1 sigma2 sigma12.
+Proof.
+  intros; split.
+  - apply syntactic_state_union_to_sorted_union; assumption.
+  - apply sorted_union_to_syntactic_state_union.
+Qed.
+
+Theorem sorted_union_assoc : forall sigma1 sigma2 sigma3 sigma12 sigma23 sigma123,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  locally_sorted sigma3 ->
+  sorted_union sigma1 sigma2 sigma12 ->
+  sorted_union sigma12 sigma3 sigma123 ->
+  sorted_union sigma2 sigma3 sigma23 ->
+  sorted_union sigma1 sigma23 sigma123.
+Proof.
+  intros sigma1 sigma2 sigma3 sigma12 sigma23 sigma123 LS1 LS2 LS3 Union12 Union123 Union23.
+  apply (sorted_union_locally_sorted _ _ _ Union12 LS1) in LS2 as LS12.
+  apply (sorted_union_locally_sorted _ _ _ Union23 LS2) in LS3 as LS23.
+  apply (sorted_union_locally_sorted _ _ _ Union123 LS12) in LS3 as LS123.
+  apply sorted_union_iff_syntactic_state_union; try assumption.
+  apply sorted_union_iff_syntactic_state_union in Union12; try assumption.
+  apply sorted_union_iff_syntactic_state_union in Union23; try assumption.
+  apply sorted_union_iff_syntactic_state_union in Union123; try assumption.
+  intro; split; intro.
+  - apply Union123 in H. destruct H.
+    + apply Union12 in H. destruct H.
+      * left; assumption.
+      * right. apply Union23. left. assumption.
+    + right. apply Union23. right. assumption.
+  - apply Union123. destruct H.
+    + left. apply Union12. left. assumption.
+    + apply Union23 in H. destruct H.
+      * left. apply Union12. right. assumption.
+      * right. assumption.
+Qed.
+
+Lemma sorted_union_total : forall sigma1 sigma2,
+  exists sigma, sorted_union sigma1 sigma2 sigma.
+Proof.
+  induction sigma1.
+  - intros. exists sigma2. constructor.
+  - clear IHsigma1_1. rename sigma1_1 into j. rename sigma1_2 into sigma1. rename IHsigma1_2 into IHsigma1.
+    intros. destruct sigma2; repeat rewrite add_is_next in *.
+    + exists (next (c, v, j) sigma1). constructor.
+    +  
+  Admitted.
+
