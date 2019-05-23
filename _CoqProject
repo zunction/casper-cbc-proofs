@@ -16,6 +16,7 @@ theories/FullStates/sort.v
 theories/FullStates/state_eq.v
 theories/FullStates/state_inclusion.v
 theories/FullStates/sorted_subset.v
+theories/FullStates/syntactic_state_union.v
 theories/FullStates/sorted_union.v
 theories/FullStates/fault_weights.v
 theories/full_version.v

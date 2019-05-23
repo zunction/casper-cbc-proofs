@@ -5,6 +5,9 @@ Require Import Coq.Reals.Reals.
 Class TotalOrder {A} (lt : relation A) : Prop :=
    totality : forall c1 c2, c1 = c2 \/ lt c1 c2 \/ lt c2 c1.
 
+Class Commutative {A} (op : A -> A -> A -> Prop) : Prop :=
+   commutativity : forall c1 c2 c12, op c1 c2 c12 -> op c2 c1 c12.
+
 Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
   StrictOrder rel ->
   TotalOrder rel ->
