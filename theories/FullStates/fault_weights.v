@@ -5,6 +5,9 @@ Require Import Casper.consensus_values.
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
 Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.add_in_sorted.
+Require Import Casper.FullStates.sorted_subset.
+Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.preamble.
 
 (****************************)
@@ -15,6 +18,10 @@ Require Import Casper.preamble.
 Note that this includes equivocation fault weight, as we defaulted 
 the weight of non-equivocating messages to 0
 **)
+
+(**********************)
+(** fault_weight_msg **)
+(**********************)
 
 Inductive fault_weight_msg : message -> message -> R -> Prop :=
   | fault_weight_v_diff: forall c1 c2 v1 v2 j1 j2,
@@ -87,6 +94,10 @@ Proof.
   apply weight_positive.
 Qed.
 
+(*******************************)
+(* fauult_weight_message_state *)
+(*******************************)
+
 Inductive fault_weight_message_state : message -> state -> R -> Prop :=
   | fault_weight_message_state_Empty: forall msg,
       fault_weight_message_state msg Empty 0
@@ -106,7 +117,16 @@ Theorem fault_weight_message_state_total : forall msg sigma,
   exists r, fault_weight_message_state msg sigma r.
 Admitted.
 
-Theorem fault_weight_message_state_nonnegative : forall msg sigma r,
+Lemma fault_weight_message_state_empty_zero : forall msg r,
+  fault_weight_message_state msg Empty r ->
+  r = 0%R.
+Proof.
+  intros.
+  inversion H; subst; try reflexivity.
+  apply no_confusion_next_empty in H0. inversion H0.
+Qed.
+
+Lemma fault_weight_message_state_nonnegative : forall msg sigma r,
   fault_weight_message_state msg sigma r ->
   (0 <= r)%R.
 Proof.
@@ -116,6 +136,52 @@ Proof.
   - apply fault_weight_msg_nonnegative in H0.
     apply (Rplus_le_le_0_compat _ _ IHfault_weight_message_state H0).
 Qed.
+
+Lemma fault_weight_message_state_backwards : forall msg msg' sigma r1 r2,
+  fault_weight_msg msg msg' r1 ->
+  fault_weight_message_state msg (next msg' sigma) r2 ->
+  fault_weight_message_state msg sigma (r2 - r1)%R.
+Proof.
+  intros.
+  inversion H0; subst.
+  - symmetry in H3.
+    apply no_confusion_next_empty in H3. inversion H3.
+  - apply no_confusion_next in H1. destruct H1; subst.
+    apply (fault_weight_msg_functional msg msg' r1 r3 H) in H4; subst.
+    rewrite Rplusminus_assoc. unfold Rminus.
+    rewrite Rplus_opp_r. rewrite Rplus_0_r.
+    assumption.
+Qed.
+
+Lemma fault_weight_message_state_sorted_subset : forall msg sigma sigma' r1 r2,
+  sorted_subset sigma sigma' ->
+  fault_weight_message_state msg sigma r1 ->
+  fault_weight_message_state msg sigma' r2 ->
+  (r1 <= r2)%R.
+Proof.
+  intros.
+  generalize dependent r1. generalize dependent r2.
+  induction H; intros.
+  + apply fault_weight_message_state_empty_zero in H0; subst.
+    apply fault_weight_message_state_nonnegative in H1.
+    assumption.
+  + destruct (fault_weight_msg_total msg msg0) as [r H2].
+    apply (fault_weight_message_state_backwards _ _ _ _ _ H2) in H1.
+    apply (fault_weight_message_state_backwards _ _ _ _ _ H2) in H0.
+    apply (IHsorted_subset _ H1) in H0.
+    unfold Rminus in H0. apply Rplus_le_reg_r in H0.
+    assumption.
+  + destruct (fault_weight_msg_total msg msg0) as [r H2].
+    apply (fault_weight_message_state_backwards _ _ _ _ _ H2) in H1.
+    apply (IHsorted_subset _ H1) in H0.
+    apply fault_weight_msg_nonnegative in H2.
+    apply (Rminus_lt_r r2 r) in H2.
+    apply (Rle_trans _ _ _ H0 H2).
+Qed.
+
+(**********************)
+(* fault_weight_state *)
+(**********************)
 
 Inductive fault_weight_state : state -> R -> Prop :=
   | fault_weight_state_Empty: 
@@ -137,7 +203,7 @@ Theorem fault_weight_state_total : forall sigma,
   exists r, fault_weight_state sigma r.
 Admitted.
 
-Theorem fault_weight_state_nonnegative : forall sigma r,
+Lemma fault_weight_state_nonnegative : forall sigma r,
   fault_weight_state sigma r ->
   (0 <= r)%R.
 Proof.
@@ -174,4 +240,51 @@ Proof.
     assumption.
 Qed.
 
+Lemma fault_weight_state_sorted_subset : forall sigma sigma' r1 r2,
+  sorted_subset sigma sigma' ->
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma' r2 ->
+  (r1 <= r2)%R.
+Proof.
+  intros.
+  generalize dependent r1. generalize dependent r2.
+  induction H; intros.
+  + apply fault_weight_state_empty in H0; subst.
+    apply fault_weight_state_nonnegative in H1. 
+    assumption.
+  + destruct (fault_weight_message_state_total msg sigma) as [r1' H2].
+    destruct (fault_weight_message_state_total msg sigma') as [r2' H3].
+    apply (fault_weight_state_backwards _ _ _ _ H2) in H0.
+    apply (fault_weight_state_backwards _ _ _ _ H3) in H1.
+    apply (IHsorted_subset _ H1) in H0.
+    apply (fault_weight_message_state_sorted_subset _ _ _ _ _ H H2) in H3.
+    (* maybe this part can be proved easier *)
+    apply (Rplus_le_compat_r r1' _ _) in H0.
+    rewrite Rplusminus_assoc_r in H0.
+    rewrite Rplus_opp_l in H0.
+    rewrite Rplus_0_r in H0.
+    apply (Rplus_le_compat_l (Ropp r2') _ _) in H3.
+    rewrite Rplus_opp_l in H3.
+    rewrite Rplusminus_assoc_r in H0.
+    apply (Rplus_ge_reg_neg_r r2 (Ropp r2' + r1') r1 H3) in H0 .
+    assumption.
+  + destruct (fault_weight_message_state_total msg sigma') as [r2' H3].
+    apply (fault_weight_state_backwards _ _ _ _ H3) in H1.
+    apply (IHsorted_subset _ H1) in H0.
+    apply fault_weight_message_state_nonnegative in H3.
+    assert (H4 := Rminus_lt_r r2 r2' H3).
+    apply (Rle_trans _ _ _ H0 H4).
+Qed.
 
+Lemma fault_weight_state_add : forall msg sigma sigma' r1 r2,
+  locally_sorted sigma ->
+  locally_sorted sigma' ->
+  add_in_sorted msg sigma sigma' ->
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma' r2 ->
+  (r1 <= r2)%R.
+Proof.
+  intros.
+  apply add_in_sorted_sorted_subset in H1; try assumption.
+  apply (fault_weight_state_sorted_subset sigma sigma' r1 r2 H1 H2 H3).
+Qed.

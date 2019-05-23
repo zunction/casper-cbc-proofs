@@ -113,6 +113,23 @@ Definition fault_tolerance_condition (sigma : state) : Prop :=
   fault_weight_state sigma r ->
   (r <= t)%R.
 
+Lemma fault_tolerance_condition_backwards : forall msg sigma sigma',
+  locally_sorted sigma ->
+  locally_sorted sigma' ->
+  add_in_sorted msg sigma sigma' ->
+  fault_tolerance_condition sigma' ->
+  fault_tolerance_condition sigma.
+Proof.
+  unfold fault_tolerance_condition.
+  intros.
+  destruct (fault_weight_state_total sigma') as [r' H4].
+  assert (LTw := fault_weight_state_add msg sigma sigma' r r' H H0 H1 H3 H4).
+  apply H2 in H4.
+  apply (Rle_trans _ _ _ LTw H4).
+Qed.
+
+(** Protocol states **)
+
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
   | protocol_state_next : forall c v sigma sigma' sigma'',

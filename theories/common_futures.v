@@ -4,19 +4,14 @@ Require Import Casper.full_version.
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
 
-Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.state_inclusion.
-Require Import Casper.FullStates.sorted_subset.
+Require Import Casper.FullStates.sorted_subset. 
 Require Import Casper.FullStates.sorted_union.
 Require Import Casper.FullStates.fault_weights.
-Require Import Casper.preamble.
 
 (** work in progress **)
 
 (** Lemmas to prove
-
-fault_weight_message_state_sorted_subset 
 
 sorted_union_total [in sorted_union]
 sorted_union_ac [in sorted_union]
@@ -25,77 +20,6 @@ sorted_subset_transitive [in sorted_subset]
 
 **)
 
-
-Lemma fault_weight_message_state_sorted_subset : forall msg sigma sigma' r1 r2,
-  sorted_subset sigma sigma' ->
-  fault_weight_message_state msg sigma r1 ->
-  fault_weight_message_state msg sigma' r2 ->
-  (r1 <= r2)%R.
-Admitted.
-
-Lemma fault_weight_state_sorted_subset : forall sigma sigma' r1 r2,
-  sorted_subset sigma sigma' ->
-  fault_weight_state sigma r1 ->
-  fault_weight_state sigma' r2 ->
-  (r1 <= r2)%R.
-Proof.
-  intros. 
-  generalize dependent r1. generalize dependent r2.
-  induction H; intros.
-  + apply fault_weight_state_empty in H0; subst.
-    apply fault_weight_state_nonnegative in H1. 
-    assumption.
-  + destruct (fault_weight_message_state_total msg sigma) as [r1' H2].
-    destruct (fault_weight_message_state_total msg sigma') as [r2' H3].
-    apply (fault_weight_state_backwards _ _ _ _ H2) in H0.
-    apply (fault_weight_state_backwards _ _ _ _ H3) in H1.
-    apply (IHsorted_subset _ H1) in H0.
-    apply (fault_weight_message_state_sorted_subset _ _ _ _ _ H H2) in H3.
-    (* maybe this part can be proved easier *)
-    apply (Rplus_le_compat_r r1' _ _) in H0.
-    rewrite Rplusminus_assoc_r in H0.
-    rewrite Rplus_opp_l in H0.
-    rewrite Rplus_0_r in H0.
-    apply (Rplus_le_compat_l (Ropp r2') _ _) in H3.
-    rewrite Rplus_opp_l in H3.
-    rewrite Rplusminus_assoc_r in H0.
-    apply (Rplus_ge_reg_neg_r r2 (Ropp r2' + r1') r1 H3) in H0 .
-    assumption.
-  + destruct (fault_weight_message_state_total msg sigma') as [r2' H3].
-    apply (fault_weight_state_backwards _ _ _ _ H3) in H1.
-    apply (IHsorted_subset _ H1) in H0.
-    apply fault_weight_message_state_nonnegative in H3.
-    assert (H4 := Rminus_lt_r r2 r2' H3).
-    apply (Rle_trans _ _ _ H0 H4).
-Qed.
-
-Lemma fault_weight_state_add : forall msg sigma sigma' r1 r2,
-  locally_sorted sigma ->
-  locally_sorted sigma' ->
-  add_in_sorted msg sigma sigma' ->
-  fault_weight_state sigma r1 ->
-  fault_weight_state sigma' r2 ->
-  (r1 <= r2)%R.
-Proof.
-  intros.
-  apply add_in_sorted_sorted_subset in H1; try assumption.
-  apply (fault_weight_state_sorted_subset sigma sigma' r1 r2 H1 H2 H3).
-Qed.
-
-Lemma fault_tolerance_condition_backwards : forall msg sigma sigma',
-  locally_sorted sigma ->
-  locally_sorted sigma' ->
-  add_in_sorted msg sigma sigma' ->
-  fault_tolerance_condition sigma' ->
-  fault_tolerance_condition sigma.
-Proof.
-  unfold fault_tolerance_condition.
-  intros.
-  destruct (fault_weight_state_total sigma') as [r' H4].
-  assert (LTw := fault_weight_state_add msg sigma sigma' r r' H H0 H1 H3 H4).
-  apply H2 in H4.
-  apply (Rle_trans _ _ _ LTw H4).
-Qed.
 
 (** Two party common futures **)
 
@@ -126,3 +50,4 @@ Proof.
       apply sorted_union_locally_sorted in HUnion2'; try assumption.
       apply (sorted_subset_transitive _ _ _ LS_sigma LS_sigma' HUnion2' H Hsub2').
 Qed.
+
