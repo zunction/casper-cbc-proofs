@@ -81,26 +81,67 @@ Proof.
 Qed.
 
 
-Corollary sorted_subset_reflexive : forall sigma, 
-  locally_sorted sigma ->
-  sorted_subset sigma sigma.
+Lemma sorted_subset_reflexive : Reflexive sorted_subset. 
 Proof.
-  intros.
-  apply sorted_subset_inclusion; try assumption.
-  apply state_inclusion_reflexive.
+  intro sigma.
+  induction sigma.
+  - constructor.
+  - rewrite add_is_next in *.
+    constructor. assumption.
 Qed.
 
+Lemma sorted_subset_empty : forall sigma,
+  sigma => Empty -> sigma = Empty.
+Proof.
+  intros.
+  inversion H as
+    [ gamma Uempty Ugamma
+    | msg gamma gamma' IHgamma Unext Unext'
+    | msg gamma gamma' IHgamma Ugamma Unext'
+    ]
+  ; try reflexivity
+  ; exfalso; apply (no_confusion_next_empty _ _ Unext')
+  .
+Qed.
 
-
-Lemma sorted_subset_transitive : forall sigma1 sigma2 sigma3,
-  locally_sorted sigma1 ->
-  locally_sorted sigma2 ->
-  locally_sorted sigma3 ->
-  sigma1 => sigma2 ->
-  sigma2 => sigma3 ->
-  sigma1 => sigma3.
-Admitted.
-
+Theorem sorted_subset_transitive : Transitive sorted_subset .
+Proof.
+  intros sigma1 sigma2 sigma3. generalize dependent sigma2.  generalize dependent sigma1.
+  induction sigma3; intros.
+  - apply sorted_subset_empty in H0; subst.
+    apply sorted_subset_empty in H; subst.
+    constructor.
+  - clear IHsigma3_1. rename sigma3_1 into j.
+    rename sigma3_2 into sigma3. rename IHsigma3_2 into IHsigma3. 
+    rewrite add_is_next in *.
+    inversion H0 as
+      [ gamma3 Uempty Ugamma3
+      | msg3 gamma2 gamma3 IHgamma3 Unext2 Unext3
+      | msg3 gamma2 gamma3 IHgamma3 Ugamma2 Unext3
+      ]
+    ; subst
+    ; clear H0
+    ; try rewrite add_is_next in *
+    ; try (apply no_confusion_next in Unext2; destruct Unext2; subst)
+    ; try (apply no_confusion_next in Unext3; destruct Unext3; subst)
+    .
+    + apply sorted_subset_empty in H; subst. constructor.
+    + inversion H as
+        [ gamma21 Uempty1 Ugamma21
+        | msg21 gamma1 gamma21 IHgamma21 Unext1 Unext21
+        | msg21 gamma1 gamma21 IHgamma21 Ugamma1 Unext21
+        ]
+      ; subst
+      ; clear H
+      ; try rewrite add_is_next in *
+      ; try (apply no_confusion_next in Unext1; destruct Unext1; subst)
+      ; try (apply no_confusion_next in Unext21; destruct Unext21; subst)
+      .
+      * constructor.
+      * constructor. apply IHsigma3 with gamma2; assumption.
+      * apply SubSet_Next_r. apply IHsigma3 with gamma2; assumption.
+    + apply SubSet_Next_r. apply IHsigma3 with sigma2; assumption.
+Qed.
 
 Lemma add_in_sorted_sorted_subset : forall msg sigma sigma',
   locally_sorted sigma ->
@@ -113,7 +154,3 @@ Proof.
   apply syntactic_inclusion_sorted_subset; try assumption.
 Qed.
 
-(*
-Theorem sorted_subset_transitive : Transitive sorted_subset.
-  Admitted.
-*)
