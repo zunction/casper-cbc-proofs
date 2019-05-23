@@ -16,6 +16,7 @@ Inductive locally_sorted : state -> Prop :=
   .
 
 
+
 Definition locally_sorted_msg (msg : message) : Prop :=
   locally_sorted (next msg Empty).
 
@@ -26,6 +27,41 @@ Proof.
   - inversion H; subst; assumption.
   - apply LSorted_Singleton. assumption.
 Qed.
+
+Theorem locally_sorted_msg_characterization : forall sigma,
+  locally_sorted sigma <->
+  sigma = Empty
+  \/
+  (exists msg, locally_sorted_msg msg /\ sigma = next msg Empty)
+  \/
+  (exists msg1 msg2 sigma',
+    sigma = next msg1 (next msg2 sigma') 
+    /\ locally_sorted (next msg2 sigma')
+    /\ locally_sorted_msg msg1
+    /\ msg_lt msg1 msg2
+  ).
+Proof.
+  split; intros.
+  { inversion H; subst.
+    - left. reflexivity.
+    - right. left. exists (c,v,j).
+      split; try reflexivity.
+      apply locally_sorted_msg_justification. assumption.
+    - right. right. exists (c, v, j). exists msg'. exists sigma0.
+      split; try reflexivity.
+      repeat (split; try assumption).
+      apply locally_sorted_msg_justification. assumption.
+  }
+  { destruct H as [H | [H | H]]; subst; try constructor.
+    - destruct H as [msg [LSmsg EQ]]; subst.
+      destruct msg as [(c,v) j]. apply locally_sorted_msg_justification in LSmsg.
+      constructor. assumption.
+    - destruct H as [msg1 [msg2 [sigma' [EQ [LS2' [LSmsg1 LT]]]]]]; subst.
+      destruct msg1 as [(c1,v1) j1]. apply locally_sorted_msg_justification in LSmsg1.
+      constructor; assumption.
+  }
+Qed.
+
 
 Lemma locally_sorted_head : forall msg sigma,
   locally_sorted (next msg sigma) ->
@@ -39,12 +75,17 @@ Lemma locally_sorted_tail : forall msg sigma,
   locally_sorted sigma.
 Proof.
   intros.
-  inversion H; subst; clear H
-  ; try (rewrite add_is_next in *; apply no_confusion_next in H0; destruct H0; subst)
-  .
-  - exfalso. symmetry in H1. apply (no_confusion_next_empty _ _ H1) . 
+  apply locally_sorted_msg_characterization in H.
+  destruct H as 
+    [ Hcempty
+    | [[cmsg0 [LScmsg0 Hcnext]]
+    | [cmsg1 [cmsg2 [csigma' [Hcnext [LScnext [LScmsg1 LTc]]]]]]
+    ]]; subst
+    ; try (apply no_confusion_next in Hcnext; destruct Hcnext; subst)
+    .
+  - exfalso; apply (no_confusion_next_empty _ _ Hcempty).
   - constructor.
-  - assumption. 
+  - assumption.
 Qed.
 
 
@@ -94,21 +135,17 @@ Lemma locally_sorted_next_message : forall msg sigma,
   add_in_sorted msg sigma (next msg sigma).
 Proof.
   intros.
-  inversion H as
-    [ M 
-    | c v j Hj M 
-    | c v j msg' gamma Hj LT LocS M 
-    ]
-   ; subst
-   ; try ( rewrite add_is_next in *
-         ; apply no_confusion_next in M
-         ; destruct M; subst
-         ; constructor
-         ; assumption
-         )
-   .
-  - destruct msg as [(sc, sv) sj].
-    rewrite <- add_is_next in M. inversion M.
+  apply locally_sorted_msg_characterization in H.
+  destruct H as 
+    [ Hcempty
+    | [[cmsg0 [LScmsg0 Hcnext]]
+    | [cmsg1 [cmsg2 [csigma' [Hcnext [LScnext [LScmsg1 LTc]]]]]]
+    ]]; subst
+    ; try (apply no_confusion_next in Hcnext; destruct Hcnext; subst)
+    .
+  - exfalso. apply (no_confusion_next_empty _ _ Hcempty).
+  - constructor.
+  - constructor. assumption.
 Qed.
 
 
