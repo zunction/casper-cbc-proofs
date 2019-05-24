@@ -67,8 +67,6 @@ Proof.
     apply (sorted_union_subset_right _ _ _ H1).
 Qed.
 
-(** n-party common futures **)
-
 Theorem union_protocol_nstates : forall sigmas sigma,
   Forall protocol_state sigmas ->
   fold sorted_union sigmas sigma ->
@@ -97,13 +95,16 @@ Proof.
       assumption.
 Qed.
 
+
+(* TODO: Maybe introduce a definition for the "fun" below *)
+
 Theorem common_futures : forall sigmas sigma,
   Forall protocol_state sigmas ->
   fold sorted_union sigmas sigma ->
   fault_tolerance_condition sigma ->
   exists sigma',
     protocol_state(sigma') /\
-    Forall (fun sigma => sigma => sigma') sigmas.
+    Forall (fun sigma => sigma => sigma') sigmas.  (* P(sigma) ::= sigma => sigma' *)
 Proof.
   intros.
   exists sigma.

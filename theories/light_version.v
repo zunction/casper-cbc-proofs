@@ -99,6 +99,8 @@ Qed.
 (** Estimator **)
 (***************)
 
+(** TODO: rename epsilon to estimator**)
+
 Parameter epsilon : state -> C -> Prop.
 
 Parameter epsilon_total : forall s : state, exists c : C, epsilon s c.
@@ -155,6 +157,9 @@ Inductive fault_weight_state : state -> R -> Prop :=
 (*******************************)
 
 (** The valid message condition **)
+
+(** TODO: define it for message OR rename it to valid_estimate_condition *)
+
 Definition valid_msg_condition (c : C) (sigma : state) : Prop :=
     epsilon sigma c.
 
@@ -163,6 +168,9 @@ Definition fault_tolerance_condition (sigma : state) : Prop :=
   forall r,
   fault_weight_state sigma r ->
   (r <= t)%R.
+
+
+(** TODO? Define protocol messages; also for the full version? **)
 
 Inductive protocol_state : state -> Prop :=
   | protocol_state_nil : protocol_state []
