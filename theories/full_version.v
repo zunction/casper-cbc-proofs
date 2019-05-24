@@ -134,10 +134,14 @@ Lemma fault_tolerance_condition_backwards_subset : forall sigma sigma',
   sorted_subset sigma sigma' ->
   fault_tolerance_condition sigma' ->
   fault_tolerance_condition sigma.
-  Admitted.
-
-
-(** Protocol states **)
+Proof.
+  unfold fault_tolerance_condition in *.
+  intros.
+  destruct (fault_weight_state_total sigma') as [r' H4].
+  apply (fault_weight_state_sorted_subset _ _ _ _ H1 H3) in H4 as H5.
+  apply H2 in H4.
+  apply (Rle_trans _ _ _ H5 H4).
+Qed.
 
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
