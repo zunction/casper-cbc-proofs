@@ -67,6 +67,8 @@ Proof.
     apply (sorted_union_subset_right _ _ _ H1).
 Qed.
 
+(** n-party common futures **)
+
 Theorem union_protocol_nstates : forall sigmas sigma,
   Forall protocol_state sigmas ->
   fold sorted_union sigmas sigma ->
