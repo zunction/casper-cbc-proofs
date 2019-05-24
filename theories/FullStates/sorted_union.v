@@ -435,13 +435,24 @@ Proof.
 Qed.
 
 Lemma sorted_union_total : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
   exists sigma, sorted_union sigma1 sigma2 sigma.
 Proof.
-  induction sigma1.
-  - intros. exists sigma2. constructor.
+  induction sigma1; intros.
+  - exists sigma2. constructor.
   - clear IHsigma1_1. rename sigma1_1 into j. rename sigma1_2 into sigma1. rename IHsigma1_2 into IHsigma1.
-    intros. destruct sigma2; repeat rewrite add_is_next in *.
-    + exists (next (c, v, j) sigma1). constructor.
-    +  
-  Admitted.
-
+    repeat rewrite add_is_next in *.
+    apply locally_sorted_tail in H as LSsigma1.
+    apply locally_sorted_head in H as LSmsg.
+    destruct (add_in_sorted_total (c,v,j) sigma2).
+    apply add_in_sorted_sorted in H1 as LSx; try assumption.
+    apply locally_sorted_next_message in H as Hadd.
+    rewrite sorted_union_singleton in *.
+    destruct (IHsigma1 x); try assumption.
+    exists x0.
+    apply sorted_union_commutative.
+    apply sorted_union_commutative in H1.
+    apply sorted_union_commutative in H2.
+    apply (sorted_union_assoc _ (next (c, v, j) Empty) sigma1 x); try assumption.
+Qed.

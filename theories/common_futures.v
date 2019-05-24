@@ -15,16 +15,6 @@ Require Import Casper.FullStates.sorted_union.
 Require Import Casper.FullStates.fault_weights.
 
 
-
-(** work in progress **)
-
-(** Lemmas to prove
-
-sorted_union_total [in sorted_union]
-
-**)
-
-
 (** Two party common futures **)
 
 Theorem union_protocol_2states : forall sigma1 sigma2 sigma,
@@ -43,7 +33,7 @@ Proof.
     apply protocol_state_sorted in H1_ as LS_sigma.
     apply protocol_state_sorted in H3 as LS_sigma''.
     apply (locally_sorted_msg_justification c v sigma) in LS_sigma as LS_msg.
-    destruct (sorted_union_total sigma' sig2) as [sigma2' HUnion2'].
+    destruct (sorted_union_total sigma' sig2) as [sigma2' HUnion2']; try assumption.
     rewrite sorted_union_singleton in H1.
     (* ({msg} U sigma') U sig2 = sig *)
     apply (sorted_union_assoc _ _ _ _ _ _ LS_msg LS_sigma' LS_sig2 H1 HUnion) in HUnion2' as Hadd2'.
