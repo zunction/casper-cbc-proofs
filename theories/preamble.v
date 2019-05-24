@@ -2,6 +2,23 @@ Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Reals.Reals.
 
+Require Import List.
+Import ListNotations.
+
+Inductive fold {A:Type} (rel : A -> A -> A -> Prop) : list A -> A -> Prop :=
+  | fold_singleton : forall a, fold rel [a] a
+  | fold_cons : forall a b l fab fa,
+    fold rel (b :: l) fa ->
+    rel a fa fab ->
+    fold rel (a :: b :: l) fab
+  .
+
+Lemma Forall_tail : forall A (a:A) l P,
+  Forall P (a :: l) -> Forall P l.
+Proof.
+  intros. inversion H. assumption.
+Qed.
+
 Class TotalOrder {A} (lt : relation A) : Prop :=
    totality : forall c1 c2, c1 = c2 \/ lt c1 c2 \/ lt c2 c1.
 

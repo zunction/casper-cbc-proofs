@@ -1,3 +1,8 @@
+Require Import List.
+Import ListNotations.
+
+Require Import Casper.preamble.
+
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
 Require Import Casper.FullStates.add_in_sorted.
@@ -143,6 +148,22 @@ Corollary sorted_union_subset_right : forall sigma1 sigma2 sigma,
 Proof.
   intros. apply sorted_union_commutative in H.
   apply sorted_union_subset_left with sigma1; assumption.
+Qed.
+
+
+Lemma sorted_union_subset : forall sigmas sigma,
+  fold sorted_union sigmas sigma ->
+  Forall (fun sigman => sigman => sigma) sigmas.
+Proof.
+  induction sigmas; intros.
+  - inversion H.
+  - destruct sigmas.
+    + inversion H; subst. constructor; try constructor. apply sorted_subset_reflexive.
+    + inversion H; subst. apply IHsigmas in H4. constructor.
+      * apply (sorted_union_subset_left _ _ _ H5) .
+      * apply (Forall_impl (fun sigman => sigman => sigma)) in H4; try assumption.
+        apply sorted_union_subset_right in H5 .
+        intros. apply (sorted_subset_transitive _ _ _ H0 H5).
 Qed.
 
 Lemma sorted_union_empty_left : forall sigma1 sigma2,
@@ -309,6 +330,13 @@ Proof.
     apply locally_sorted_tail in H0.
     apply IHHUnion_next; assumption.
 Qed.
+
+
+Theorem sorted_union_locally_sorted_iterated : forall sigmas sigma,
+  Forall locally_sorted sigmas ->
+  fold sorted_union sigmas sigma ->
+  locally_sorted sigma.
+  Admitted.
 
 
 Lemma syntactic_state_union_to_sorted_union : forall sigma1 sigma2 sigma12,

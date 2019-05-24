@@ -128,6 +128,15 @@ Proof.
   apply (Rle_trans _ _ _ LTw H4).
 Qed.
 
+Lemma fault_tolerance_condition_backwards_subset : forall sigma sigma',
+  locally_sorted sigma ->
+  locally_sorted sigma' ->
+  sorted_subset sigma sigma' ->
+  fault_tolerance_condition sigma' ->
+  fault_tolerance_condition sigma.
+  Admitted.
+
+
 (** Protocol states **)
 
 Inductive protocol_state : state -> Prop :=

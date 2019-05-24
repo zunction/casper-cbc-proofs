@@ -1,5 +1,10 @@
 Require Import Coq.Reals.Reals.
 
+Require Import List.
+Import ListNotations.
+
+Require Import Casper.preamble.
+
 Require Import Casper.full_version.
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
@@ -8,6 +13,8 @@ Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.sorted_subset. 
 Require Import Casper.FullStates.sorted_union.
 Require Import Casper.FullStates.fault_weights.
+
+
 
 (** work in progress **)
 
@@ -70,7 +77,45 @@ Proof.
     apply (sorted_union_subset_right _ _ _ H1).
 Qed.
 
+Theorem union_protocol_nstates : forall sigmas sigma,
+  Forall protocol_state sigmas ->
+  fold sorted_union sigmas sigma ->
+  fault_tolerance_condition sigma ->
+  protocol_state(sigma).
+Proof.
+  induction sigmas; intros.
+  - inversion H0.
+  - destruct sigmas.
+    + apply Forall_inv in H. inversion H0; subst.
+      assumption. 
+    + apply Forall_inv in H as PSa. apply Forall_tail in H.
+      inversion H0; subst.
+      apply (Forall_impl
+        locally_sorted
+        protocol_state_sorted) in H as LSssigmas.
+      apply sorted_union_locally_sorted_iterated in H6 as LSfa; try assumption.
+      apply protocol_state_sorted in PSa as LSa.
+      apply sorted_union_locally_sorted in H7 as LSsigma; try assumption.
+      apply sorted_union_subset_right in H7 as Sub_fa_sigma.
+      assert (FTCsigma := H1).
+      apply (fault_tolerance_condition_backwards_subset fa) in H1; try assumption.
+      rename H1 into FTCfa.
+      apply IHsigmas in FTCfa; try assumption.
+      apply (union_protocol_2states _ _ _ PSa FTCfa H7).
+      assumption.
+Qed.
 
-
-
-
+Theorem common_futures : forall sigmas sigma,
+  Forall protocol_state sigmas ->
+  fold sorted_union sigmas sigma ->
+  fault_tolerance_condition sigma ->
+  exists sigma',
+    protocol_state(sigma') /\
+    Forall (fun sigma => sigma => sigma') sigmas.
+Proof.
+  intros.
+  exists sigma.
+  apply (union_protocol_nstates sigmas sigma) in H1; try assumption.
+  split; try assumption.
+  apply sorted_union_subset. assumption.
+Qed.
