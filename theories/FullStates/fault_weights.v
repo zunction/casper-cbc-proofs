@@ -147,8 +147,16 @@ Qed.
 
 Theorem fault_weight_message_state_total : forall msg sigma,
   exists r, fault_weight_message_state msg sigma r.
-Admitted.
-
+Proof.
+  intros.
+  induction sigma.
+  - exists 0%R. constructor.
+  - rewrite add_is_next.
+    destruct (fault_weight_msg_total msg (c,v,sigma1)) as [r2 H1].
+    destruct IHsigma2 as [r1 H2].
+    apply (fault_weight_message_state_Next _ _ _ _ _ H2) in H1.
+    exists (r1 + r2)%R. assumption.
+Qed.
 
 Lemma fault_weight_message_state_backwards : forall msg msg' sigma r1 r2,
   fault_weight_msg msg msg' r1 ->
@@ -263,7 +271,16 @@ Qed.
 
 Theorem fault_weight_state_total : forall sigma,
   exists r, fault_weight_state sigma r.
-Admitted.
+Proof.
+  intros.
+  induction sigma.
+  - exists 0%R. constructor.
+  - rewrite add_is_next.
+    destruct (fault_weight_message_state_total (c,v,sigma1) sigma2) as [r1 H1].
+    destruct IHsigma2 as [r2 H2].
+    apply (fault_weight_state_Next _ _ _ _ H1) in H2.
+    exists (r1+r2)%R. assumption.
+Qed.
 
 Lemma fault_weight_state_backwards : forall msg sigma r1 r2,
   fault_weight_message_state msg sigma r1 ->
