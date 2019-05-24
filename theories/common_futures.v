@@ -97,7 +97,7 @@ Proof.
       assumption.
 Qed.
 
-Theorem common_futures : forall sigmas sigma,
+Theorem n_party_common_futures : forall sigmas sigma,
   Forall protocol_state sigmas ->
   fold sorted_union sigmas sigma ->
   fault_tolerance_condition sigma ->

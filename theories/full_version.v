@@ -30,9 +30,9 @@ Require Import Casper.full_messages.
 (** Estimator **)
 (***************)
 
-Parameter epsilon : state -> C -> Prop.
+Parameter estimator : state -> C -> Prop.
 
-Parameter epsilon_total : forall s : state, exists c : C, epsilon s c.
+Parameter estimator_total : forall s : state, exists c : C, estimator s c.
 
 
 (** Canonical representation of states **)
@@ -103,8 +103,8 @@ Definition full_node_condition (sigma1 sigma2 : state) : Prop :=
     sorted_subset sigma1 sigma2.
 
 (** The valid message condition **)
-Definition valid_msg_condition (c : C) (sigma : state) : Prop :=
-    epsilon sigma c.
+Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
+    estimator sigma c.
 
 
 (** The fault tolerance condition **)
@@ -143,13 +143,14 @@ Proof.
   apply (Rle_trans _ _ _ H5 H4).
 Qed.
 
+(** Protocol states **)
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
   | protocol_state_next : forall c v sigma sigma' sigma'',
       protocol_state sigma ->
       protocol_state sigma' ->
       full_node_condition sigma sigma' ->
-      valid_msg_condition c sigma ->
+      valid_estimate_condition c sigma ->
       add_in_sorted (c, v, sigma) sigma' sigma'' ->
       fault_tolerance_condition sigma'' ->
       protocol_state sigma''

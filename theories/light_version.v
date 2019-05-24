@@ -99,9 +99,9 @@ Qed.
 (** Estimator **)
 (***************)
 
-Parameter epsilon : state -> C -> Prop.
+Parameter estimator : state -> C -> Prop.
 
-Parameter epsilon_total : forall s : state, exists c : C, epsilon s c.
+Parameter estimator_total : forall s : state, exists c : C, estimator s c.
 
 
 (********************)
@@ -112,23 +112,23 @@ Definition state_sorted : state -> Prop := LocallySorted message_lt.
 
 
 Inductive fault_weight_msg : message -> message -> R -> Prop :=
-  | fault_weight_v_diff: forall c1 c2 v1 v2 msg1 msg2,
+  | fault_weight_v_diff: forall c1 c2 v1 v2 j1 j2,
       v1 <> v2 ->
-      fault_weight_msg (c1,v1,msg1) (c2,v2,msg2) 0
-  | fault_weight_c_msg: forall c v msg,
-      fault_weight_msg (c,v,msg) (c,v,msg) 0
-  | fault_weight_msg1: forall c1 c2 v msg1 msg2,
-      In (Hash (c1,v,msg1)) msg2 ->
-      fault_weight_msg (c1,v,msg1) (c2,v,msg2) 0
-  | fault_weight_msg2: forall c1 c2 v msg1 msg2,
-      In (Hash (c2,v,msg2)) msg1 ->
-      fault_weight_msg (c1,v,msg1) (c2,v,msg2) 0
-  | fault_weight_next: forall c1 c2 v msg1 msg2,
+      fault_weight_msg (c1,v1,j1) (c2,v2,j2) 0
+  | fault_weight_c_msg: forall c v j,
+      fault_weight_msg (c,v,j) (c,v,j) 0
+  | fault_weight_msg1: forall c1 c2 v j1 j2,
+      In (Hash (c1,v,j1)) j2 ->
+      fault_weight_msg (c1,v,j1) (c2,v,j2) 0
+  | fault_weight_msg2: forall c1 c2 v j1 j2,
+      In (Hash (c2,v,j2)) j1 ->
+      fault_weight_msg (c1,v,j1) (c2,v,j2) 0
+  | fault_weight_next: forall c1 c2 v j1 j2,
       c1 <> c2 ->
-      msg1 <> msg2 ->
-      not (In (Hash (c1,v,msg1)) msg2) ->
-      not (In (Hash (c2,v,msg2)) msg2) ->
-      fault_weight_msg (c1,v,msg1) (c2,v,msg2) (weight v)
+      j1 <> j2 ->
+      not (In (Hash (c1,v,j1)) j2) ->
+      not (In (Hash (c2,v,j2)) j2) ->
+      fault_weight_msg (c1,v,j1) (c2,v,j2) (weight v)
   .
 
 Inductive fault_weight_message_state : message -> state -> R -> Prop :=
@@ -155,8 +155,8 @@ Inductive fault_weight_state : state -> R -> Prop :=
 (*******************************)
 
 (** The valid message condition **)
-Definition valid_msg_condition (c : C) (sigma : state) : Prop :=
-    epsilon sigma c.
+Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
+    estimator sigma c.
 
 (** The fault tolerance condition **)
 Definition fault_tolerance_condition (sigma : state) : Prop :=
@@ -169,7 +169,7 @@ Inductive protocol_state : state -> Prop :=
   | protocol_state_cons : forall c v sigma hsigma sigma' sigma'',
       protocol_state sigma ->
       protocol_state sigma' ->
-      valid_msg_condition c sigma ->
+      valid_estimate_condition c sigma ->
       Hstate sigma hsigma ->
       @add_in_sorted message message_lt (c, v, hsigma) sigma' sigma'' ->
       fault_tolerance_condition sigma'' ->
