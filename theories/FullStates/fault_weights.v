@@ -107,16 +107,6 @@ Inductive fault_weight_message_state : message -> state -> R -> Prop :=
       fault_weight_message_state msg1 (next msg2 sigma) (r1 + r2)%R
 .
 
-Theorem fault_weight_message_state_functional : forall msg sigma r1 r2,
-  fault_weight_message_state msg sigma r1 ->
-  fault_weight_message_state msg sigma r2 ->
-  r1 = r2.
-Admitted.
-
-Theorem fault_weight_message_state_total : forall msg sigma,
-  exists r, fault_weight_message_state msg sigma r.
-Admitted.
-
 Lemma fault_weight_message_state_empty_zero : forall msg r,
   fault_weight_message_state msg Empty r ->
   r = 0%R.
@@ -137,6 +127,29 @@ Proof.
     apply (Rplus_le_le_0_compat _ _ IHfault_weight_message_state H0).
 Qed.
 
+Theorem fault_weight_message_state_functional : forall msg sigma r1 r2,
+  fault_weight_message_state msg sigma r1 ->
+  fault_weight_message_state msg sigma r2 ->
+  r1 = r2.
+Proof.
+  intros. 
+  generalize dependent r2.
+  induction H; intros.
+  - apply fault_weight_message_state_empty_zero in H0; subst. reflexivity.
+  - inversion H1; subst.
+    * symmetry in H4. apply no_confusion_next_empty in H4. inversion H4.
+    * apply no_confusion_next in H2; subst. destruct H2; subst.
+      apply (fault_weight_msg_functional _ _ _ _ H0) in H5; subst.
+      apply Rplus_eq_compat_r.
+      apply IHfault_weight_message_state in H3.
+      assumption.
+Qed.
+
+Theorem fault_weight_message_state_total : forall msg sigma,
+  exists r, fault_weight_message_state msg sigma r.
+Admitted.
+
+
 Lemma fault_weight_message_state_backwards : forall msg msg' sigma r1 r2,
   fault_weight_msg msg msg' r1 ->
   fault_weight_message_state msg (next msg' sigma) r2 ->
@@ -148,6 +161,23 @@ Proof.
     apply no_confusion_next_empty in H3. inversion H3.
   - apply no_confusion_next in H1. destruct H1; subst.
     apply (fault_weight_msg_functional msg msg' r1 r3 H) in H4; subst.
+    rewrite Rplusminus_assoc. unfold Rminus.
+    rewrite Rplus_opp_r. rewrite Rplus_0_r.
+    assumption.
+Qed.
+
+Lemma fault_weight_message_state_backwards_msg : forall msg msg' sigma r1 r2,
+  fault_weight_message_state msg (next msg' sigma) r1 ->
+  fault_weight_message_state msg sigma r2 ->
+  fault_weight_msg msg msg' (r1 - r2)%R.
+Proof.
+  intros.
+  inversion H; subst.
+  - symmetry in H3.
+    apply no_confusion_next_empty in H3. inversion H3.
+  - apply no_confusion_next in H1. destruct H1; subst.
+    apply (fault_weight_message_state_functional msg sigma r2 r0 H0) in H2; subst.
+    rewrite Rplus_comm.
     rewrite Rplusminus_assoc. unfold Rminus.
     rewrite Rplus_opp_r. rewrite Rplus_0_r.
     assumption.
@@ -192,16 +222,15 @@ Inductive fault_weight_state : state -> R -> Prop :=
       fault_weight_state (next msg sigma) (r1 + r2)%R
 .
 
-
-Theorem fault_weight_state_functional : forall sigma r1 r2,
-  fault_weight_state sigma r1 ->
-  fault_weight_state sigma r2 ->
-  r1 = r2.
-Admitted.
-
-Theorem fault_weight_state_total : forall sigma,
-  exists r, fault_weight_state sigma r.
-Admitted.
+Lemma fault_weight_state_empty : forall r,
+  fault_weight_state Empty r ->
+  (r = 0)%R.
+Proof.
+  intros.
+  inversion H; subst.
+  - reflexivity.
+  - apply no_confusion_next_empty in H0. inversion H0.
+Qed.
 
 Lemma fault_weight_state_nonnegative : forall sigma r,
   fault_weight_state sigma r ->
@@ -214,15 +243,27 @@ Proof.
     apply (Rplus_le_le_0_compat _ _ H IHfault_weight_state).
 Qed.
 
-Lemma fault_weight_state_empty : forall r,
-  fault_weight_state Empty r ->
-  (r = 0)%R.
+Theorem fault_weight_state_functional : forall sigma r1 r2,
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma r2 ->
+  r1 = r2.
 Proof.
   intros.
-  inversion H; subst.
-  - reflexivity.
-  - apply no_confusion_next_empty in H0. inversion H0.
+  generalize dependent r2.
+  induction H; intros.
+  - apply fault_weight_state_empty in H0. symmetry. assumption.
+  - inversion H1; subst.
+    + symmetry in H3. apply no_confusion_next_empty in H3. inversion H3.
+    + apply no_confusion_next in H2; subst. destruct H2; subst.
+      apply (fault_weight_message_state_functional _ _ _ _ H) in H3; subst.
+      apply Rplus_eq_compat_l.
+      apply IHfault_weight_state in H4. 
+      assumption.
 Qed.
+
+Theorem fault_weight_state_total : forall sigma,
+  exists r, fault_weight_state sigma r.
+Admitted.
 
 Lemma fault_weight_state_backwards : forall msg sigma r1 r2,
   fault_weight_message_state msg sigma r1 ->
