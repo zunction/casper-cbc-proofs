@@ -103,7 +103,6 @@ Parameter estimator : state -> C -> Prop.
 
 Parameter estimator_total : forall s : state, exists c : C, estimator s c.
 
-
 (********************)
 (* State properties *)
 (********************)
@@ -155,6 +154,7 @@ Inductive fault_weight_state : state -> R -> Prop :=
 (*******************************)
 
 (** The valid message condition **)
+
 Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
     estimator sigma c.
 
@@ -163,6 +163,9 @@ Definition fault_tolerance_condition (sigma : state) : Prop :=
   forall r,
   fault_weight_state sigma r ->
   (r <= t)%R.
+
+
+(** TODO? Define protocol messages; also for the full version? **)
 
 Inductive protocol_state : state -> Prop :=
   | protocol_state_nil : protocol_state []
