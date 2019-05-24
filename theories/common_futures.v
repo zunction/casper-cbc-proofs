@@ -20,7 +20,7 @@ sorted_union_total [in sorted_union]
 
 (** Two party common futures **)
 
-Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
+Theorem union_protocol_2states : forall sigma1 sigma2 sigma,
   protocol_state sigma1 ->
   protocol_state sigma2 ->
   sorted_union sigma1 sigma2 sigma ->
@@ -50,4 +50,27 @@ Proof.
       apply sorted_union_locally_sorted in HUnion2'; try assumption.
       apply (sorted_subset_transitive _ _ _ H Hsub2').
 Qed.
+
+Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
+  protocol_state sigma1 ->
+  protocol_state sigma2 ->
+  sorted_union sigma1 sigma2 sigma ->
+  fault_tolerance_condition sigma ->
+  exists sigma',
+  protocol_state(sigma') /\
+  sigma1 => sigma' /\
+  sigma2 => sigma'.
+Proof.
+  intros.
+  exists sigma.
+  split.
+  - apply (union_protocol_2states _ _ _ H H0 H1 H2).
+  - split.
+    apply (sorted_union_subset_left _ _ _ H1).
+    apply (sorted_union_subset_right _ _ _ H1).
+Qed.
+
+
+
+
 
