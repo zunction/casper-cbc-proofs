@@ -91,7 +91,7 @@ Proof.
   induction H.
   - constructor.
   - apply (add_in_sorted_sorted message_lt (c,v,hsigma) sigma'); try assumption.
-    apply message_lt_storder.
+    apply message_lt_strict_order.
 Qed.
 
 Theorem protocol_state_message_sorted : forall c v hs state,

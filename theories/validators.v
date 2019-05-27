@@ -12,19 +12,21 @@ Parameter V : Set .
 
 Parameter v_non_empty : exists v : V, True.
 
-(** Less than order on validator names **)
+(** Comparison function on validator names **)
 
-Parameter v_lt : V -> V -> Prop.
-
-Parameter v_lt_strict_order: StrictOrder v_lt.
+Parameter v_compare : V -> V -> comparison.
 
 (** V totally ordered **)
 
-Parameter v_lt_total_order: TotalOrder v_lt.
+Parameter v_compare_strict_order : CompareStrictOrder v_compare.
 
-Parameter v_ltb : V -> V -> bool.
+Definition v_lt : V -> V -> Prop := compare_lt v_compare.
 
-Parameter v_lt_ltb : RelationFn v_lt v_ltb.
+Definition v_lt_strict_order: StrictOrder v_lt :=
+  compare_lt_strict_order V v_compare v_compare_strict_order.
+
+Definition v_lt_total_order: TotalOrder v_lt :=
+  compare_lt_total_order V v_compare v_compare_strict_order.
 
 Corollary v_eq_dec : forall x y : V, x = y \/ x <> y.
 Proof.
@@ -32,10 +34,6 @@ Proof.
   - apply v_lt_strict_order.
   - apply v_lt_total_order.
 Qed.
-
-Parameter v_eqb : V -> V -> bool.
-
-Parameter v_eqb_eq : EqualityFn v_eqb.
 
 (***********************)
 (** Validator weights **)

@@ -11,7 +11,6 @@ Require Import preamble.
 
 (** Sorted Lists **)
 
-
 Inductive list_lex {A} {lt : relation A} : list A -> list A -> Prop :=
   | list_lex_empty : forall h l,
       list_lex nil (cons h l)
@@ -21,109 +20,79 @@ Inductive list_lex {A} {lt : relation A} : list A -> list A -> Prop :=
       list_lex l1 l2 -> list_lex (cons h l1) (cons h l2)
   .
 
-Fixpoint list_eqb {A} {eqb : A -> A -> bool}
-    (l1 l2 : list A) : bool :=
+Fixpoint list_compare {A} (compare : A -> A -> comparison)
+    (l1 l2 : list A) : comparison :=
   match l1,l2 with
-  | [], [] => true
-  | (h1 :: t1), (h2 :: t2) => @list_eqb A eqb t1 t2 && eqb h1 h2
-  | _,_ => false
-  end.
-
-Lemma list_eqb_eq : forall A (eqb : A -> A -> bool),
-  EqualityFn eqb ->
-  EqualityFn (@list_eqb A eqb).
-Proof.
-  intros.
-  split.
-  - generalize dependent y. induction x; intros; destruct y.
-    + reflexivity.
-    + simpl in H0. discriminate H0.
-    + simpl in H0. discriminate H0.
-    + inversion H0.
-      rewrite andb_true_iff in H2. destruct H2.
-      apply IHx in H1; subst. apply H in H2; subst.
-      reflexivity.
-  - intros. subst. induction y.
-    + reflexivity.
-    + simpl. rewrite IHy. simpl.  rewrite (H a). reflexivity.
-Qed.
-
-Fixpoint list_lexb {A} {eqb : A -> A -> bool} {ltb : A -> A -> bool}
-    (l1 l2 : list A) : bool :=
-  match l1,l2 with
-  | [], (h :: l) => true
+  | [], [] => Eq
+  | [], _ => Lt
+  | _, [] => Gt
   | (h1 :: t1), (h2 :: t2) => 
-      if eqb h1 h2
-        then @list_lexb A eqb ltb t1 t2
-        else  (if ltb h1 h2 then true
-              else false)
-  | _,_ => false
+    match compare h1 h2 with
+    | Eq => @list_compare A compare t1 t2
+    | cmp => cmp
+    end
   end.
 
-Lemma list_lex_storder : forall A lt,
-  StrictOrder lt -> StrictOrder (@list_lex A lt).
-Proof.
-  intros. destruct H. constructor.
-  - unfold Irreflexive in *. unfold Reflexive in *. intros. intro.
-    induction x; inversion H; subst.
-    + apply (StrictOrder_Irreflexive a H1).
-    + apply IHx. assumption.
-  - unfold Transitive in *. intros. generalize dependent x. induction H0.
-    + intros. inversion H.
-    + intros. inversion H0; subst.
-      * constructor.
-      * apply (StrictOrder_Transitive _ _ _ H3) in H.
-        apply list_lex_head. assumption.
-      * apply list_lex_head. assumption.
-    + intros. inversion H; subst.
-      * constructor.
-      * apply list_lex_head. assumption.
-      * apply list_lex_tail. apply (IHlist_lex _ H3).
-Qed.
+Definition list_lt {A} {compare : A -> A -> comparison} :=
+  @compare_lt (list A) (list_compare compare).
 
-Lemma list_lex_total : forall A lt,
-  TotalOrder lt -> TotalOrder (@list_lex A lt).
+Lemma list_lex_lt : forall A (compare : A -> A -> comparison),
+  CompareReflexive compare ->
+  EqualRelations (@list_lex A (compare_lt compare)) (@list_lt A compare).
 Proof.
-  intros. unfold TotalOrder in *. intros.
-  generalize dependent c2. induction c1; destruct c2.
-  - left. reflexivity.
-  - right; left. constructor.
-  - right; right. constructor.
-  - destruct (H a a0) as [H1 | [H2 |H3]].
-    + subst. destruct (IHc1 c2) as [IH1 | [ IH2 | IH3]].
-      * subst. left. reflexivity.
-      * right; left. apply list_lex_tail. assumption.
-      * right; right. apply list_lex_tail. assumption.
-    + right; left. apply list_lex_head. assumption.
-    + right; right. apply list_lex_head. assumption.
-Qed.
-
-Lemma list_lex_lexb : forall A lt eqb ltb,
-  EqualityFn eqb ->
-  Irreflexive lt ->
-  RelationFn lt ltb ->
-  forall l1 l2, @list_lex A lt l1 l2 <-> @list_lexb A eqb ltb l1 l2 = true.
-Proof.
-  intros; split; intros.
-  - induction H2.
+  intros. intros l1 l2; split; intros. unfold list_lt.
+  - induction H0;  unfold compare_lt in *.
     + reflexivity.
-    + apply H1 in H2 as Hlt. simpl. destruct (eqb h1 h2) eqn: Heqb. 
-      * exfalso. apply H in Heqb; subst. apply (H0 h2 H2).
-      * rewrite Hlt. reflexivity.
-    + simpl.
-      assert (eqb h h = true).
-      { apply H. reflexivity. }
-      rewrite H3. assumption.
-  - generalize dependent l2. induction l1; intros; destruct l2.
-    + discriminate H2.
+    + simpl. rewrite H0. reflexivity.
+    + simpl. rewrite (compare_eq_refl _ _ H h). assumption.
+  - generalize dependent l2. induction l1; intros; destruct l2; try discriminate.
     + constructor.
-    + discriminate H2.
-    + inversion H2. destruct (eqb a a0) eqn: Heqb.
-      * apply H in Heqb; subst. apply list_lex_tail. apply IHl1. assumption.
-      * destruct (ltb a a0) eqn: Hltb; try discriminate .
-        apply H1 in Hltb.
-        apply list_lex_head.
-        assumption.
+    + inversion H0. destruct (compare a a0) eqn:Hcmp; try discriminate.
+      * apply H in Hcmp; subst. apply list_lex_tail. apply IHl1. assumption.
+      * apply list_lex_head. assumption.
+Qed.
+
+Lemma list_compare_strict_order : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare ->
+  CompareStrictOrder (@list_compare A compare).
+Proof.
+  intros. destruct H as [R T].
+  split.
+  - intro x. induction x; intros; destruct y; split; intros; try discriminate; try reflexivity.
+    + simpl in H. destruct (compare a a0) eqn:Hcmp; try discriminate H.
+      apply R in Hcmp; subst. apply IHx in H; subst.
+      reflexivity.
+    + inversion H; subst. simpl. rewrite compare_eq_refl; try assumption.
+      apply IHx. reflexivity.
+  - intros x y. generalize dependent x.
+    induction y; intros; destruct x; destruct z; try assumption
+    ; destruct comp; try discriminate
+    ; inversion H; clear H; destruct (compare a0 a) eqn:Ha0; try discriminate
+    ; inversion H0; clear H0; destruct (compare a a1) eqn:Ha1; try discriminate
+    ; try apply (IHy _ _ _ H2) in H1; try apply (T _ _ _ _ Ha0) in Ha1
+    ; try apply R in Ha0; subst
+    ; try (simpl; rewrite Ha1; try rewrite H1, H2; reflexivity)
+    ; try (simpl; rewrite Ha1; rewrite H2; reflexivity)
+    ; try (apply R in Ha1; subst; simpl;  rewrite Ha0; rewrite H1; reflexivity)
+    .
+Qed.
+
+Lemma list_lex_strict_order : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare -> StrictOrder (@list_lex A (compare_lt compare)).
+Proof.
+  intros. apply list_compare_strict_order in H as CSO. destruct H as [R TR]. 
+  apply equal_relations_strict_order with (@list_lt A compare).
+  - apply equal_relations_symmetric. apply list_lex_lt. assumption.
+  - apply compare_lt_strict_order. assumption.
+Qed.
+
+Lemma list_lex_total_order : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare -> TotalOrder (@list_lex A (compare_lt compare)).
+Proof.
+  intros. apply list_compare_strict_order in H as CSO. destruct H as [R TR]. 
+  apply equal_relations_total_order with (@list_lt A compare).
+  - apply equal_relations_symmetric. apply list_lex_lt. assumption.
+  - apply compare_lt_total_order. assumption.
 Qed.
 
 Inductive add_in_sorted {A} {lt : relation A} : A -> list A -> list A -> Prop :=
@@ -140,12 +109,16 @@ Inductive add_in_sorted {A} {lt : relation A} : A -> list A -> list A -> Prop :=
           add_in_sorted msg (msg' :: sigma) (msg' :: sigma')
   .
 
-Fixpoint add_in_sorted_fn {A} {eqb ltb : A -> A -> bool} (x : A) (l : list A) : list A :=
-  match xs with
+Fixpoint add_in_sorted_fn {A} {compare : A -> A -> comparison} (x : A) (l : list A) : list A :=
+  match l with
   | [] => [x]
   | h :: t =>
-    if eqb x h then h :: t
-    else if 
+    match compare x h with
+    | Lt => x :: h :: t
+    | Eq => h :: t
+    | Gt => h :: @add_in_sorted_fn A compare x t
+    end
+  end.
 
 Theorem add_in_sorted_functional : forall A lt x l1 l2 l2',
    StrictOrder lt ->

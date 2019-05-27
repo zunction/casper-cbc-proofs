@@ -19,17 +19,144 @@ Proof.
   intros. inversion H. assumption.
 Qed.
 
+
 Class TotalOrder {A} (lt : relation A) : Prop :=
    totality : forall c1 c2, c1 = c2 \/ lt c1 c2 \/ lt c2 c1.
 
 Class Commutative {A} (op : A -> A -> A -> Prop) : Prop :=
    commutativity : forall c1 c2 c12, op c1 c2 c12 -> op c2 c1 c12.
 
-Class EqualityFn {A} (eqb : A -> A -> bool) : Prop :=
-    equality_fn : forall x y, eqb x y = true <-> x = y.
+Class CompareReflexive {A} (compare : A -> A -> comparison) : Prop :=
+    compare_eq : forall x y, compare x y = Eq <-> x = y.
 
-Class RelationFn {A} (r : relation A) (rb : A -> A -> bool) : Prop :=
-  relation_fn : forall x y, r x y <-> rb x y = true.
+Lemma compare_eq_refl : forall A (compare : A -> A -> comparison),
+  CompareReflexive compare ->
+  forall x, compare x x = Eq.
+Proof. intros. apply H. reflexivity. Qed.
+
+Lemma compare_eq_lt : forall A (compare : A -> A -> comparison),
+  CompareReflexive compare ->
+  forall x, ~compare x x = Lt.
+Proof. 
+  intros.
+  assert (compare x x = Eq); try apply (compare_eq_refl _ _ H). rewrite H0.
+  intro. discriminate.
+Qed.
+
+Lemma compare_eq_gt : forall A (compare : A -> A -> comparison),
+  CompareReflexive compare ->
+  forall x, ~compare x x = Gt.
+Proof. 
+  intros.
+  assert (compare x x = Eq); try apply (compare_eq_refl _ _ H). rewrite H0.
+  intro. discriminate.
+Qed.
+
+Class CompareTransitive {A} (compare : A -> A -> comparison) : Prop :=
+    compare_transitive : forall x y z comp,
+      compare x y = comp ->
+      compare y z = comp ->
+      compare x z = comp.
+
+Class CompareStrictOrder {A} (compare : A -> A -> comparison) : Prop :=
+    compare_strict_order :
+      CompareReflexive compare /\
+      CompareTransitive compare.
+
+Class CompareAsymmetric {A} (compare : A -> A -> comparison) : Prop :=
+    compare_asymmetric : forall x y, compare x y = Lt <-> compare y x = Gt.
+
+Class EqualRelations {A} (r1 r2 : relation A) : Prop :=
+    equal_relations : forall x y, r1 x y <-> r2 x y.
+
+Lemma equal_relations_symmetric : forall A, Symmetric (@EqualRelations A).
+Proof.
+  unfold EqualRelations.
+  intros A r1 r2 H12 x y; split; intros; apply H12; assumption.
+Qed.
+
+Lemma equal_relations_strict_order : forall A (r1 r2 : relation A),
+  EqualRelations r1 r2 ->
+  StrictOrder r1 ->
+  StrictOrder r2.
+Proof.
+  intros. destruct H0 as [IR TR]. split.
+  - intros x H2. apply (IR x). apply H. assumption.
+  - intros x y z H1 H2. apply H. apply (TR x y z); apply H; assumption.
+Qed.
+
+Lemma equal_relations_total_order : forall A (r1 r2 : relation A),
+  EqualRelations r1 r2 ->
+  TotalOrder r1 ->
+  TotalOrder r2.
+Proof.
+  intros. intros x y . destruct (H0 x y) as [HEq | [Hxy | Hyx]].
+  - left; assumption.
+  - right; left. apply H. assumption.
+  - right; right.  apply H. assumption.
+Qed.
+
+Lemma compare_assymetric : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare -> CompareAsymmetric compare.
+Proof.
+  intros. destruct H as [R TR]. intros; split; intros.
+  - destruct (compare y x) eqn:Hyx; try reflexivity; exfalso.
+    + apply R in Hyx; subst. apply (compare_eq_lt _ _ R _ H). 
+    + apply (TR _ _ _ _ Hyx) in H. apply (compare_eq_lt _ _ R _ H). 
+  - destruct (compare x y) eqn:Hyx; try reflexivity; exfalso.
+    + apply R in Hyx; subst. apply (compare_eq_gt _ _ R _ H). 
+    + apply (TR _ _ _ _ Hyx) in H. apply (compare_eq_gt _ _ R _ H).
+Qed. 
+
+Definition compare_lt {A} (compare : A -> A -> comparison) (x y : A) : Prop :=
+  compare x y = Lt.
+
+Lemma compare_lt_irreflexive : forall A  (compare : A -> A -> comparison),
+  CompareReflexive compare -> Irreflexive (compare_lt compare).
+Proof.
+  intros. intros x Hlt. unfold compare_lt in *.
+  assert (compare x x = Eq) ; try apply (compare_eq_refl _ compare H x).
+  rewrite Hlt in H0. discriminate.
+Qed.
+
+Lemma compare_lt_transitive : forall A  (compare : A -> A -> comparison),
+  CompareTransitive compare -> Transitive (compare_lt compare).
+Proof.
+  unfold compare_lt.
+  intros. 
+  intros x y z Hxy Hyz.
+  apply (H _ _ _ _ Hxy Hyz).
+Qed.
+
+Lemma compare_lt_strict_order : forall A  (compare : A -> A -> comparison),
+  CompareStrictOrder compare -> StrictOrder (compare_lt compare).
+Proof.
+  intros. destruct H as [R T].
+  split.
+  - apply compare_lt_irreflexive; assumption.
+  - apply compare_lt_transitive; assumption.
+Qed.
+
+Lemma compate_lt_asymmetric : forall A  (compare : A -> A -> comparison),
+  CompareStrictOrder compare -> Asymmetric (compare_lt compare).
+Proof.
+  intros.
+  apply compare_lt_strict_order in H. destruct H as [IR TR].
+  intros x y Hxy Hyx. apply (TR _ _ _ Hxy) in Hyx. apply (IR _ Hyx).
+Qed.
+
+Lemma compare_lt_total_order : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare -> TotalOrder (compare_lt compare).
+Proof.
+  unfold compare_lt.
+  intros. intros x y.
+  assert (CSO := H).
+  destruct H as [R TR].
+  destruct (compare x y) eqn:Hcmp.
+  - apply R in Hcmp. left. assumption.
+  - right. left. reflexivity.
+  - right. right. apply compare_assymetric in CSO. apply CSO in Hcmp. assumption.
+Qed.
 
 Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
   StrictOrder rel ->

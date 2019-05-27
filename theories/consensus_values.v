@@ -11,19 +11,21 @@ Parameter C : Set .
 
 Parameter c_non_empty : exists c : C, True.
 
-(** Less than order on consensus values **)
+(** comparison function on consensus values **)
 
-Parameter c_lt : C -> C -> Prop.
-
-Parameter c_lt_strict_order: StrictOrder c_lt.
+Parameter c_compare : C -> C -> comparison.
 
 (** C totally ordered **)
 
-Parameter c_lt_total_order: TotalOrder c_lt.
+Parameter c_compare_strict_order : CompareStrictOrder c_compare.
 
-Parameter c_compare : C -> C -> bool.
+Definition c_lt : C -> C -> Prop := compare_lt c_compare.
 
-Parameter c_lt_ltb : RelationFn c_lt c_ltb.
+Definition c_lt_strict_order: StrictOrder c_lt :=
+  compare_lt_strict_order C c_compare c_compare_strict_order.
+
+Definition c_lt_total_order: TotalOrder c_lt :=
+  compare_lt_total_order C c_compare c_compare_strict_order.
 
 Corollary c_eq_dec : forall x y : C, x = y \/ x <> y.
 Proof.
@@ -31,7 +33,3 @@ Proof.
   - apply c_lt_strict_order.
   - apply c_lt_total_order.
 Qed.
-
-Parameter c_eqb : C -> C -> bool.
-
-Parameter c_eqb_eq : EqualityFn c_eqb.
