@@ -21,9 +21,17 @@ Parameter c_lt_strict_order: StrictOrder c_lt.
 
 Parameter c_lt_total_order: TotalOrder c_lt.
 
+Parameter c_compare : C -> C -> bool.
+
+Parameter c_lt_ltb : RelationFn c_lt c_ltb.
+
 Corollary c_eq_dec : forall x y : C, x = y \/ x <> y.
 Proof.
   apply strict_total_order_eq_dec with c_lt.
   - apply c_lt_strict_order.
   - apply c_lt_total_order.
 Qed.
+
+Parameter c_eqb : C -> C -> bool.
+
+Parameter c_eqb_eq : EqualityFn c_eqb.

@@ -22,6 +22,10 @@ Parameter v_lt_strict_order: StrictOrder v_lt.
 
 Parameter v_lt_total_order: TotalOrder v_lt.
 
+Parameter v_ltb : V -> V -> bool.
+
+Parameter v_lt_ltb : RelationFn v_lt v_ltb.
+
 Corollary v_eq_dec : forall x y : V, x = y \/ x <> y.
 Proof.
   apply strict_total_order_eq_dec with v_lt.
@@ -29,6 +33,9 @@ Proof.
   - apply v_lt_total_order.
 Qed.
 
+Parameter v_eqb : V -> V -> bool.
+
+Parameter v_eqb_eq : EqualityFn v_eqb.
 
 (***********************)
 (** Validator weights **)

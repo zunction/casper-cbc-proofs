@@ -3,13 +3,7 @@ theories/preamble.v
 theories/consensus_values.v
 theories/validators.v
 theories/threshold.v
-theories/sorted_lists.v
 theories/hash.v
-theories/LightStates/messages.v
-theories/LightStates/states.v
-theories/LightStates/hash_state.v
-theories/LightStates/fault_weights.v
-theories/light_version.v
 theories/full_states.v
 theories/full_messages.v
 theories/FullStates/add_in_sorted.v
@@ -26,3 +20,10 @@ theories/FullStates/fault_weights.v
 theories/full_version.v
 theories/common_futures.v
 theories/consistent_decisions_prop_protocol_states.v
+theories/sorted_lists.v
+theories/LightStates/protocol_states.v
+theories/LightStates/messages.v
+theories/LightStates/states.v
+theories/LightStates/hash_state.v
+theories/LightStates/fault_weights.v
+

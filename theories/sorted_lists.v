@@ -1,3 +1,4 @@
+Require Import Coq.Bool.Bool.
 Require Import List.
 Require Import Coq.Sorting.Sorted.
 Require Import Coq.Classes.RelationClasses.
@@ -19,6 +20,45 @@ Inductive list_lex {A} {lt : relation A} : list A -> list A -> Prop :=
   | list_lex_tail : forall h l1 l2,
       list_lex l1 l2 -> list_lex (cons h l1) (cons h l2)
   .
+
+Fixpoint list_eqb {A} {eqb : A -> A -> bool}
+    (l1 l2 : list A) : bool :=
+  match l1,l2 with
+  | [], [] => true
+  | (h1 :: t1), (h2 :: t2) => @list_eqb A eqb t1 t2 && eqb h1 h2
+  | _,_ => false
+  end.
+
+Lemma list_eqb_eq : forall A (eqb : A -> A -> bool),
+  EqualityFn eqb ->
+  EqualityFn (@list_eqb A eqb).
+Proof.
+  intros.
+  split.
+  - generalize dependent y. induction x; intros; destruct y.
+    + reflexivity.
+    + simpl in H0. discriminate H0.
+    + simpl in H0. discriminate H0.
+    + inversion H0.
+      rewrite andb_true_iff in H2. destruct H2.
+      apply IHx in H1; subst. apply H in H2; subst.
+      reflexivity.
+  - intros. subst. induction y.
+    + reflexivity.
+    + simpl. rewrite IHy. simpl.  rewrite (H a). reflexivity.
+Qed.
+
+Fixpoint list_lexb {A} {eqb : A -> A -> bool} {ltb : A -> A -> bool}
+    (l1 l2 : list A) : bool :=
+  match l1,l2 with
+  | [], (h :: l) => true
+  | (h1 :: t1), (h2 :: t2) => 
+      if eqb h1 h2
+        then @list_lexb A eqb ltb t1 t2
+        else  (if ltb h1 h2 then true
+              else false)
+  | _,_ => false
+  end.
 
 Lemma list_lex_storder : forall A lt,
   StrictOrder lt -> StrictOrder (@list_lex A lt).
@@ -58,6 +98,33 @@ Proof.
     + right; right. apply list_lex_head. assumption.
 Qed.
 
+Lemma list_lex_lexb : forall A lt eqb ltb,
+  EqualityFn eqb ->
+  Irreflexive lt ->
+  RelationFn lt ltb ->
+  forall l1 l2, @list_lex A lt l1 l2 <-> @list_lexb A eqb ltb l1 l2 = true.
+Proof.
+  intros; split; intros.
+  - induction H2.
+    + reflexivity.
+    + apply H1 in H2 as Hlt. simpl. destruct (eqb h1 h2) eqn: Heqb. 
+      * exfalso. apply H in Heqb; subst. apply (H0 h2 H2).
+      * rewrite Hlt. reflexivity.
+    + simpl.
+      assert (eqb h h = true).
+      { apply H. reflexivity. }
+      rewrite H3. assumption.
+  - generalize dependent l2. induction l1; intros; destruct l2.
+    + discriminate H2.
+    + constructor.
+    + discriminate H2.
+    + inversion H2. destruct (eqb a a0) eqn: Heqb.
+      * apply H in Heqb; subst. apply list_lex_tail. apply IHl1. assumption.
+      * destruct (ltb a a0) eqn: Hltb; try discriminate .
+        apply H1 in Hltb.
+        apply list_lex_head.
+        assumption.
+Qed.
 
 Inductive add_in_sorted {A} {lt : relation A} : A -> list A -> list A -> Prop :=
    | add_in_nil : forall msg,
@@ -73,6 +140,12 @@ Inductive add_in_sorted {A} {lt : relation A} : A -> list A -> list A -> Prop :=
           add_in_sorted msg (msg' :: sigma) (msg' :: sigma')
   .
 
+Fixpoint add_in_sorted_fn {A} {eqb ltb : A -> A -> bool} (x : A) (l : list A) : list A :=
+  match xs with
+  | [] => [x]
+  | h :: t =>
+    if eqb x h then h :: t
+    else if 
 
 Theorem add_in_sorted_functional : forall A lt x l1 l2 l2',
    StrictOrder lt ->

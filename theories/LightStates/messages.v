@@ -51,3 +51,16 @@ Proof.
     + right; split; auto; right; split; auto.
        apply (Sohs _ _ _ Hxyh Hyzh).
 Qed.
+
+
+Module MessageOrder <: TotalLeBool.
+  Definition t := nat.
+  Fixpoint leb x y :=
+    match x, y with
+    | 0, _ => true
+    | _, 0 => false
+    | S x', S y' => leb x' y'
+    end.
+  Infix "<=?" := leb (at level 35).
+  Theorem leb_total : forall a1 a2, a1 <=? a2 \/ a2 <=? a1.
+End NatOrder.

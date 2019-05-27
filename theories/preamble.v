@@ -25,6 +25,12 @@ Class TotalOrder {A} (lt : relation A) : Prop :=
 Class Commutative {A} (op : A -> A -> A -> Prop) : Prop :=
    commutativity : forall c1 c2 c12, op c1 c2 c12 -> op c2 c1 c12.
 
+Class EqualityFn {A} (eqb : A -> A -> bool) : Prop :=
+    equality_fn : forall x y, eqb x y = true <-> x = y.
+
+Class RelationFn {A} (r : relation A) (rb : A -> A -> bool) : Prop :=
+  relation_fn : forall x y, r x y <-> rb x y = true.
+
 Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
   StrictOrder rel ->
   TotalOrder rel ->
