@@ -336,8 +336,13 @@ Theorem sorted_union_locally_sorted_iterated : forall sigmas sigma,
   Forall locally_sorted sigmas ->
   fold sorted_union sigmas sigma ->
   locally_sorted sigma.
-  Admitted.
-
+Proof.
+  intros.
+  induction H0.
+  - inversion H. assumption.
+  - inversion H; subst. apply IHfold in H5 as LSfa.
+    apply (sorted_union_locally_sorted a fa fab); assumption.
+Qed.
 
 Lemma syntactic_state_union_to_sorted_union : forall sigma1 sigma2 sigma12,
   locally_sorted sigma1 ->
