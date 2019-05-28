@@ -120,37 +120,48 @@ Fixpoint add_in_sorted_fn {A} {compare : A -> A -> comparison} (x : A) (l : list
     end
   end.
 
-Theorem add_in_sorted_functional : forall A lt x l1 l2 l2',
-   StrictOrder lt ->
-   @add_in_sorted A lt x l1 l2 ->
-   @add_in_sorted A lt x l1 l2' ->
-   l2 = l2'.
+Lemma add_in_sorted_function : forall A (compare : A -> A -> comparison) x xs xxs,
+  CompareStrictOrder compare ->
+  @add_in_sorted A (compare_lt compare) x xs xxs
+  <-> @add_in_sorted_fn A compare x xs = xxs.
 Proof.
-  intros A lt x l1 l2 l2' SO. assert (SO' := SO). destruct SO' as [IR TR]. 
-  generalize dependent x. generalize dependent l2. generalize dependent l2'.
-  induction l1; intros l2' l2 x Add Add'.
-  - inversion Add; subst. inversion Add'; subst. reflexivity.
-  - inversion Add; inversion Add'; subst; try reflexivity.
-    + destruct (IR a H7).
-    + destruct (IR a H6).
-    + destruct (IR a H3).
-    + destruct (IR a (TR a x a H7 H3)).
-    + destruct (IR a H2).
-    + destruct (IR a (TR a x a H2 H9)).
-    + apply (IHl1 _ _ _ H4) in H10. subst. reflexivity.
+  intros; split; intros.
+  - induction H0.
+    + reflexivity.
+    + simpl. rewrite compare_eq_refl; try reflexivity. apply (proj1 H).
+    + simpl. rewrite H0. reflexivity.
+    + simpl. apply compare_assymetric in H0; try assumption. rewrite H0.
+      rewrite IHadd_in_sorted. reflexivity.
+  - generalize dependent xxs. generalize dependent x. induction xs; intros.
+    + simpl in H0; subst. constructor.
+    + simpl in H0. destruct (compare x a) eqn:Hcmp; subst.
+      * apply (proj1 H) in Hcmp; subst. constructor.
+      * constructor. assumption.
+      * apply compare_assymetric in Hcmp; try assumption.
+        constructor; try assumption.
+        apply IHxs. reflexivity.
 Qed.
 
-Theorem add_in_sorted_total : forall A lt x l,
-  TotalOrder lt ->
-  exists l', @add_in_sorted A lt x l l'.
+Corollary add_in_sorted_functional : forall A compare x l1 l2 l2',
+   CompareStrictOrder compare ->
+   @add_in_sorted A (compare_lt compare) x l1 l2 ->
+   @add_in_sorted A (compare_lt compare) x l1 l2' ->
+   l2 = l2'.
 Proof.
-  intros. generalize dependent x.
-  induction l.
-  - intros. exists [x]. constructor.
-  - intros. destruct (H a x) as [Heq | [LTax | LTxa]].
-    + subst. exists (x :: l). constructor.
-    + destruct (IHl x). exists (a :: x0). constructor; assumption.
-    + exists (x :: a :: l). constructor. assumption.
+  intros.
+  apply add_in_sorted_function in H0; try assumption.
+  apply add_in_sorted_function in H1; try assumption.
+  subst.
+  reflexivity.
+Qed.
+
+Theorem add_in_sorted_total : forall A compare x l,
+  CompareStrictOrder compare ->
+  exists l', @add_in_sorted A (compare_lt compare) x l l'.
+Proof.
+  intros. exists (@add_in_sorted_fn A compare x l).
+  apply add_in_sorted_function; try assumption.
+  reflexivity.
 Qed.
 
 Theorem add_in_sorted_in {A} {lt : relation A} : forall msg msg' sigma sigma',

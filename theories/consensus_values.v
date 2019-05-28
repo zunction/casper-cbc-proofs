@@ -19,6 +19,12 @@ Parameter c_compare : C -> C -> comparison.
 
 Parameter c_compare_strict_order : CompareStrictOrder c_compare.
 
+Lemma c_compare_refl : forall c, c_compare c c = Eq.
+Proof.
+  apply compare_eq_refl . 
+  apply (proj1 c_compare_strict_order).
+Qed.
+
 Definition c_lt : C -> C -> Prop := compare_lt c_compare.
 
 Definition c_lt_strict_order: StrictOrder c_lt :=

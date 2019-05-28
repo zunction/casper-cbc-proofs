@@ -20,6 +20,12 @@ Parameter v_compare : V -> V -> comparison.
 
 Parameter v_compare_strict_order : CompareStrictOrder v_compare.
 
+Lemma v_compare_refl : forall v, v_compare v v = Eq.
+Proof.
+  apply compare_eq_refl . 
+  apply (proj1 v_compare_strict_order).
+Qed.
+
 Definition v_lt : V -> V -> Prop := compare_lt v_compare.
 
 Definition v_lt_strict_order: StrictOrder v_lt :=
