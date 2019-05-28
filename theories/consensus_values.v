@@ -33,9 +33,5 @@ Definition c_lt_strict_order: StrictOrder c_lt :=
 Definition c_lt_total_order: TotalOrder c_lt :=
   compare_lt_total_order C c_compare c_compare_strict_order.
 
-Corollary c_eq_dec : forall x y : C, x = y \/ x <> y.
-Proof.
-  apply strict_total_order_eq_dec with c_lt.
-  - apply c_lt_strict_order.
-  - apply c_lt_total_order.
-Qed.
+Definition c_eq_dec : EqualityDec C :=
+  compare_eq_dec C c_compare c_compare_strict_order.

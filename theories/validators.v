@@ -34,12 +34,8 @@ Definition v_lt_strict_order: StrictOrder v_lt :=
 Definition v_lt_total_order: TotalOrder v_lt :=
   compare_lt_total_order V v_compare v_compare_strict_order.
 
-Corollary v_eq_dec : forall x y : V, x = y \/ x <> y.
-Proof.
-  apply strict_total_order_eq_dec with v_lt.
-  - apply v_lt_strict_order.
-  - apply v_lt_total_order.
-Qed.
+Definition v_eq_dec : EqualityDec V :=
+  compare_eq_dec V v_compare v_compare_strict_order.
 
 (***********************)
 (** Validator weights **)

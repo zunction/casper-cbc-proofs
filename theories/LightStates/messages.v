@@ -68,10 +68,41 @@ Proof.
   apply (proj1 message_compare_strict_order).
 Qed.
 
-
 Definition message_lt_strict_order: StrictOrder message_lt :=
   compare_lt_strict_order message message_compare message_compare_strict_order.
 
 Definition message_lt_total_order: TotalOrder message_lt :=
   compare_lt_total_order message message_compare message_compare_strict_order.
 
+Definition message_eq_dec : EqualityDec message :=
+  compare_eq_dec message message_compare message_compare_strict_order.
+
+Lemma message_neq : forall (c1 c2 : C) (v1 v2 : V) (j1 j2 : list hash),
+  (c1, v1, j1) <> (c2, v2, j2) <->
+  (c1 <> c2 \/ v1 <> v2 \/ j1 <> j2).
+Proof.
+  intros; split; intros.
+  - destruct (message_compare (c1, v1, j1) (c2, v2, j2)) eqn:Hmsg.
+    + exfalso. apply H. apply (proj1 message_compare_strict_order).
+      assumption.
+    + inversion Hmsg; clear Hmsg.
+      destruct (c_compare c1 c2) eqn:Hc; try discriminate.
+      destruct (v_compare v1 v2) eqn:Hv; try discriminate.
+      * right. right. intro. subst. apply compare_eq_lt in H1; try assumption.
+        apply (proj1 hash_list_compare_strict_order).
+      * right. left. intro. subst. apply compare_eq_lt in Hv; try assumption.
+        apply (proj1 v_compare_strict_order).
+      * left.  intro. subst. apply compare_eq_lt in Hc; try assumption.
+        apply (proj1 c_compare_strict_order).
+    + inversion Hmsg; clear Hmsg.
+      destruct (c_compare c1 c2) eqn:Hc; try discriminate.
+      destruct (v_compare v1 v2) eqn:Hv; try discriminate.
+      * right. right. intro. subst. apply compare_eq_gt in H1; try assumption.
+        apply (proj1 hash_list_compare_strict_order).
+      * right. left. intro. subst. apply compare_eq_gt in Hv; try assumption.
+        apply (proj1 v_compare_strict_order).
+      * left.  intro. subst. apply compare_eq_gt in Hc; try assumption.
+        apply (proj1 c_compare_strict_order).
+  - intro. inversion H0; subst. clear H0. destruct H as [H | [H | H]]; apply H; reflexivity.
+Qed.
+  

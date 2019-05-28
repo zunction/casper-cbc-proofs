@@ -33,6 +33,33 @@ Fixpoint list_compare {A} (compare : A -> A -> comparison)
     end
   end.
 
+Fixpoint Inb {A} (compare : A -> A -> comparison) (a : A) (l : list A) : bool :=
+  match l with
+  | [] => false
+  | h :: t =>
+    match compare a h with
+    | Eq => true
+    | _ => Inb compare a t
+    end
+  end.
+
+Lemma compare_in : forall A (compare : A -> A -> comparison) a l,
+  CompareStrictOrder compare ->
+  In a l <-> Inb compare a l = true.
+Proof.
+  induction l; intros; split; intros.
+  - inversion H0.
+  - discriminate.
+  - inversion H0; subst.
+    + simpl. rewrite compare_eq_refl; try apply (proj1 H). reflexivity.
+    + simpl. apply IHl in H1; try assumption. rewrite H1.
+      destruct (compare a a0); reflexivity.
+  - simpl in H0. destruct (compare a a0) eqn:Hcmp.
+    + left. symmetry. apply (proj1 H). assumption.
+    + right. apply IHl; try assumption.
+    + right. apply IHl; try assumption.
+Qed.
+
 Definition list_lt {A} {compare : A -> A -> comparison} :=
   @compare_lt (list A) (list_compare compare).
 

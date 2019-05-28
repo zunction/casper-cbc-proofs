@@ -14,7 +14,7 @@ Parameter hash : Set .
 
 Parameter hash_compare : hash -> hash -> comparison.
 
-(** V totally ordered **)
+(** hash set totally ordered **)
 
 Parameter hash_compare_strict_order : CompareStrictOrder hash_compare.
 
@@ -32,14 +32,12 @@ Definition hash_lt_strict_order: StrictOrder hash_lt :=
 Definition hash_lt_total_order: TotalOrder hash_lt :=
   compare_lt_total_order hash hash_compare hash_compare_strict_order.
 
-Corollary hash_eq_dec : forall x y : hash, x = y \/ x <> y.
-Proof.
-  apply strict_total_order_eq_dec with hash_lt.
-  - apply hash_lt_strict_order.
-  - apply hash_lt_total_order.
-Qed.
+Definition hash_eq_dec : EqualityDec hash :=
+  compare_eq_dec hash hash_compare hash_compare_strict_order.
 
 (** Hash sets **)
+
+Definition hash_list_in := Inb hash_compare.
 
 Definition hash_list_compare := list_compare hash_compare.
 
@@ -62,5 +60,5 @@ Definition hash_list_lt_total_order : TotalOrder hash_list_lt :=
 
 Definition add_in_hash_set := @add_in_sorted hash hash_lt.
 
-(** TODO: hash_eq_dec **)
-
+Definition hash_list_eq_dec : EqualityDec (list hash) :=
+  compare_eq_dec (list hash) hash_list_compare hash_list_compare_strict_order.

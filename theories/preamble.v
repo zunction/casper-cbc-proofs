@@ -66,6 +66,9 @@ Class CompareStrictOrder {A} (compare : A -> A -> comparison) : Prop :=
 Class CompareAsymmetric {A} (compare : A -> A -> comparison) : Prop :=
     compare_asymmetric : forall x y, compare x y = Lt <-> compare y x = Gt.
 
+Class EqualityDec (A : Type) : Prop :=
+    equality_dec : forall x y : A, x = y \/ x <> y.
+
 Class EqualRelations {A} (r1 r2 : relation A) : Prop :=
     equal_relations : forall x y, r1 x y <-> r2 x y.
 
@@ -137,7 +140,7 @@ Proof.
   - apply compare_lt_transitive; assumption.
 Qed.
 
-Lemma compate_lt_asymmetric : forall A  (compare : A -> A -> comparison),
+Lemma compare_lt_asymmetric : forall A  (compare : A -> A -> comparison),
   CompareStrictOrder compare -> Asymmetric (compare_lt compare).
 Proof.
   intros.
@@ -156,6 +159,19 @@ Proof.
   - apply R in Hcmp. left. assumption.
   - right. left. reflexivity.
   - right. right. apply compare_assymetric in CSO. apply CSO in Hcmp. assumption.
+Qed.
+
+Lemma compare_eq_dec : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare ->
+  EqualityDec A.
+Proof.
+  intros. intros x y.
+  destruct (compare x y) eqn:Hxy
+  ; try (left; apply (proj1 H); assumption)
+  ; right; intro; subst
+  .
+  -  apply compare_eq_lt in Hxy; try apply (proj1 H); assumption.
+  -  apply compare_eq_gt in Hxy; try apply (proj1 H); assumption.
 Qed.
 
 Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
