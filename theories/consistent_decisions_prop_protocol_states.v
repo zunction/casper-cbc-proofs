@@ -18,34 +18,12 @@ Require Import Casper.FullStates.sorted_union.
 Require Import Casper.common_futures.
 
 
-(* work in progress *)
-
 (* Decided properties of protocol states *)
 
 Definition decided (q : state -> Prop) (sigma : state) : Prop := forall sigma',
   sigma' in_Futures sigma ->
   q sigma'.
 
-(*
-Inductive decided' : (state -> Prop) -> state -> Prop :=
-  is_decided : forall (p : state -> Prop) sigma,
-    protocol_state sigma ->
-    (forall sigma',
-      protocol_state sigma' ->
-      sigma => sigma' ->
-      p sigma'
-    ) ->
-  decided' p sigma.
-
-
-Lemma decided2 : forall (p : state -> Prop) sigma,
-  decided p sigma <-> decided' p sigma.
-Proof.
-  intros. split; intros.
-  - unfold decided in H. destruct H. constructor; try assumption.
-  - inversion H; subst. split; assumption.
-Qed.
- *)
 
 (* Forward consistency *)
 Lemma forward_consistency : forall sigma sigma' q,
@@ -54,7 +32,11 @@ Lemma forward_consistency : forall sigma sigma' q,
   sigma' in_Futures sigma ->
   decided q sigma ->
   decided q sigma'.
-Admitted.
+Proof.
+  unfold decided in *. intros.
+  apply H2.
+  apply (sorted_subset_transitive _ _ _ H1 H3).
+Qed.
 
 
 (* n-party consensus safety for properties of protocol states  *)
