@@ -248,3 +248,16 @@ Proof.
   apply Ropp_0_le_ge_contravar.
   assumption.
 Qed.
+
+Lemma Rminus_lt_r_strict : forall r1 r2,
+  (0 < r2)%R -> (r1 - r2 <= r1)%R.
+Proof.
+  intros.
+  rewrite <- Rplus_0_r.
+  unfold Rminus.
+  apply Rplus_le_compat_l. 
+  apply Rge_le.
+  apply Ropp_0_le_ge_contravar.
+  apply Rlt_le in H.
+  assumption.
+Qed.

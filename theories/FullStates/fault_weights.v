@@ -17,6 +17,7 @@ Require Import Casper.preamble.
 (** Fault Weight of States **)
 (****************************)
 
+(* equivocating_messages *)
 Definition equivocating_messages (msg1 msg2 : message) : Prop :=
   match msg1, msg2 with
     (c1, v1, j1), (c2, v2, j2) =>
@@ -43,6 +44,7 @@ Lemma equivocating_message_state_decidable : forall msg sigma,
   equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
   Admitted.
 
+(* equivocating_validators *)
 Inductive equivocating_validators : state -> list V -> Prop :=
   | equivocating_validators_Empty : equivocating_validators Empty []
   | equivocating_validators_Next : forall c v j sigma vs vs',
@@ -67,6 +69,8 @@ Lemma equivocating_validators_total : forall sigma,
   exists vs, equivocating_validators sigma vs.
   Admitted.
 
+
+(* fault_weight_state *)
 Inductive fault_weight_state : state -> R -> Prop :=
   fault_weight_state_intro : forall sigma vs,
     equivocating_validators sigma vs ->
@@ -84,7 +88,23 @@ Lemma fault_weight_state_total : forall sigma,
   exists r, fault_weight_state sigma r.
   Admitted.
 
+Lemma fault_weight_state_backwards : forall c v j sigma r,
+  fault_weight_state (next (c,v,j) sigma) r ->
+  fault_weight_state sigma (r - weight v).
+  Admitted.
+
+Lemma fault_weight_state_Empty : forall r,
+  fault_weight_state Empty r ->
+  (r = 0)%R.
+  Admitted. 
+
+Lemma fault_weight_state_nonnegative : forall sigma r,
+  fault_weight_state sigma r ->
+  (0 <= r)%R.
+  Admitted.
+
 (** Needed for theorem proof. Proofs for them are below **)
+
 
 Lemma fault_weight_state_add : forall msg sigma sigma' r1 r2,
   locally_sorted sigma ->
@@ -100,8 +120,25 @@ Lemma fault_weight_state_sorted_subset : forall sigma sigma' r1 r2,
   fault_weight_state sigma r1 ->
   fault_weight_state sigma' r2 ->
   (r1 <= r2)%R.
-  Admitted.
-
+Proof.
+  intros.
+  generalize dependent r1. generalize dependent r2.
+  induction H; intros.
+  - apply fault_weight_state_Empty in H0; subst.
+    apply fault_weight_state_nonnegative in H1. assumption.
+  - destruct msg as [(c,v) j].
+    apply fault_weight_state_backwards in H1.
+    apply fault_weight_state_backwards in H0.
+    apply (IHsorted_subset _ H1) in H0.
+    unfold Rminus in H0.
+    apply Rplus_le_reg_r in H0.
+    assumption.
+  - destruct msg as [(c,v) j].
+    apply fault_weight_state_backwards in H1.
+    apply (IHsorted_subset _ H1) in H0.
+    assert (H2 := Rminus_lt_r_strict r2 (weight v) (weight_positive v)).
+    apply (Rle_trans _ _ _ H0 H2).
+Qed.
 
 (* 
 
