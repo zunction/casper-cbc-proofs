@@ -78,10 +78,10 @@ Definition message_eq_dec : EqualityDec message :=
   compare_eq_dec message message_compare message_compare_strict_order.
 
 Lemma message_neq : forall (c1 c2 : C) (v1 v2 : V) (j1 j2 : list hash),
-  (c1, v1, j1) <> (c2, v2, j2) <->
+  (c1, v1, j1) <> (c2, v2, j2) ->
   (c1 <> c2 \/ v1 <> v2 \/ j1 <> j2).
 Proof.
-  intros; split; intros.
+  intros .
   - destruct (message_compare (c1, v1, j1) (c2, v2, j2)) eqn:Hmsg.
     + exfalso. apply H. apply (proj1 message_compare_strict_order).
       assumption.
@@ -103,6 +103,6 @@ Proof.
         apply (proj1 v_compare_strict_order).
       * left.  intro. subst. apply compare_eq_gt in Hc; try assumption.
         apply (proj1 c_compare_strict_order).
-  - intro. inversion H0; subst. clear H0. destruct H as [H | [H | H]]; apply H; reflexivity.
+(*   - intro. inversion H0; subst. clear H0. destruct H as [H | [H | H]]; apply H; reflexivity. *)
 Qed.
   

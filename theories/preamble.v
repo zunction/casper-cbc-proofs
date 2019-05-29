@@ -43,6 +43,13 @@ Proof.
   intro. discriminate.
 Qed.
 
+Lemma compare_lt_neq : forall A (compare : A -> A -> comparison),
+  CompareReflexive compare ->
+  forall x y, compare x y = Lt -> x <> y.
+Proof. 
+  intros. intro. subst. apply (compare_eq_lt _ _ H y H0).
+Qed.
+
 Lemma compare_eq_gt : forall A (compare : A -> A -> comparison),
   CompareReflexive compare ->
   forall x, ~compare x x = Gt.
@@ -50,6 +57,13 @@ Proof.
   intros.
   assert (compare x x = Eq); try apply (compare_eq_refl _ _ H). rewrite H0.
   intro. discriminate.
+Qed.
+
+Lemma compare_gt_neq : forall A (compare : A -> A -> comparison),
+  CompareReflexive compare ->
+  forall x y, compare x y = Gt -> x <> y.
+Proof. 
+  intros. intro. subst. apply (compare_eq_gt _ _ H y H0).
 Qed.
 
 Class CompareTransitive {A} (compare : A -> A -> comparison) : Prop :=
@@ -109,7 +123,7 @@ Proof.
   - destruct (compare x y) eqn:Hyx; try reflexivity; exfalso.
     + apply R in Hyx; subst. apply (compare_eq_gt _ _ R _ H). 
     + apply (TR _ _ _ _ Hyx) in H. apply (compare_eq_gt _ _ R _ H).
-Qed. 
+Qed.
 
 Definition compare_lt {A} (compare : A -> A -> comparison) (x y : A) : Prop :=
   compare x y = Lt.

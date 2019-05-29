@@ -43,9 +43,9 @@ Fixpoint Inb {A} (compare : A -> A -> comparison) (a : A) (l : list A) : bool :=
     end
   end.
 
-Lemma compare_in : forall A (compare : A -> A -> comparison) a l,
+Lemma compare_in : forall A (compare : A -> A -> comparison),
   CompareStrictOrder compare ->
-  In a l <-> Inb compare a l = true.
+  forall a l, In a l <-> Inb compare a l = true.
 Proof.
   induction l; intros; split; intros.
   - inversion H0.
@@ -58,6 +58,14 @@ Proof.
     + left. symmetry. apply (proj1 H). assumption.
     + right. apply IHl; try assumption.
     + right. apply IHl; try assumption.
+Qed.
+
+Lemma compare_not_in : forall A (compare : A -> A -> comparison),
+  CompareStrictOrder compare ->
+  forall a l, not (In a l) <-> Inb compare a l = false.
+Proof.
+  intros. rewrite (compare_in _ compare H).
+  apply not_true_iff_false.
 Qed.
 
 Definition list_lt {A} {compare : A -> A -> comparison} :=

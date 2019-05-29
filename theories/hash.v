@@ -1,5 +1,6 @@
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Classes.RelationClasses.
+Require Import List.
 
 Require Import Casper.preamble.
 Require Import Casper.sorted_lists.
@@ -38,6 +39,14 @@ Definition hash_eq_dec : EqualityDec hash :=
 (** Hash sets **)
 
 Definition hash_list_in := Inb hash_compare.
+
+Definition hash_list_compare_in : forall a l,
+  In a l <-> Inb hash_compare a l = true
+  := compare_in hash hash_compare hash_compare_strict_order.
+
+Definition hash_list_compare_not_in : forall a l,
+  not (In a l) <-> Inb hash_compare a l = false
+  := compare_not_in hash hash_compare hash_compare_strict_order.
 
 Definition hash_list_compare := list_compare hash_compare.
 
