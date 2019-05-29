@@ -20,7 +20,7 @@ Proof.
   induction sigma; intros.
   - inversion H; subst. constructor.
   - inversion H; subst. apply IHsigma in H2.
-    apply (add_in_sorted_sorted hash_lt (Hash a) hs0); try assumption.
+    apply (add_in_sorted_list_sorted hash_lt (Hash a) hs0); try assumption.
     apply hash_lt_strict_order.
 Qed.
 

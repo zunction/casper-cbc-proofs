@@ -130,35 +130,35 @@ Proof.
   - apply compare_lt_total_order. assumption.
 Qed.
 
-Inductive add_in_sorted {A} {lt : relation A} : A -> list A -> list A -> Prop :=
+Inductive add_in_sorted_list {A} {lt : relation A} : A -> list A -> list A -> Prop :=
    | add_in_nil : forall msg,
-          add_in_sorted msg nil (msg :: nil)
+          add_in_sorted_list msg nil (msg :: nil)
    | add_in_cons_eq : forall msg sigma,
-          add_in_sorted msg (msg :: sigma) (msg :: sigma)
+          add_in_sorted_list msg (msg :: sigma) (msg :: sigma)
    | add_in_cons_lt : forall msg msg' sigma,
           lt msg msg' ->  
-          add_in_sorted msg (msg' :: sigma) (msg :: msg' :: sigma)
+          add_in_sorted_list msg (msg' :: sigma) (msg :: msg' :: sigma)
    | add_in_Next_gt : forall msg msg' sigma sigma',
           lt msg' msg ->
-          add_in_sorted msg sigma sigma' ->
-          add_in_sorted msg (msg' :: sigma) (msg' :: sigma')
+          add_in_sorted_list msg sigma sigma' ->
+          add_in_sorted_list msg (msg' :: sigma) (msg' :: sigma')
   .
 
-Fixpoint add_in_sorted_fn {A} {compare : A -> A -> comparison} (x : A) (l : list A) : list A :=
+Fixpoint add_in_sorted_list_fn {A} {compare : A -> A -> comparison} (x : A) (l : list A) : list A :=
   match l with
   | [] => [x]
   | h :: t =>
     match compare x h with
     | Lt => x :: h :: t
     | Eq => h :: t
-    | Gt => h :: @add_in_sorted_fn A compare x t
+    | Gt => h :: @add_in_sorted_list_fn A compare x t
     end
   end.
 
-Lemma add_in_sorted_function : forall A (compare : A -> A -> comparison) x xs xxs,
+Lemma add_in_sorted_list_function : forall A (compare : A -> A -> comparison) x xs xxs,
   CompareStrictOrder compare ->
-  @add_in_sorted A (compare_lt compare) x xs xxs
-  <-> @add_in_sorted_fn A compare x xs = xxs.
+  @add_in_sorted_list A (compare_lt compare) x xs xxs
+  <-> @add_in_sorted_list_fn A compare x xs = xxs.
 Proof.
   intros; split; intros.
   - induction H0.
@@ -166,7 +166,7 @@ Proof.
     + simpl. rewrite compare_eq_refl; try reflexivity. apply (proj1 H).
     + simpl. rewrite H0. reflexivity.
     + simpl. apply compare_assymetric in H0; try assumption. rewrite H0.
-      rewrite IHadd_in_sorted. reflexivity.
+      rewrite IHadd_in_sorted_list. reflexivity.
   - generalize dependent xxs. generalize dependent x. induction xs; intros.
     + simpl in H0; subst. constructor.
     + simpl in H0. destruct (compare x a) eqn:Hcmp; subst.
@@ -177,30 +177,30 @@ Proof.
         apply IHxs. reflexivity.
 Qed.
 
-Corollary add_in_sorted_functional : forall A compare x l1 l2 l2',
+Corollary add_in_sorted_list_functional : forall A compare x l1 l2 l2',
    CompareStrictOrder compare ->
-   @add_in_sorted A (compare_lt compare) x l1 l2 ->
-   @add_in_sorted A (compare_lt compare) x l1 l2' ->
+   @add_in_sorted_list A (compare_lt compare) x l1 l2 ->
+   @add_in_sorted_list A (compare_lt compare) x l1 l2' ->
    l2 = l2'.
 Proof.
   intros.
-  apply add_in_sorted_function in H0; try assumption.
-  apply add_in_sorted_function in H1; try assumption.
+  apply add_in_sorted_list_function in H0; try assumption.
+  apply add_in_sorted_list_function in H1; try assumption.
   subst.
   reflexivity.
 Qed.
 
-Theorem add_in_sorted_total : forall A compare x l,
+Theorem add_in_sorted_list_total : forall A compare x l,
   CompareStrictOrder compare ->
-  exists l', @add_in_sorted A (compare_lt compare) x l l'.
+  exists l', @add_in_sorted_list A (compare_lt compare) x l l'.
 Proof.
-  intros. exists (@add_in_sorted_fn A compare x l).
-  apply add_in_sorted_function; try assumption.
+  intros. exists (@add_in_sorted_list_fn A compare x l).
+  apply add_in_sorted_list_function; try assumption.
   reflexivity.
 Qed.
 
-Theorem add_in_sorted_in {A} {lt : relation A} : forall msg msg' sigma sigma',
-  @add_in_sorted A lt msg sigma sigma' -> 
+Theorem add_in_sorted_list_in {A} {lt : relation A} : forall msg msg' sigma sigma',
+  @add_in_sorted_list A lt msg sigma sigma' -> 
   In msg' sigma' ->
   msg = msg' \/In msg' sigma.
 Proof. 
@@ -209,16 +209,16 @@ Proof.
   - simpl in H0. simpl. assumption. 
   - simpl. simpl in H0. destruct H0.
     + right. left. assumption.
-    + apply IHadd_in_sorted in H0. destruct H0.
+    + apply IHadd_in_sorted_list in H0. destruct H0.
       * left. assumption.
       * right . right. assumption.
 Qed.
 
-Lemma add_in_sorted_first {A} {lt : relation A} : forall msg a b sigma sigma',
+Lemma add_in_sorted_list_first {A} {lt : relation A} : forall msg a b sigma sigma',
     StrictOrder lt ->
     LocallySorted lt (a :: sigma) ->
     lt a msg ->
-    @add_in_sorted A lt msg (a :: sigma) (a :: b :: sigma') -> 
+    @add_in_sorted_list A lt msg (a :: sigma) (a :: b :: sigma') -> 
     lt a b.
 Proof.
   intros. 
@@ -230,10 +230,10 @@ Proof.
   inversion H0; subst. assumption.
 Qed.
 
-Theorem add_in_sorted_sorted {A} (lt : relation A) : forall msg sigma sigma',
+Theorem add_in_sorted_list_sorted {A} (lt : relation A) : forall msg sigma sigma',
     StrictOrder lt ->
     LocallySorted lt sigma ->
-    @add_in_sorted A lt msg sigma sigma' -> 
+    @add_in_sorted_list A lt msg sigma sigma' -> 
     LocallySorted lt sigma'.
 Proof.
   intros msg sigma sigma' SO Hsorted. 
@@ -255,7 +255,7 @@ Proof.
       * inversion H0; subst ; try (apply HI in H4; inversion H4).
         inversion H8; subst; try constructor; try assumption.
       * assert (LocallySorted lt (a :: b :: l)); try (constructor; assumption).
-        apply (add_in_sorted_first _ _ _ _ _ SO' H3 H4) in H0.
+        apply (add_in_sorted_list_first _ _ _ _ _ SO' H3 H4) in H0.
         constructor; assumption. 
 Qed.
 

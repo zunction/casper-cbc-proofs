@@ -67,7 +67,7 @@ Definition hash_list_lt_strict_order : StrictOrder hash_list_lt :=
 Definition hash_list_lt_total_order : TotalOrder hash_list_lt :=
   compare_lt_total_order (list hash) hash_list_compare hash_list_compare_strict_order.
 
-Definition add_in_hash_set := @add_in_sorted hash hash_lt.
+Definition add_in_hash_set := @add_in_sorted_list hash hash_lt.
 
 Definition hash_list_eq_dec : EqualityDec (list hash) :=
   compare_eq_dec (list hash) hash_list_compare hash_list_compare_strict_order.

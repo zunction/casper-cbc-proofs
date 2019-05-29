@@ -1,11 +1,14 @@
 Require Import Coq.Reals.Reals.
+Require Import List.
+Import ListNotations.
 
 Require Import Casper.validators.
 Require Import Casper.consensus_values.
+Require Import Casper.sorted_lists.
 Require Import Casper.full_states.
 Require Import Casper.full_messages.
-Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.add_in_sorted.
+Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.sorted_subset.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.preamble.
@@ -14,33 +17,93 @@ Require Import Casper.preamble.
 (** Fault Weight of States **)
 (****************************)
 
-(**
-Note that this includes equivocation fault weight, as we defaulted 
-the weight of non-equivocating messages to 0
-**)
+Definition equivocating_messages (msg1 msg2 : message) : Prop :=
+  match msg1, msg2 with
+    (c1, v1, j1), (c2, v2, j2) =>
+      v1 = v2 /\
+      (c1 <> c2 \/ j1 <> j2) /\
+      not (in_state (c1,v1,j1) j2) /\
+      not (in_state (c2,v2,j2) j1)
+  end.
 
-(**********************)
-(** fault_weight_msg **)
-(**********************)
+Lemma equivocating_messages_decidable : forall msg1 msg2,
+  equivocating_messages msg1 msg2 \/ ~ equivocating_messages msg1 msg2.
+  Admitted.
 
-Inductive fault_weight_msg : message -> message -> R -> Prop :=
-  | fault_weight_v_diff: forall c1 c2 v1 v2 j1 j2,
-      v1 <> v2 ->
-      fault_weight_msg (c1,v1,j1) (c2,v2,j2) 0
-  | fault_weight_c_msg: forall c v j,
-      fault_weight_msg (c,v,j) (c,v,j) 0
-  | fault_weight_msg1: forall c1 c2 v j1 j2,
-      in_state (c1,v,j1) j2 ->
-      fault_weight_msg (c1,v,j1) (c2,v,j2) 0
-  | fault_weight_msg2: forall c1 c2 v j1 j2,
-      in_state (c2,v,j2) j1 ->
-      fault_weight_msg (c1,v,j1) (c2,v,j2) 0
-  | fault_weight_next: forall c1 c2 v j1 j2,
-      c1 <> c2 \/ j1 <> j2 ->
-      not (in_state (c1,v,j1) j2) ->
-      not (in_state (c2,v,j2) j1) ->
-      fault_weight_msg (c1,v,j1) (c2,v,j2) (weight v)
+Inductive equivocating_message_state : message -> state -> Prop :=
+  | equivocating_message_state_head: forall msg1 msg2 sigma,
+      equivocating_messages msg1 msg2 ->
+      equivocating_message_state msg1 (next msg2 sigma)
+  | equivocating_message_state_tail: forall msg1 msg2 sigma,
+      ~ equivocating_messages msg1 msg2 ->
+      equivocating_message_state msg1 (next msg2 sigma)
+.
+
+Lemma equivocating_message_state_decidable : forall msg sigma,
+  equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
+  Admitted.
+
+Inductive equivocating_validators : state -> list V -> Prop :=
+  | equivocating_validators_Empty : equivocating_validators Empty []
+  | equivocating_validators_Next : forall c v j sigma vs vs',
+      equivocating_message_state (c, v, j) sigma ->
+      equivocating_validators sigma vs ->
+      @add_in_sorted_list V v_lt v vs vs' ->
+      equivocating_validators (next (c, v, j) sigma) vs'
+  | equivocating_validators_Next' : forall msg sigma vs,
+      ~ equivocating_message_state msg sigma ->
+      equivocating_validators sigma vs ->
+      equivocating_validators (next msg sigma) vs
   .
+
+Lemma equivocating_validators_functional : forall sigma vs1 vs2,
+  equivocating_validators sigma vs1 ->
+  equivocating_validators sigma vs2 ->
+  vs1 = vs2
+  .
+  Admitted.
+
+Lemma equivocating_validators_total : forall sigma,
+  exists vs, equivocating_validators sigma vs.
+  Admitted.
+
+Inductive fault_weight_state : state -> R -> Prop :=
+  fault_weight_state_intro : forall sigma vs,
+    equivocating_validators sigma vs ->
+    fault_weight_state sigma (fold_right (fun r1 r2 => (r1 + r2)%R) 0%R (map weight vs))
+  .
+
+Lemma fault_weight_state_functional : forall sigma r1 r2,
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma r2 ->
+  r1 = r2
+  .
+  Admitted.
+
+Lemma fault_weight_state_total : forall sigma,
+  exists r, fault_weight_state sigma r.
+  Admitted.
+
+(** Needed for theorem proof. Proofs for them are below **)
+
+Lemma fault_weight_state_add : forall msg sigma sigma' r1 r2,
+  locally_sorted sigma ->
+  locally_sorted sigma' ->
+  add_in_sorted msg sigma sigma' ->
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma' r2 ->
+  (r1 <= r2)%R.
+  Admitted.
+
+Lemma fault_weight_state_sorted_subset : forall sigma sigma' r1 r2,
+  sorted_subset sigma sigma' ->
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma' r2 ->
+  (r1 <= r2)%R.
+  Admitted.
+
+
+(* 
 
 Theorem fault_weight_msg_functional : forall msg1 msg2 r1 r2,
   fault_weight_msg msg1 msg2 r1 ->
@@ -98,13 +161,15 @@ Qed.
 (* fauult_weight_message_state *)
 (*******************************)
 
-Inductive fault_weight_message_state : message -> state -> R -> Prop :=
-  | fault_weight_message_state_Empty: forall msg,
-      fault_weight_message_state msg Empty 0
+Inductive fault_weight_message_state : message -> state -> Prop :=
   | fault_weight_message_state_Next: forall msg1 msg2 sigma r1 r2,
-      fault_weight_message_state msg1 sigma r1 ->
-      fault_weight_msg msg1 msg2 r2 ->
-      fault_weight_message_state msg1 (next msg2 sigma) (r1 + r2)%R
+      fault_weight_msg msg1 msg2 0 ->
+      fault_weight_message_state msg1 sigma r ->
+      fault_weight_message_state msg1 (next msg2 sigma) r%R
+  | fault_weight_message_state_Next: forall msg1 msg2 sigma r1 r2,
+      fault_weight_msg msg1 msg2 r ->
+      (r > 0)%R ->
+      fault_weight_message_state msg1 (next msg2 sigma) r%R
 .
 
 Lemma fault_weight_message_state_empty_zero : forall msg r,
@@ -346,3 +411,4 @@ Proof.
   apply add_in_sorted_sorted_subset in H1; try assumption.
   apply (fault_weight_state_sorted_subset sigma sigma' r1 r2 H1 H2 H3).
 Qed.
+ *)

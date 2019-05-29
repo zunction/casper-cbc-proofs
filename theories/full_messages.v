@@ -1,4 +1,6 @@
 Require Import Coq.Classes.RelationClasses.
+Require Import List.
+Import ListNotations.
 
 Require Import Casper.preamble.
 Require Import Casper.consensus_values.
@@ -10,6 +12,13 @@ Require Import Casper.full_states.
 (**************)
 
 Definition message := (C * V * state)%type.
+
+Fixpoint get_messages (sigma : state) : list message :=
+  match sigma with
+  | Empty => []
+  | add (c, v, j) to sigma' => (c,v,j) :: get_messages sigma'
+  end.
+
 
 Definition next (msg : message) (sigma : state) : state :=
   match msg with

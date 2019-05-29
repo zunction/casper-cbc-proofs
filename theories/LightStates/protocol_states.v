@@ -79,7 +79,7 @@ Inductive protocol_state : state -> Prop :=
       protocol_state sigma' ->
       valid_estimate_condition c sigma ->
       hash_state sigma hsigma ->
-      @add_in_sorted message message_lt (c, v, hsigma) sigma' sigma'' ->
+      @add_in_sorted_list message message_lt (c, v, hsigma) sigma' sigma'' ->
       fault_tolerance_condition sigma'' ->
       protocol_state sigma''
 .
@@ -90,7 +90,7 @@ Proof.
   intros.
   induction H.
   - constructor.
-  - apply (add_in_sorted_sorted message_lt (c,v,hsigma) sigma'); try assumption.
+  - apply (add_in_sorted_list_sorted message_lt (c,v,hsigma) sigma'); try assumption.
     apply message_lt_strict_order.
 Qed.
 
@@ -102,7 +102,7 @@ Proof.
   intros.
   induction H.
   - inversion H0.
-  - apply (add_in_sorted_in (c0, v0, hsigma) (c, v, hs) sigma' sigma'' H4) in H0.
+  - apply (add_in_sorted_list_in (c0, v0, hsigma) (c, v, hs) sigma' sigma'' H4) in H0.
     destruct H0.
     + inversion H0; subst. apply (hash_state_sorted sigma). assumption.
     + apply IHprotocol_state2. assumption.
