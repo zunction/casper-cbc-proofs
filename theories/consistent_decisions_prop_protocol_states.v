@@ -15,6 +15,8 @@ Require Import Casper.FullStates.sorted_subset.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.sorted_union.
 
+Require Import Casper.common_futures.
+
 
 (* work in progress *)
 
@@ -54,6 +56,8 @@ Lemma forward_consistency : forall sigma sigma' q,
   decided q sigma'.
 Admitted.
 
+
+(* n-party consensus safety for properties of protocol states  *)
 Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas sigma,
   Forall protocol_state sigmas ->
   fold sorted_union sigmas sigma ->
@@ -64,5 +68,15 @@ Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigm
       Exists (decided q) sigmas ->
       q sigma'
   .
-  Admitted.
-
+Proof.
+  intros.
+  destruct (n_party_common_futures _ _ H H0 H1) as [sigma' CF]. destruct CF.
+  exists sigma'.
+  split; try assumption.
+  intros.
+  apply Exists_exists in H4.
+  destruct H4 as [sigma0 H5]. destruct H5.
+  apply H5.
+  rewrite Forall_forall in H3.
+  apply (H3 sigma0 H4).
+Qed.
