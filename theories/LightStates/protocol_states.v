@@ -21,7 +21,7 @@ Require Import Casper.sorted_lists.
 Require Import Casper.consensus_values.
 Require Import Casper.validators.
 Require Import Casper.threshold.
-Require Import Casper.hash.
+Require Import Casper.LightStates.hashes.
 
 (** Messages **)
 

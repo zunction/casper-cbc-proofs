@@ -5,7 +5,7 @@ Import ListNotations.
 Require Import Casper.preamble.
 Require Import Casper.consensus_values.
 Require Import Casper.validators.
-Require Import Casper.full_states.
+Require Import Casper.FullStates.states.
 
 (**************)
 (** Messages **)

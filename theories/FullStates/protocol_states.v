@@ -22,8 +22,8 @@ Require Import Casper.threshold.
 
 (** Messages and States **)
 
-Require Import Casper.full_states.
-Require Import Casper.full_messages.
+Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.messages.
 
 
 (***************)

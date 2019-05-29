@@ -5,9 +5,9 @@ Import ListNotations.
 
 Require Import Casper.preamble.
 
-Require Import Casper.full_version.
-Require Import Casper.full_states.
-Require Import Casper.full_messages.
+Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.messages.
+Require Import Casper.FullStates.protocol_states.
 
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.sorted_subset. 

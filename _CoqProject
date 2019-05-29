@@ -3,9 +3,8 @@ theories/preamble.v
 theories/consensus_values.v
 theories/validators.v
 theories/threshold.v
-theories/hash.v
-theories/full_states.v
-theories/full_messages.v
+theories/FullStates/states.v
+theories/FullStates/messages.v
 theories/FullStates/add_in_sorted.v
 theories/FullStates/locally_sorted.v
 theories/FullStates/in_state.v
@@ -17,10 +16,11 @@ theories/FullStates/sorted_subset.v
 theories/FullStates/syntactic_state_union.v
 theories/FullStates/sorted_union.v
 theories/FullStates/fault_weights.v
-theories/full_version.v
-theories/common_futures.v
-theories/consistent_decisions_prop_protocol_states.v
+theories/FullStates/protocol_states.v
+theories/FullStates/common_futures.v
+theories/FullStates/consistent_decisions_prop_protocol_states.v
 theories/sorted_lists.v
+theories/LightStates/hashes.v
 theories/LightStates/protocol_states.v
 theories/LightStates/messages.v
 theories/LightStates/states.v

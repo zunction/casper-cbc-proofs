@@ -3,7 +3,7 @@ Import ListNotations.
 Require Import Coq.Sorting.Sorted.
 
 Require Import Casper.sorted_lists.
-Require Import Casper.hash.
+Require Import Casper.LightStates.hashes.
 Require Import Casper.LightStates.messages.
 Require Import Casper.LightStates.states.
 
