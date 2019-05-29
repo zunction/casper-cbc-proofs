@@ -10,6 +10,9 @@ Require Import Casper.sorted_lists.
 
 Definition message : Set := C * V * list hash.
 
+Definition validator (msg : message) : V :=
+  match msg with (_, v, _) => v end.
+
 Parameter Hash : message -> hash.
 
 Definition message_compare (m1 m2 : message) : comparison :=

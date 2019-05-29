@@ -65,9 +65,7 @@ Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
 
 (** The fault tolerance condition **)
 Definition fault_tolerance_condition (sigma : state) : Prop :=
-  forall r,
-  fault_weight_state sigma r ->
-  (r <= t)%R.
+  (fault_weight_state_fn sigma <= t)%R.
 
 
 (** TODO? Define protocol messages; also for the full version? **)

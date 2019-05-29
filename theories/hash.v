@@ -41,11 +41,11 @@ Definition hash_eq_dec : EqualityDec hash :=
 Definition hash_list_in := Inb hash_compare.
 
 Definition hash_list_compare_in : forall a l,
-  In a l <-> Inb hash_compare a l = true
+  In a l <-> hash_list_in a l = true
   := compare_in hash hash_compare hash_compare_strict_order.
 
 Definition hash_list_compare_not_in : forall a l,
-  not (In a l) <-> Inb hash_compare a l = false
+  not (In a l) <-> hash_list_in a l = false
   := compare_not_in hash hash_compare hash_compare_strict_order.
 
 Definition hash_list_compare := list_compare hash_compare.
