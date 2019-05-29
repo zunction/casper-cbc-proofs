@@ -24,6 +24,23 @@ Definition decided (q : state -> Prop) (sigma : state) : Prop := forall sigma',
   sigma' in_Futures sigma ->
   q sigma'.
 
+(*
+Inductive decided' : (state -> Prop) -> state -> Prop :=
+  is_decided : forall (p : state -> Prop) sigma,
+    (forall sigma',
+      sigma' in_Futures sigma ->
+      p sigma'
+    ) ->
+    decided' p sigma.
+
+Lemma decided2 : forall (p : state -> Prop) sigma,
+  decided p sigma <-> decided' p sigma.
+Proof.
+  intros. split; intros.
+  - unfold decided in H. constructor. assumption.
+  - inversion H; subst. unfold decided. assumption.
+Qed.
+*)
 
 (* Forward consistency *)
 Lemma forward_consistency : forall sigma sigma' q,
