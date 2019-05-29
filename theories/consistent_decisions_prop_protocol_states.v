@@ -13,32 +13,56 @@ Require Import Casper.full_messages.
 
 Require Import Casper.FullStates.sorted_subset.
 Require Import Casper.FullStates.locally_sorted.
+Require Import Casper.FullStates.sorted_union.
+
 
 (* work in progress *)
 
 (* Decided properties of protocol states *)
 
-(* note: the states can be considered protocol states, as in the paper *)
-(* this version is more general *)
-Definition decided (state_prop : state -> Prop) (sigma : state) : Prop :=
-  locally_sorted(sigma) ->
-  (forall sigma',
-      locally_sorted(sigma') ->
+Definition decided (q : state -> Prop) (sigma : state) : Prop := forall sigma',
+  sigma' in_Futures sigma ->
+  q sigma'.
+
+(*
+Inductive decided' : (state -> Prop) -> state -> Prop :=
+  is_decided : forall (p : state -> Prop) sigma,
+    protocol_state sigma ->
+    (forall sigma',
+      protocol_state sigma' ->
       sigma => sigma' ->
-      state_prop(sigma')) ->
-  state_prop(sigma).
+      p sigma'
+    ) ->
+  decided' p sigma.
+
+
+Lemma decided2 : forall (p : state -> Prop) sigma,
+  decided p sigma <-> decided' p sigma.
+Proof.
+  intros. split; intros.
+  - unfold decided in H. destruct H. constructor; try assumption.
+  - inversion H; subst. split; assumption.
+Qed.
+ *)
 
 (* Forward consistency *)
-Lemma forward_consistency : forall sigma sigma' state_prop,
+Lemma forward_consistency : forall sigma sigma' q,
   protocol_state(sigma) ->
   protocol_state(sigma') ->
-  sigma => sigma' ->
-  decided state_prop sigma ->
-  decided state_prop sigma'.
+  sigma' in_Futures sigma ->
+  decided q sigma ->
+  decided q sigma'.
 Admitted.
 
-(* Consistency of properties of protocol states *)
-Definition consistent ( state_props : list (state -> Prop)) : Prop :=
-  exists sigma,
-  protocol_state(sigma) ->
-  Forall (fun state_prop => state_prop sigma) state_props.
+Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas sigma,
+  Forall protocol_state sigmas ->
+  fold sorted_union sigmas sigma ->
+  fault_tolerance_condition sigma ->
+  exists sigma',
+    protocol_state(sigma') /\
+    forall (q : state -> Prop),
+      Exists (decided q) sigmas ->
+      q sigma'
+  .
+  Admitted.
+

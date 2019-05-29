@@ -55,8 +55,9 @@ Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
   fault_tolerance_condition sigma ->
   exists sigma',
   protocol_state(sigma') /\
-  sigma1 => sigma' /\
-  sigma2 => sigma'.
+  sigma' in_Futures sigma1 /\
+  sigma' in_Futures sigma2
+  .
 Proof.
   intros.
   exists sigma.
@@ -103,7 +104,7 @@ Theorem n_party_common_futures : forall sigmas sigma,
   fault_tolerance_condition sigma ->
   exists sigma',
     protocol_state(sigma') /\
-    Forall (fun sigma => sigma => sigma') sigmas.  (* P(sigma) ::= sigma => sigma' *)
+    Forall (Reachable sigma') sigmas.  (* P(sigma) ::= sigma => sigma' *)
 Proof.
   intros.
   exists sigma.
