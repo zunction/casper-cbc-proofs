@@ -7,7 +7,7 @@ Require Import Casper.preamble.
 
 Require Import Casper.consensus_values.
 Require Import Casper.validators.
-Require Import Casper.hash.
+Require Import Casper.LightStates.hashes.
 Require Import Casper.sorted_lists.
 Require Import Casper.LightStates.messages.
 Require Import Casper.LightStates.states.

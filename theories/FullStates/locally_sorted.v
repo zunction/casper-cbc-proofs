@@ -1,5 +1,5 @@
-Require Import Casper.full_states.
-Require Import Casper.full_messages.
+Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.
 
 (** (Locally) Sorted states **)
