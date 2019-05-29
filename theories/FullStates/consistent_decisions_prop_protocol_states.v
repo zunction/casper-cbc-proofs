@@ -42,7 +42,7 @@ Qed.
 (* n-party consensus safety for properties of protocol states  *)
 Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas sigma,
   Forall protocol_state sigmas ->
-  fold sorted_union sigmas sigma ->
+  reduce_rel sorted_union sigmas sigma ->
   fault_tolerance_condition sigma ->
   exists sigma',
     protocol_state(sigma') /\

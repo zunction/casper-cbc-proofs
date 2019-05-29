@@ -152,18 +152,26 @@ Qed.
 
 
 Lemma sorted_union_subset : forall sigmas sigma,
-  fold sorted_union sigmas sigma ->
+  reduce_rel sorted_union sigmas sigma ->
   Forall (Reachable sigma) sigmas.
 Proof.
-  induction sigmas; intros.
+  intros. destruct sigmas.
   - inversion H.
-  - destruct sigmas.
-    + inversion H; subst. constructor; try constructor. apply sorted_subset_reflexive.
-    + inversion H; subst. apply IHsigmas in H4. constructor.
-      * apply (sorted_union_subset_left _ _ _ H5) .
-      * apply (Forall_impl (fun sigman => sigma in_Futures sigman)) in H4; try assumption.
-        apply sorted_union_subset_right in H5 .
-        intros. apply (sorted_subset_transitive _ _ _ H0 H5).
+  - unfold reduce_rel in H. constructor.
+    + generalize dependent sigma. induction sigmas; intros; inversion H; clear H; subst
+      ; try apply sorted_subset_reflexive.
+      apply IHsigmas in H2.
+      apply sorted_union_subset_right in H4.
+      unfold Reachable in *.
+      apply (sorted_subset_transitive s fl sigma); assumption.
+    + generalize dependent sigma. induction sigmas; intros; inversion H; clear H; subst; try constructor.
+      * apply sorted_union_subset_left in H4. apply H4.
+      * apply IHsigmas in H2.
+        apply (Forall_impl (Reachable sigma)) in H2; try assumption.
+        intros.
+        apply sorted_union_subset_right in H4.
+        unfold Reachable in *.
+        apply (sorted_subset_transitive a0 fl sigma); assumption.
 Qed.
 
 Lemma sorted_union_empty_left : forall sigma1 sigma2,
@@ -332,16 +340,18 @@ Proof.
 Qed.
 
 
-Theorem sorted_union_locally_sorted_iterated : forall sigmas sigma,
-  Forall locally_sorted sigmas ->
-  fold sorted_union sigmas sigma ->
-  locally_sorted sigma.
+Theorem sorted_union_locally_sorted_iterated : forall sigma sigmas sigma',
+  Forall locally_sorted (sigma :: sigmas) ->
+  fold_rel sorted_union sigma sigmas sigma' ->
+  locally_sorted sigma'.
 Proof.
-  intros.
-  induction H0.
-  - inversion H. assumption.
-  - inversion H; subst. apply IHfold in H5 as LSfa.
-    apply (sorted_union_locally_sorted a fa fab); assumption.
+  intros.  
+  generalize dependent sigma'. induction sigmas; intros; inversion H0; subst; clear H0 .
+  + apply Forall_inv in H. assumption.
+  + inversion H; subst. inversion H4; subst.
+    apply IHsigmas in H3 as LSfa.
+    * apply (sorted_union_locally_sorted a fl sigma'); try assumption.
+    * constructor; assumption.
 Qed.
 
 Lemma syntactic_state_union_to_sorted_union : forall sigma1 sigma2 sigma12,

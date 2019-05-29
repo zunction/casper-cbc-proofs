@@ -70,37 +70,42 @@ Qed.
 
 Theorem union_protocol_nstates : forall sigmas sigma,
   Forall protocol_state sigmas ->
-  fold sorted_union sigmas sigma ->
+  reduce_rel sorted_union sigmas sigma ->
   fault_tolerance_condition sigma ->
   protocol_state(sigma).
 Proof.
-  induction sigmas; intros.
+  intros. destruct sigmas.
   - inversion H0.
-  - destruct sigmas.
-    + apply Forall_inv in H. inversion H0; subst.
-      assumption. 
-    + apply Forall_inv in H as PSa. apply Forall_tail in H.
-      inversion H0; subst.
-      apply (Forall_impl
-        locally_sorted
-        protocol_state_sorted) in H as LSssigmas.
-      apply sorted_union_locally_sorted_iterated in H6 as LSfa; try assumption.
-      apply protocol_state_sorted in PSa as LSa.
-      apply sorted_union_locally_sorted in H7 as LSsigma; try assumption.
-      apply sorted_union_subset_right in H7 as Sub_fa_sigma.
-      assert (FTCsigma := H1).
-      apply (fault_tolerance_condition_backwards_subset fa) in H1; try assumption.
-      rename H1 into FTCfa.
-      apply IHsigmas in FTCfa; try assumption.
-      apply (union_protocol_2states _ _ _ PSa FTCfa H7).
-      assumption.
+  - generalize dependent sigma. induction sigmas; intros.
+    + inversion H0; subst. apply Forall_inv in H. assumption.
+      + apply Forall_inv in H as PSs. apply Forall_tail in H.
+        apply Forall_inv in H as PSa. apply Forall_tail in H.
+        inversion H0; subst; clear H0.
+        apply sorted_union_locally_sorted_iterated in H4 as LSfa
+        ; apply (Forall_impl
+            locally_sorted
+            protocol_state_sorted) in H as LSssigmas
+        ; apply protocol_state_sorted in PSa as LSa
+        ; apply protocol_state_sorted in PSs as LSs
+        ; apply sorted_union_subset_right in H6 as Sub_fa_sigma
+        ; try (constructor; assumption)
+        .
+        apply sorted_union_locally_sorted in H6 as LSsigma; try assumption.
+        assert (FTCsigma := H1).
+        apply (fault_tolerance_condition_backwards_subset fl) in H1; try assumption.
+        rename H1 into FTCfa.
+        apply IHsigmas in FTCfa; try assumption
+        ; try (constructor; assumption)
+        .
+        apply (union_protocol_2states _ _ _ PSa FTCfa H6).
+        assumption.
 Qed.
 
 (* TODO: Maybe introduce a definition for the "fun" below *)
 
 Theorem n_party_common_futures : forall sigmas sigma,
   Forall protocol_state sigmas ->
-  fold sorted_union sigmas sigma ->
+  reduce_rel sorted_union sigmas sigma ->
   fault_tolerance_condition sigma ->
   exists sigma',
     protocol_state(sigma') /\

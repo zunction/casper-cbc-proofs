@@ -5,12 +5,32 @@ Require Import Coq.Reals.Reals.
 Require Import List.
 Import ListNotations.
 
-Inductive fold {A:Type} (rel : A -> A -> A -> Prop) : list A -> A -> Prop :=
-  | fold_singleton : forall a, fold rel [a] a
-  | fold_cons : forall a b l fab fa,
-    fold rel (b :: l) fa ->
-    rel a fa fab ->
-    fold rel (a :: b :: l) fab
+
+Inductive fold_rel {A B:Type} (rel : A -> B -> B -> Prop) (def : B) : list A -> B -> Prop :=
+  | fold_empty : fold_rel rel def [] def
+  | fold_cons : forall a l fl fal,
+    fold_rel rel def l fl ->
+    rel a fl fal ->
+    fold_rel rel def (a :: l) fal
+  .
+
+
+Definition reduce_rel {A:Type} (rel : A -> A -> A -> Prop) (l : list A) (r : A) : Prop :=
+  match l with
+  | [] => False
+  | a :: t => fold_rel rel a t r
+  end.
+
+Inductive filter_rel {A:Type} (p : A -> Prop) : list A -> list A -> Prop :=
+  | filter_empty : filter_rel p [] []
+  | filter_cons_p : forall a t t',
+    filter_rel p t t' ->
+    p a ->
+    filter_rel p (a :: t) (a :: t')
+  | filter_cons_not_p : forall a t t',
+    filter_rel p t t' ->
+    ~p a ->
+    filter_rel p (a :: t) t'
   .
 
 Lemma Forall_tail : forall A (a:A) l P,

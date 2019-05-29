@@ -105,9 +105,15 @@ Proof.
   ; apply equivocating_messages_function; try assumption.
 Qed.
 
+Inductive equivocating_validators : state -> list V -> Prop :=
+  equivocating_validators_intro : forall sigma vs emsgs,
+    filter_rel (fun msg => equivocating_message_state msg sigma) sigma emsgs ->
+    fold_rel (fun msg => @add_in_sorted_list V v_lt (validator msg)) [] emsgs vs ->
+    equivocating_validators sigma vs.
+
 Definition equivocating_validators_fn (sigma : state) : list V :=
   fold_right (fun msg vs => @add_in_sorted_list_fn V v_compare (validator msg) vs) []
     (filter (fun msg => equivocating_message_state_fn msg sigma) sigma).
 
 Definition fault_weight_state_fn (sigma : state) : R :=
-  (fold_right (fun r1 r2 => (r1 + r2)%R) 0%R (map weight (equivocating_validators_fn sigma))).
+  (fold_right Rplus 0%R (map weight (equivocating_validators_fn sigma))).
