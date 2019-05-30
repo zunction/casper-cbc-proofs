@@ -69,7 +69,16 @@ Lemma equivocating_validators_total : forall sigma,
   exists vs, equivocating_validators sigma vs.
   Admitted.
 
-
+Lemma equivocating_validators_empty : forall vs,
+  equivocating_validators Empty vs ->
+  vs = [].
+Proof.
+  intros.
+  inversion H; subst.
+  - reflexivity.
+  - apply no_confusion_next_empty in H0. inversion H0.
+Qed.
+   
 (* fault_weight_state *)
 Inductive fault_weight_state : state -> R -> Prop :=
   fault_weight_state_intro : forall sigma vs,
@@ -93,10 +102,28 @@ Lemma fault_weight_state_backwards : forall c v j sigma r,
   fault_weight_state sigma (r - weight v).
   Admitted.
 
-Lemma fault_weight_state_Empty : forall r,
+Lemma fault_weight_state_empty : forall r,
   fault_weight_state Empty r ->
   (r = 0)%R.
-  Admitted. 
+Proof.
+  intros.
+  inversion H; subst.
+  apply equivocating_validators_empty in H0; subst.
+  simpl. reflexivity.
+Qed.
+
+(*
+Lemma fault_weight_state_nonnegative : forall sigma r,
+  fault_weight_state sigma r ->
+  (0 <= r)%R.
+Proof.
+  intros.
+  induction H.
+  - apply Rle_refl.
+  - apply fault_weight_message_state_nonnegative in H.
+    apply (Rplus_le_le_0_compat _ _ H IHfault_weight_state).
+Qed.
+*)
 
 Lemma fault_weight_state_nonnegative : forall sigma r,
   fault_weight_state sigma r ->
@@ -124,7 +151,7 @@ Proof.
   intros.
   generalize dependent r1. generalize dependent r2.
   induction H; intros.
-  - apply fault_weight_state_Empty in H0; subst.
+  - apply fault_weight_state_empty in H0; subst.
     apply fault_weight_state_nonnegative in H1. assumption.
   - destruct msg as [(c,v) j].
     apply fault_weight_state_backwards in H1.
