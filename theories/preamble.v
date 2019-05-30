@@ -1,3 +1,4 @@
+Require Import Coq.Bool.Bool.
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Reals.Reals.
@@ -39,6 +40,124 @@ Proof.
   intros. inversion H. assumption.
 Qed.
 
+Class PredicateFunction {A} (r : A -> Prop) (r_fn : A -> bool) : Prop :=
+  predicate_function : forall a, r a <-> r_fn a = true.
+
+Lemma predicate_function_neg : forall A  (r : A -> Prop) (r_fn : A -> bool),
+  PredicateFunction r r_fn ->
+  forall a, ~ r a <-> r_fn a = false.
+Proof.  intros. rewrite (H a).   apply not_true_iff_false. Qed.
+
+Lemma predicate_function_decidable : forall A  (r : A -> Prop) (r_fn : A -> bool),
+  PredicateFunction r r_fn ->
+  forall a, r a \/ ~r a.
+Proof.
+  intros. destruct (r_fn a) eqn:Hr.
+  - left. apply H. assumption.
+  - right. apply (predicate_function_neg _ _ _ H). assumption.
+Qed.
+
+Class PredicateFunction2 {A B} (r : A -> B -> Prop) (r_fn : A -> B -> bool) : Prop :=
+  predicate_function2 : forall a b, r a b <-> r_fn a b = true.
+
+Lemma predicate_function2_neg : forall A B (r : A -> B -> Prop) (r_fn : A -> B -> bool),
+  PredicateFunction2 r r_fn ->
+  forall a b, ~ r a b <-> r_fn a b = false.
+Proof.  intros. rewrite (H a b).   apply not_true_iff_false. Qed.
+
+Lemma predicate_function2_decidable : forall A B (r : A -> B -> Prop) (r_fn : A -> B -> bool),
+  PredicateFunction2 r r_fn ->
+  forall a b, r a b \/ ~r a b.
+Proof.
+  intros. destruct (r_fn a b) eqn:Hr.
+  - left. apply H. assumption.
+  - right. apply (predicate_function2_neg _ _ _ _ H). assumption.
+Qed.
+
+Class RelationFunction {A B} (r : A -> B -> Prop) (r_fn : A -> B) : Prop :=
+  relation_function : forall a b, r a b <-> r_fn a = b.
+
+Lemma relation_function_neg : forall A B (r : A -> B -> Prop) (r_fn : A -> B),
+  RelationFunction r r_fn ->
+  forall a b, ~ r a b <-> r_fn a <> b.
+Proof.
+  intros; split; intros.
+  - intro. apply H0. apply H. assumption.
+  - intro. apply H in H1. rewrite H1 in H0. apply H0. reflexivity.
+Qed.
+
+Lemma relation_function_total : forall A B (r : A -> B -> Prop) (r_fn : A -> B),
+  RelationFunction r r_fn ->
+  forall a, exists b, r a b.
+Proof.
+  intros. exists (r_fn a). apply H. reflexivity.
+Qed.
+
+Lemma relation_function_functional : forall A B (r : A -> B -> Prop) (r_fn : A -> B),
+  RelationFunction r r_fn ->
+  forall a b1 b2, r a b1 -> r a b2 -> b1 = b2.
+Proof.
+  intros. apply H in H0. apply H in H1. subst. reflexivity.
+Qed.
+
+Lemma filter_rel_function : forall A (p : A -> Prop) (f : A -> bool),
+  PredicateFunction p f ->
+  RelationFunction (filter_rel p) (filter f).
+Proof. unfold RelationFunction.
+  intros A p f H l; induction l; intros; split; intros.
+  - inversion H0; subst. reflexivity.
+  - simpl in H0; subst. constructor.
+  - inversion H0; subst; clear H0; apply IHl in H3; simpl; rewrite H3; clear H3;
+    (apply H in H5 || apply (predicate_function_neg _ _ _ H) in H5)
+    ; rewrite H5; reflexivity.
+  - simpl in H0. destruct (f a) eqn:Hfa; subst
+    ; (apply H in Hfa || apply (predicate_function_neg _ _ _ H) in Hfa)
+    ; (apply filter_cons_p || apply filter_cons_not_p); try assumption
+    ; apply IHl
+    ; reflexivity
+    .
+Qed.
+
+Class RelationFunction2 {A B C} (r : A -> B -> C -> Prop) (r_fn : A -> B -> C) : Prop :=
+  relation_function2 : forall a b c, r a b c <-> r_fn a b = c.
+
+Lemma relation_function2_neg : forall A B C (r : A -> B -> C -> Prop) (r_fn : A -> B -> C),
+  RelationFunction2 r r_fn ->
+  forall a b c, ~ r a b c <-> r_fn a b <> c.
+Proof.
+  intros; split; intros.
+  - intro. apply H0. apply H. assumption.
+  - intro. apply H in H1. rewrite H1 in H0. apply H0. reflexivity.
+Qed.
+
+Lemma relation_function2_total : forall A B C (r : A -> B -> C -> Prop) (r_fn : A -> B -> C),
+  RelationFunction2 r r_fn ->
+  forall a b, exists c, r a b c.
+Proof.
+  intros. exists (r_fn a b). apply H. reflexivity.
+Qed.
+
+Lemma relation_function2_functional : forall A B C (r : A -> B -> C -> Prop) (r_fn : A -> B -> C),
+  RelationFunction2 r r_fn ->
+  forall a b c1 c2, r a b c1 -> r a b c2 -> c1 = c2.
+Proof.
+  intros. apply H in H0. apply H in H1. subst. reflexivity.
+Qed.
+
+Lemma fold_rel_function :
+  forall A B (rel : A -> B -> B -> Prop)  (rel_fn : A -> B -> B) def,
+    RelationFunction2 rel rel_fn ->
+    RelationFunction (fold_rel rel def) (fold_right rel_fn def).
+Proof.
+  intros. intro l. induction l; intro r; split; intros.
+  - inversion H0; subst. reflexivity.
+  - simpl in H0; subst. constructor.
+  - inversion H0; subst; clear H0; apply IHl in H3; simpl; rewrite H3; clear H3;
+    (apply H in H5 || apply (predicate_function_neg _ _ _ H) in H5)
+    ; rewrite H5; reflexivity.
+  - simpl in H0.  remember (fold_right rel_fn def l). apply IHl in Heqy as Hfold.
+    apply H in H0. subst. apply fold_cons with (fold_right rel_fn def l); assumption.
+Qed.
 
 Class TotalOrder {A} (lt : relation A) : Prop :=
    totality : forall c1 c2, c1 = c2 \/ lt c1 c2 \/ lt c2 c1.

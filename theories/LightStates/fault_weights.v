@@ -32,8 +32,8 @@ Definition equivocating_messages_fn (msg1 msg2 : message) : bool :=
     end
   end.
 
-Lemma equivocating_messages_function : forall msg1 msg2,
-  equivocating_messages msg1 msg2 <-> equivocating_messages_fn msg1 msg2 = true.
+Lemma equivocating_messages_function :
+  PredicateFunction2 equivocating_messages equivocating_messages_fn.
 Proof.
   intros [(c1, v1) j1] [(c2, v2) j2]; unfold equivocating_messages_fn; split; intros.
   - destruct H as [Hv [[Hc | Hj] [Hin2 Hin1]]]; subst
@@ -92,14 +92,11 @@ Definition equivocating_message_state (msg : message) : state -> Prop :=
 Definition equivocating_message_state_fn (msg : message) : state -> bool :=
   existsb (equivocating_messages_fn msg).
 
-Lemma equivocating_message_state_function : forall msg sigma,
-  equivocating_message_state msg sigma
-  <->
-  equivocating_message_state_fn msg sigma = true
-  .
+Lemma equivocating_message_state_function :
+  PredicateFunction2 equivocating_message_state equivocating_message_state_fn.
 Proof.
   unfold equivocating_message_state_fn. unfold equivocating_message_state.
-  intros.
+  intros msg sigma.
   rewrite existsb_exists. rewrite Exists_exists.
   split; intros; destruct H as [x [Hin H]]; exists x; split; try assumption
   ; apply equivocating_messages_function; try assumption.
@@ -114,6 +111,31 @@ Inductive equivocating_validators : state -> list V -> Prop :=
 Definition equivocating_validators_fn (sigma : state) : list V :=
   fold_right (fun msg vs => @add_in_sorted_list_fn V v_compare (validator msg) vs) []
     (filter (fun msg => equivocating_message_state_fn msg sigma) sigma).
+
+Lemma equivocating_validators_function :
+  RelationFunction equivocating_validators equivocating_validators_fn.
+Proof.
+  unfold equivocating_validators_fn.
+  intros sigma vs.
+  remember (fun msg : message => equivocating_message_state msg sigma) as eq_msg.
+  remember (fun msg : message => equivocating_message_state_fn msg sigma) as eq_msg_fn.
+  remember (fun msg : message => @add_in_sorted_list V v_lt (validator msg)) as add_in_sorted_r.
+  remember (fun (msg : message) (vs : list V) =>  add_in_sorted_list_fn (validator msg) vs) as add_in_sorted_fn.
+  split; intros.
+  - inversion H.
+    rewrite <- Heqeq_msg in H0; apply (filter_rel_function _ eq_msg eq_msg_fn) in H0.
+    + rewrite H0.
+      rewrite <- Heqadd_in_sorted_r in H1; apply (fold_rel_function _ _ add_in_sorted_r add_in_sorted_fn) in H1.
+      * rewrite H1 . reflexivity.
+      * subst. intros a b c. apply add_in_sorted_list_function. apply v_compare_strict_order.
+    + subst. intro a. apply equivocating_message_state_function.
+  - apply equivocating_validators_intro with (filter eq_msg_fn sigma). 
+    + rewrite <- Heqeq_msg; apply (filter_rel_function _ eq_msg eq_msg_fn); try reflexivity.
+      subst. intro a. apply equivocating_message_state_function.
+    + rewrite <- Heqadd_in_sorted_r; apply (fold_rel_function _ _ add_in_sorted_r add_in_sorted_fn)
+      ; try assumption.
+      subst. intros a b c. apply add_in_sorted_list_function. apply v_compare_strict_order.
+Qed.
 
 Definition fault_weight_state_fn (sigma : state) : R :=
   (fold_right Rplus 0%R (map weight (equivocating_validators_fn sigma))).

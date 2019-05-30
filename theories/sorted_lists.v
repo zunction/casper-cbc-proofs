@@ -45,8 +45,9 @@ Fixpoint Inb {A} (compare : A -> A -> comparison) (a : A) (l : list A) : bool :=
 
 Lemma compare_in : forall A (compare : A -> A -> comparison),
   CompareStrictOrder compare ->
-  forall a l, In a l <-> Inb compare a l = true.
+  PredicateFunction2 (@In A) (Inb compare).
 Proof.
+  intros A compare H a l.
   induction l; intros; split; intros.
   - inversion H0.
   - discriminate.
@@ -64,7 +65,7 @@ Lemma compare_not_in : forall A (compare : A -> A -> comparison),
   CompareStrictOrder compare ->
   forall a l, not (In a l) <-> Inb compare a l = false.
 Proof.
-  intros. rewrite (compare_in _ compare H).
+  intros. rewrite (compare_in _ compare H a l).
   apply not_true_iff_false.
 Qed.
 
@@ -155,12 +156,13 @@ Fixpoint add_in_sorted_list_fn {A} {compare : A -> A -> comparison} (x : A) (l :
     end
   end.
 
-Lemma add_in_sorted_list_function : forall A (compare : A -> A -> comparison) x xs xxs,
+Lemma add_in_sorted_list_function : forall A (compare : A -> A -> comparison),
   CompareStrictOrder compare ->
-  @add_in_sorted_list A (compare_lt compare) x xs xxs
-  <-> @add_in_sorted_list_fn A compare x xs = xxs.
+  RelationFunction2
+    (@add_in_sorted_list A (compare_lt compare))
+    (@add_in_sorted_list_fn A compare).
 Proof.
-  intros; split; intros.
+  intros. intros x xs xxs; split; intros.
   - induction H0.
     + reflexivity.
     + simpl. rewrite compare_eq_refl; try reflexivity. apply (proj1 H).
@@ -177,26 +179,32 @@ Proof.
         apply IHxs. reflexivity.
 Qed.
 
-Corollary add_in_sorted_list_functional : forall A compare x l1 l2 l2',
+Corollary add_in_sorted_list_functional : forall A compare,
    CompareStrictOrder compare ->
+   forall x l1 l2 l2',
    @add_in_sorted_list A (compare_lt compare) x l1 l2 ->
    @add_in_sorted_list A (compare_lt compare) x l1 l2' ->
    l2 = l2'.
 Proof.
   intros.
-  apply add_in_sorted_list_function in H0; try assumption.
-  apply add_in_sorted_list_function in H1; try assumption.
-  subst.
-  reflexivity.
+  apply
+    (relation_function2_functional _ _ _ _ 
+      (@add_in_sorted_list_fn A compare)
+      (add_in_sorted_list_function _ _ H)
+      _ _
+      l2
+    )  in H1; assumption.
 Qed.
 
 Theorem add_in_sorted_list_total : forall A compare x l,
   CompareStrictOrder compare ->
   exists l', @add_in_sorted_list A (compare_lt compare) x l l'.
 Proof.
-  intros. exists (@add_in_sorted_list_fn A compare x l).
-  apply add_in_sorted_list_function; try assumption.
-  reflexivity.
+  intros.
+  apply
+    relation_function2_total with (@add_in_sorted_list_fn A compare).
+    apply add_in_sorted_list_function.
+    assumption.
 Qed.
 
 Theorem add_in_sorted_list_in {A} {lt : relation A} : forall msg msg' sigma sigma',
