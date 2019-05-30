@@ -199,6 +199,13 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma add_in_sorted_list_no_empty {A} {lt : relation A} : forall msg sigma,
+  ~ @add_in_sorted_list A lt msg sigma [].
+Proof.
+  unfold not. intros.
+  inversion H; subst.
+Qed.
+
 Theorem add_in_sorted_list_in {A} {lt : relation A} : forall msg msg' sigma sigma',
   @add_in_sorted_list A lt msg sigma sigma' -> 
   In msg' sigma' ->
@@ -213,6 +220,16 @@ Proof.
       * left. assumption.
       * right . right. assumption.
 Qed.
+
+Lemma add_in_sorted_list_head {A} {lt : relation A} : forall msg sigma sigma',
+  @add_in_sorted_list A lt msg sigma sigma' -> 
+  In msg sigma'.
+Admitted.
+
+Lemma add_in_sorted_list_tail {A} {lt : relation A} : forall msg sigma sigma',
+  @add_in_sorted_list A lt msg sigma sigma' -> 
+  incl sigma sigma'.
+Admitted.
 
 Lemma add_in_sorted_list_first {A} {lt : relation A} : forall msg a b sigma sigma',
     StrictOrder lt ->
