@@ -17,7 +17,10 @@ Require Import Casper.FullStates.locally_sorted.
 (** Fault Weight of States **)
 (****************************)
 
+(*************************)
 (* equivocating_messages *)
+(*************************)
+
 Definition equivocating_messages (msg1 msg2 : message) : Prop :=
   match msg1, msg2 with
     (c1, v1, j1), (c2, v2, j2) =>
@@ -44,7 +47,11 @@ Lemma equivocating_message_state_decidable : forall msg sigma,
   equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
   Admitted.
 
+
+(***************************)
 (* equivocating_validators *)
+(***************************)
+
 Inductive equivocating_validators : state -> list V -> Prop :=
   | equivocating_validators_Empty : equivocating_validators Empty []
   | equivocating_validators_Next : forall c v j sigma vs vs',
@@ -79,7 +86,25 @@ Proof.
   - apply no_confusion_next_empty in H0. inversion H0.
 Qed.
    
+Lemma equivocating_validators_fold_nonnegative : forall vs,
+  (0 <= fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs))%R.
+Proof.
+  intros.
+  induction vs; simpl.
+  - apply Rle_refl.
+  - rewrite <- (Rplus_0_l 0).
+    assert (H := weight_positive a).
+    apply Rlt_le in H.
+    apply Rplus_le_compat
+    ; try rewrite Rplus_0_l
+    ; assumption.
+Qed.
+
+
+(**********************)
 (* fault_weight_state *)
+(**********************)
+
 Inductive fault_weight_state : state -> R -> Prop :=
   fault_weight_state_intro : forall sigma vs,
     equivocating_validators sigma vs ->
@@ -112,26 +137,17 @@ Proof.
   simpl. reflexivity.
 Qed.
 
-(*
 Lemma fault_weight_state_nonnegative : forall sigma r,
   fault_weight_state sigma r ->
   (0 <= r)%R.
 Proof.
   intros.
   induction H.
-  - apply Rle_refl.
-  - apply fault_weight_message_state_nonnegative in H.
-    apply (Rplus_le_le_0_compat _ _ H IHfault_weight_state).
+  apply equivocating_validators_fold_nonnegative.
 Qed.
-*)
 
-Lemma fault_weight_state_nonnegative : forall sigma r,
-  fault_weight_state sigma r ->
-  (0 <= r)%R.
-  Admitted.
 
 (** Needed for theorem proof. Proofs for them are below **)
-(* work in progress *)
 
 Lemma fault_weight_state_add : forall msg sigma sigma' r1 r2,
   locally_sorted sigma ->
