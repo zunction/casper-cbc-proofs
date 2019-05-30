@@ -27,3 +27,12 @@ theories/LightStates/states.v
 theories/LightStates/hash_state.v
 theories/LightStates/fault_weights.v
 
+theories/LighterStates/consensus_values.v
+theories/LighterStates/validators.v
+theories/LighterStates/hashes.v
+theories/LighterStates/protocol_states.v
+theories/LighterStates/messages.v
+theories/LighterStates/states.v
+theories/LighterStates/hash_state.v
+theories/LighterStates/fault_weights.v
+

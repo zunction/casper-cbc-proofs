@@ -1,5 +1,7 @@
 Require Import Coq.Classes.RelationClasses.
+Require Import Coq.Structures.Orders.
 Require Import List.
+Require Import Coq.Sorting.Mergesort.
 
 Require Import Casper.preamble.
 Require Import Casper.consensus_values.
@@ -108,4 +110,3 @@ Proof.
         apply (proj1 c_compare_strict_order).
 (*   - intro. inversion H0; subst. clear H0. destruct H as [H | [H | H]]; apply H; reflexivity. *)
 Qed.
-  
