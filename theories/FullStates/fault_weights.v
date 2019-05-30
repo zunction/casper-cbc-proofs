@@ -104,7 +104,7 @@ Lemma fault_weight_state_nonnegative : forall sigma r,
   Admitted.
 
 (** Needed for theorem proof. Proofs for them are below **)
-
+(* work in progress *)
 
 Lemma fault_weight_state_add : forall msg sigma sigma' r1 r2,
   locally_sorted sigma ->
