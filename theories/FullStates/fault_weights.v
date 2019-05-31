@@ -32,7 +32,40 @@ Definition equivocating_messages (msg1 msg2 : message) : Prop :=
 
 Lemma equivocating_messages_decidable : forall msg1 msg2,
   equivocating_messages msg1 msg2 \/ ~ equivocating_messages msg1 msg2.
-  Admitted.
+Proof.
+  intros.
+  destruct msg1 as [(c1,v1) j1].
+  destruct msg2 as [(c2,v2) j2].
+  destruct (v_eq_dec v1 v2); subst.
+  - destruct (c_eq_dec c1 c2); subst.
+    + destruct (state_eq_dec j1 j2); subst.
+      * right. unfold not. intros.
+        inversion H. destruct H1. destruct H1. contradiction. contradiction.
+      * destruct (in_state_dec (c2,v2,j1) j2).
+        { right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
+        { destruct (in_state_dec (c2,v2,j2) j1). 
+           {right. unfold not. intros. inversion H2. destruct H4. destruct H5. contradiction. }
+           { left. constructor; try reflexivity. split.
+              { right. assumption. }
+              { split; assumption. }
+           }
+        }
+    + destruct (in_state_dec (c1,v2,j1) j2).
+      * right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction.
+      * destruct (in_state_dec (c2,v2,j2) j1).
+        { right. unfold not. intros. inversion H2. destruct H4. destruct H5. contradiction. }
+        { left. constructor; try reflexivity. split.
+          { left. assumption. }
+          { split; assumption. }
+        }
+ - right. unfold not. intros. inversion H0. contradiction.
+Qed.
+
+(******************************)
+(* equivocating_message_state *)
+(******************************)
+
+(* work in progress *)
 
 Inductive equivocating_message_state : message -> state -> Prop :=
   | equivocating_message_state_head: forall msg1 msg2 sigma,
@@ -41,11 +74,49 @@ Inductive equivocating_message_state : message -> state -> Prop :=
   | equivocating_message_state_tail: forall msg1 msg2 sigma,
       ~ equivocating_messages msg1 msg2 ->
       equivocating_message_state msg1 (next msg2 sigma)
-.
+ .
 
 Lemma equivocating_message_state_decidable : forall msg sigma,
   equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
   Admitted.
+
+Lemma equivocating_message_state_empty : forall msg,
+  ~ equivocating_message_state msg Empty.
+Proof.
+  unfold not. intros.
+  inversion H
+  ; subst
+  ; apply no_confusion_next_empty in H0
+  ; inversion H0.
+Qed.
+
+(*
+Lemma equivocating_message_state_next : forall msg1 msg2 sigma,
+  equivocating_message_state msg1 (next msg2 sigma).
+Proof.
+  intros.
+  destruct (equivocating_messages_decidable msg1 msg2).
+  - apply equivocating_message_state_head. assumption.
+  - apply equivocating_message_state_tail. assumption.
+Qed.
+*)
+
+Lemma equivocating_message_state_sorted_subset : forall sigma sigma' msg,
+  sorted_subset sigma sigma' ->
+  equivocating_message_state msg sigma ->
+  equivocating_message_state msg sigma'.
+Proof.
+  intros. generalize dependent msg.
+  induction H; intros.
+  - apply equivocating_message_state_empty in H0. inversion H0.
+  - inversion H0; subst
+    ; apply no_confusion_next in H1
+    ; destruct H1; subst.
+    + apply equivocating_message_state_head. assumption.
+    + apply equivocating_message_state_tail. assumption.
+  - apply IHsorted_subset in H0.
+    inversion H0; subst.
+    Admitted.
 
 
 (***************************)
@@ -99,12 +170,6 @@ Proof.
   - reflexivity.
   - apply no_confusion_next_empty in H0. inversion H0.
 Qed.
-
-Lemma equivocating_message_state_sorted_subset : forall sigma sigma' msg,
-  sorted_subset sigma sigma' ->
-  equivocating_message_state msg sigma ->
-  equivocating_message_state msg sigma'.
-  Admitted.
 
 Lemma equivocating_validators_sorted_subset : forall sigma sigma' vs vs',
   sorted_subset sigma sigma' ->  
