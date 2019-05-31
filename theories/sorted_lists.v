@@ -232,12 +232,28 @@ Qed.
 Lemma add_in_sorted_list_head {A} {lt : relation A} : forall msg sigma sigma',
   @add_in_sorted_list A lt msg sigma sigma' -> 
   In msg sigma'.
-Admitted.
+Proof.
+  intros.
+  induction H
+  ; try ( constructor; reflexivity).
+  - right. assumption.
+Qed.
 
 Lemma add_in_sorted_list_tail {A} {lt : relation A} : forall msg sigma sigma',
   @add_in_sorted_list A lt msg sigma sigma' -> 
   incl sigma sigma'.
-Admitted.
+Proof.
+  intros.
+  induction H.
+  - constructor. inversion H.
+  - apply incl_refl.
+  - apply incl_tl. apply incl_refl.
+  - apply (incl_tl msg') in IHadd_in_sorted_list.
+    assert (Hmsg': In msg' (msg' :: sigma')).
+      { constructor. reflexivity. }
+    apply (incl_cons Hmsg') in IHadd_in_sorted_list.
+    assumption.
+Qed.
 
 Lemma add_in_sorted_list_first {A} {lt : relation A} : forall msg a b sigma sigma',
     StrictOrder lt ->
