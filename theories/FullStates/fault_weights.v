@@ -30,7 +30,7 @@ Definition equivocating_messages (msg1 msg2 : message) : Prop :=
       not (in_state (c2,v2,j2) j1)
   end.
 
-Lemma equivocating_messages_decidable : forall msg1 msg2,
+Lemma equivocating_messages_dec : forall msg1 msg2,
   equivocating_messages msg1 msg2 \/ ~ equivocating_messages msg1 msg2.
 Proof.
   intros.
@@ -73,12 +73,9 @@ Inductive equivocating_message_state : message -> state -> Prop :=
       equivocating_message_state msg1 (next msg2 sigma)
   | equivocating_message_state_tail: forall msg1 msg2 sigma,
       ~ equivocating_messages msg1 msg2 ->
+      equivocating_message_state msg1 sigma ->
       equivocating_message_state msg1 (next msg2 sigma)
  .
-
-Lemma equivocating_message_state_decidable : forall msg sigma,
-  equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
-  Admitted.
 
 Lemma equivocating_message_state_empty : forall msg,
   ~ equivocating_message_state msg Empty.
@@ -90,16 +87,35 @@ Proof.
   ; inversion H0.
 Qed.
 
-(*
+
 Lemma equivocating_message_state_next : forall msg1 msg2 sigma,
+  equivocating_message_state msg1 sigma ->
   equivocating_message_state msg1 (next msg2 sigma).
 Proof.
   intros.
-  destruct (equivocating_messages_decidable msg1 msg2).
+  destruct (equivocating_messages_dec msg1 msg2).
   - apply equivocating_message_state_head. assumption.
-  - apply equivocating_message_state_tail. assumption.
+  - apply equivocating_message_state_tail; assumption.
 Qed.
-*)
+
+
+Lemma equivocating_message_state_dec : forall msg sigma,
+  equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
+Proof.
+  intros.
+  induction sigma.
+  - right. apply equivocating_message_state_empty. 
+  - rewrite add_is_next.
+    destruct (equivocating_messages_dec msg (c,v,sigma1)).
+    + left. apply equivocating_message_state_head. assumption.
+    + inversion IHsigma2.
+      * left. apply equivocating_message_state_tail; assumption.
+      * right. unfold not. intros. 
+        inversion H1; subst
+        ; rewrite add_is_next in H2; apply no_confusion_next in H2; destruct H2; subst
+        ; contradiction. 
+Qed.
+
 
 Lemma equivocating_message_state_sorted_subset : forall sigma sigma' msg,
   sorted_subset sigma sigma' ->
@@ -113,11 +129,11 @@ Proof.
     ; apply no_confusion_next in H1
     ; destruct H1; subst.
     + apply equivocating_message_state_head. assumption.
-    + apply equivocating_message_state_tail. assumption.
+    + apply IHsorted_subset in H4.
+      apply equivocating_message_state_tail; assumption.
   - apply IHsorted_subset in H0.
-    inversion H0; subst.
-    Admitted.
-
+    apply equivocating_message_state_next. assumption.
+Qed.
 
 (***************************)
 (* equivocating_validators *)
@@ -227,13 +243,26 @@ Proof.
 Qed.
 
 
-Lemma equivocating_validators_fold_subset : forall vs vs',
+Lemma equivocating_validators_fold_subset : forall vs vs' sigma sigma',
+  equivocating_validators sigma vs ->
+  equivocating_validators sigma' vs' ->
   incl vs vs' ->
   (fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs) 
     <=
    fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs')
   )%R.
+Proof.
   Admitted.
+(*
+  intros. generalize dependent vs'.
+  induction vs; intros; simpl.
+  - apply equivocating_validators_fold_nonnegative.
+  - apply (incl_tl a) in H.
+    assert (H1 : incl vs (a :: vs)).
+    + apply incl_tl. apply incl_refl.
+    + apply (incl_tran H1) in H.
+      apply IHvs in H. simpl in H.
+*)
 
 
 (**********************)
@@ -298,9 +327,8 @@ Proof.
   intros.
   inversion H0; subst.
   inversion H1; subst.
-  apply (equivocating_validators_sorted_subset _ _ _ _ H H2) in H3.
-  apply equivocating_validators_fold_subset in H3.
-  assumption.
+  assert (H4 := equivocating_validators_sorted_subset _ _ _ _ H H2 H3).
+  apply (equivocating_validators_fold_subset _ _ _ _ H2 H3 H4).
 Qed.
 
 (* 
