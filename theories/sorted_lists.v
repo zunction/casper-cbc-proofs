@@ -207,6 +207,13 @@ Proof.
     assumption.
 Qed.
 
+Lemma add_in_sorted_list_no_empty {A} {lt : relation A} : forall msg sigma,
+  ~ @add_in_sorted_list A lt msg sigma [].
+Proof.
+  unfold not. intros.
+  inversion H; subst.
+Qed.
+
 Theorem add_in_sorted_list_in {A} {lt : relation A} : forall msg msg' sigma sigma',
   @add_in_sorted_list A lt msg sigma sigma' -> 
   In msg' sigma' ->
@@ -220,6 +227,32 @@ Proof.
     + apply IHadd_in_sorted_list in H0. destruct H0.
       * left. assumption.
       * right . right. assumption.
+Qed.
+
+Lemma add_in_sorted_list_head {A} {lt : relation A} : forall msg sigma sigma',
+  @add_in_sorted_list A lt msg sigma sigma' -> 
+  In msg sigma'.
+Proof.
+  intros.
+  induction H
+  ; try ( constructor; reflexivity).
+  - right. assumption.
+Qed.
+
+Lemma add_in_sorted_list_tail {A} {lt : relation A} : forall msg sigma sigma',
+  @add_in_sorted_list A lt msg sigma sigma' -> 
+  incl sigma sigma'.
+Proof.
+  intros.
+  induction H.
+  - constructor. inversion H.
+  - apply incl_refl.
+  - apply incl_tl. apply incl_refl.
+  - apply (incl_tl msg') in IHadd_in_sorted_list.
+    assert (Hmsg': In msg' (msg' :: sigma')).
+      { constructor. reflexivity. }
+    apply (incl_cons Hmsg') in IHadd_in_sorted_list.
+    assumption.
 Qed.
 
 Lemma add_in_sorted_list_first {A} {lt : relation A} : forall msg a b sigma sigma',

@@ -30,9 +30,42 @@ Definition equivocating_messages (msg1 msg2 : message) : Prop :=
       not (in_state (c2,v2,j2) j1)
   end.
 
-Lemma equivocating_messages_decidable : forall msg1 msg2,
+Lemma equivocating_messages_dec : forall msg1 msg2,
   equivocating_messages msg1 msg2 \/ ~ equivocating_messages msg1 msg2.
-  Admitted.
+Proof.
+  intros.
+  destruct msg1 as [(c1,v1) j1].
+  destruct msg2 as [(c2,v2) j2].
+  destruct (v_eq_dec v1 v2); subst.
+  - destruct (c_eq_dec c1 c2); subst.
+    + destruct (state_eq_dec j1 j2); subst.
+      * right. unfold not. intros.
+        inversion H. destruct H1. destruct H1. contradiction. contradiction.
+      * destruct (in_state_dec (c2,v2,j1) j2).
+        { right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
+        { destruct (in_state_dec (c2,v2,j2) j1). 
+           {right. unfold not. intros. inversion H2. destruct H4. destruct H5. contradiction. }
+           { left. constructor; try reflexivity. split.
+              { right. assumption. }
+              { split; assumption. }
+           }
+        }
+    + destruct (in_state_dec (c1,v2,j1) j2).
+      * right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction.
+      * destruct (in_state_dec (c2,v2,j2) j1).
+        { right. unfold not. intros. inversion H2. destruct H4. destruct H5. contradiction. }
+        { left. constructor; try reflexivity. split.
+          { left. assumption. }
+          { split; assumption. }
+        }
+ - right. unfold not. intros. inversion H0. contradiction.
+Qed.
+
+(******************************)
+(* equivocating_message_state *)
+(******************************)
+
+(* work in progress *)
 
 Inductive equivocating_message_state : message -> state -> Prop :=
   | equivocating_message_state_head: forall msg1 msg2 sigma,
@@ -40,13 +73,67 @@ Inductive equivocating_message_state : message -> state -> Prop :=
       equivocating_message_state msg1 (next msg2 sigma)
   | equivocating_message_state_tail: forall msg1 msg2 sigma,
       ~ equivocating_messages msg1 msg2 ->
+      equivocating_message_state msg1 sigma ->
       equivocating_message_state msg1 (next msg2 sigma)
-.
+ .
 
-Lemma equivocating_message_state_decidable : forall msg sigma,
+Lemma equivocating_message_state_empty : forall msg,
+  ~ equivocating_message_state msg Empty.
+Proof.
+  unfold not. intros.
+  inversion H
+  ; subst
+  ; apply no_confusion_next_empty in H0
+  ; inversion H0.
+Qed.
+
+
+Lemma equivocating_message_state_next : forall msg1 msg2 sigma,
+  equivocating_message_state msg1 sigma ->
+  equivocating_message_state msg1 (next msg2 sigma).
+Proof.
+  intros.
+  destruct (equivocating_messages_dec msg1 msg2).
+  - apply equivocating_message_state_head. assumption.
+  - apply equivocating_message_state_tail; assumption.
+Qed.
+
+
+Lemma equivocating_message_state_dec : forall msg sigma,
   equivocating_message_state msg sigma \/ ~ equivocating_message_state msg sigma.
-  Admitted.
+Proof.
+  intros.
+  induction sigma.
+  - right. apply equivocating_message_state_empty. 
+  - rewrite add_is_next.
+    destruct (equivocating_messages_dec msg (c,v,sigma1)).
+    + left. apply equivocating_message_state_head. assumption.
+    + inversion IHsigma2.
+      * left. apply equivocating_message_state_tail; assumption.
+      * right. unfold not. intros. 
+        inversion H1; subst
+        ; rewrite add_is_next in H2; apply no_confusion_next in H2; destruct H2; subst
+        ; contradiction. 
+Qed.
 
+
+Lemma equivocating_message_state_sorted_subset : forall sigma sigma' msg,
+  sorted_subset sigma sigma' ->
+  equivocating_message_state msg sigma ->
+  equivocating_message_state msg sigma'.
+Proof.
+  intros. generalize dependent msg.
+  induction H; intros.
+  - apply equivocating_message_state_empty in H0. inversion H0.
+  - inversion H0; subst
+    ; apply no_confusion_next in H1
+    ; destruct H1; subst.
+    + apply equivocating_message_state_head. assumption.
+    + apply IHsorted_subset in H4.
+      apply equivocating_message_state_tail; assumption.
+  - apply IHsorted_subset in H0.
+    apply equivocating_message_state_next. assumption.
+Qed.
 
 (***************************)
 (* equivocating_validators *)
@@ -76,16 +163,6 @@ Lemma equivocating_validators_total : forall sigma,
   exists vs, equivocating_validators sigma vs.
   Admitted.
 
-Lemma equivocating_validators_empty : forall vs,
-  equivocating_validators Empty vs ->
-  vs = [].
-Proof.
-  intros.
-  inversion H; subst.
-  - reflexivity.
-  - apply no_confusion_next_empty in H0. inversion H0.
-Qed.
-   
 Lemma equivocating_validators_fold_nonnegative : forall vs,
   (0 <= fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs))%R.
 Proof.
@@ -99,6 +176,93 @@ Proof.
     ; try rewrite Rplus_0_l
     ; assumption.
 Qed.
+
+Lemma equivocating_validators_empty : forall vs,
+  equivocating_validators Empty vs ->
+  vs = [].
+Proof.
+  intros.
+  inversion H; subst.
+  - reflexivity.
+  - apply no_confusion_next_empty in H0. inversion H0.
+Qed.
+
+Lemma equivocating_validators_sorted_subset : forall sigma sigma' vs vs',
+  sorted_subset sigma sigma' ->  
+  equivocating_validators sigma vs ->
+  equivocating_validators sigma' vs' ->
+  incl vs vs'.
+Proof.
+  intros. 
+  generalize dependent vs. generalize dependent vs'.
+  induction H; intros.
+  - apply equivocating_validators_empty in H0; subst. 
+    unfold incl. intros. inversion H.
+  - inversion H0; subst.
+    + unfold incl. intros. inversion H2.
+    + rewrite add_is_next in H2.
+      destruct msg as [(mc,mv) mj].
+      apply no_confusion_next in H2. destruct H2; subst. 
+      inversion H2; subst. 
+      inversion H1; subst.
+      * apply (IHsorted_subset _ H12) in H4.
+        unfold incl. intros.
+        apply (add_in_sorted_list_in _ _ _ _ H5) in H6.
+        destruct H6; subst.
+        apply add_in_sorted_list_head in H13. assumption.
+        apply add_in_sorted_list_tail in H13.
+        apply (incl_tran H4) in H13.
+        unfold incl in H13.
+        apply H13. assumption.
+      * rewrite add_is_next in H6.
+        destruct msg as [(mc',mv') mj'].
+        apply no_confusion_next in H6. destruct H6; subst. 
+        inversion H6; subst.
+        apply (equivocating_message_state_sorted_subset _ _ _ H) in H3.
+        contradiction.
+    + apply no_confusion_next in H2. destruct H2; subst.
+      inversion H1; subst.
+      * symmetry in H5.
+        apply no_confusion_next_empty in H5. inversion H5.
+      * rewrite add_is_next in H2.
+        apply no_confusion_next in H2. destruct H2; subst.
+        apply (IHsorted_subset _ H6) in H4.
+        apply add_in_sorted_list_tail in H7.
+        apply (incl_tran H4 H7).
+      * apply no_confusion_next in H2. destruct H2; subst.
+        apply (IHsorted_subset _ H6 _ H4).
+  - inversion H1; subst.
+    + symmetry in H3. apply no_confusion_next_empty in H3. inversion H3.
+    + rewrite add_is_next in H2. 
+      apply no_confusion_next in H2. destruct H2; subst.
+      apply (IHsorted_subset _ H4) in H0.
+      apply add_in_sorted_list_tail in H5.
+      apply (incl_tran H0 H5).
+    + apply no_confusion_next in H2. destruct H2; subst.
+      apply (IHsorted_subset _ H4 _ H0).
+Qed.
+
+
+Lemma equivocating_validators_fold_subset : forall vs vs' sigma sigma',
+  equivocating_validators sigma vs ->
+  equivocating_validators sigma' vs' ->
+  incl vs vs' ->
+  (fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs) 
+    <=
+   fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs')
+  )%R.
+Proof.
+  Admitted.
+(*
+  intros. generalize dependent vs'.
+  induction vs; intros; simpl.
+  - apply equivocating_validators_fold_nonnegative.
+  - apply (incl_tl a) in H.
+    assert (H1 : incl vs (a :: vs)).
+    + apply incl_tl. apply incl_refl.
+    + apply (incl_tran H1) in H.
+      apply IHvs in H. simpl in H.
+*)
 
 
 (**********************)
@@ -122,10 +286,6 @@ Lemma fault_weight_state_total : forall sigma,
   exists r, fault_weight_state sigma r.
   Admitted.
 
-Lemma fault_weight_state_backwards : forall c v j sigma r,
-  fault_weight_state (next (c,v,j) sigma) r ->
-  fault_weight_state sigma (r - weight v).
-  Admitted.
 
 Lemma fault_weight_state_empty : forall r,
   fault_weight_state Empty r ->
@@ -165,22 +325,10 @@ Lemma fault_weight_state_sorted_subset : forall sigma sigma' r1 r2,
   (r1 <= r2)%R.
 Proof.
   intros.
-  generalize dependent r1. generalize dependent r2.
-  induction H; intros.
-  - apply fault_weight_state_empty in H0; subst.
-    apply fault_weight_state_nonnegative in H1. assumption.
-  - destruct msg as [(c,v) j].
-    apply fault_weight_state_backwards in H1.
-    apply fault_weight_state_backwards in H0.
-    apply (IHsorted_subset _ H1) in H0.
-    unfold Rminus in H0.
-    apply Rplus_le_reg_r in H0.
-    assumption.
-  - destruct msg as [(c,v) j].
-    apply fault_weight_state_backwards in H1.
-    apply (IHsorted_subset _ H1) in H0.
-    assert (H2 := Rminus_lt_r_strict r2 (weight v) (weight_positive v)).
-    apply (Rle_trans _ _ _ H0 H2).
+  inversion H0; subst.
+  inversion H1; subst.
+  assert (H4 := equivocating_validators_sorted_subset _ _ _ _ H H2 H3).
+  apply (equivocating_validators_fold_subset _ _ _ _ H2 H3 H4).
 Qed.
 
 (* 
