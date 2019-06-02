@@ -1,119 +1,97 @@
 Require Import Coq.Reals.Reals.
-
 Require Import List.
-Import ListNotations.
-Require Import Coq.Sorting.Mergesort.
+Require Import Coq.Lists.ListSet.
 
-Require Import Casper.preamble.
+Require Import Casper.ListSetExtras.
 
-Require Import Casper.LightStates.messages.
-Require Import Casper.LightStates.states.
-Require Import Casper.LightStates.protocol_states.
+Require Import Casper.LighterStates.messages.
+Require Import Casper.LighterStates.states.
+Require Import Casper.LighterStates.protocol_states.
 
-(*
-Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.sorted_subset. 
-Require Import Casper.FullStates.sorted_union.
-*)
-Require Import Casper.FullStates.fault_weights.
+Require Import Casper.LighterStates.fault_weights.
 
 
 
 (** Two party common futures **)
 
-Theorem union_protocol_2states : forall sigma1 sigma2 sigma,
+Lemma union_protocol_2states : forall sigma1 sigma2,
   protocol_state sigma1 ->
   protocol_state sigma2 ->
-  sigma = merge sigma1 sigma2 ->
-  fault_tolerance_condition sigma ->
-  protocol_state sigma.
+  fault_tolerance_condition (state_union sigma1 sigma2) ->
+  protocol_state (state_union sigma1 sigma2).
 Proof.
-  intros sig1 sig2 sig H1. generalize dependent sig. generalize dependent sig2.
-  induction H1; intros sig2 sig Hsig2 HUnion HFault.
-  + apply sorted_union_empty_left in HUnion; subst; assumption.
-  + assert (H3 := protocol_state_next c v sigma sigma' sigma'' H1_ H1_0 H H0 H1 H2).
-    apply protocol_state_sorted in H1_0 as LS_sigma'.
-    apply protocol_state_sorted in Hsig2 as LS_sig2.
-    apply protocol_state_sorted in H1_ as LS_sigma.
-    apply protocol_state_sorted in H3 as LS_sigma''.
-    apply (locally_sorted_msg_justification c v sigma) in LS_sigma as LS_msg.
-    destruct (sorted_union_total sigma' sig2) as [sigma2' HUnion2']; try assumption.
-    rewrite sorted_union_singleton in H1.
-    (* ({msg} U sigma') U sig2 = sig *)
-    apply (sorted_union_assoc _ _ _ _ _ _ LS_msg LS_sigma' LS_sig2 H1 HUnion) in HUnion2' as Hadd2'.
-    rewrite <- sorted_union_singleton in Hadd2'.
-    apply protocol_state_next with c v sigma sigma2'; try assumption.
-    * apply IHprotocol_state2 with sig2; try assumption.
-      apply (sorted_union_locally_sorted _ _ _ HUnion2' LS_sigma') in LS_sig2 as LS_sigma2'.
-      apply (sorted_union_locally_sorted _ _ _ HUnion LS_sigma'') in LS_sig2 as LS_sig.
-      apply (fault_tolerance_condition_backwards _ _ _ LS_sigma2' LS_sig Hadd2' HFault).
-    * apply sorted_union_subset_left in HUnion2' as Hsub2'; try assumption.
-      apply sorted_union_locally_sorted in HUnion2'; try assumption.
-      apply (sorted_subset_transitive _ _ _ H Hsub2').
-Qed.
+  intros sig1 sig2 Hps1 Hps2.
+  induction Hps2; intros.
+  - simpl. assumption.
+  - clear IHHps2_1.
+    assert (protocol_state (state_union sig1 (state_remove (c, v, hash_state.hash_state sigma) sigma'))).
+    { apply IHHps2_2.
+      apply fault_tolerance_condition_subset with (state_union sig1 sigma'); try assumption.
+      intro msg; intro Hin.
+      apply set_union_intro.
+      unfold state_union in Hin; apply set_union_elim in Hin.
+      destruct Hin; try (left; assumption).
+      right. apply (set_remove_1 _ _ _ _ H4).
+    }
+    clear IHHps2_2.
+    inversion H4; subst.
+    + symmetry in H6. unfold state_union in H6.  apply set_union_empty in H6.
+      destruct H6; subst. apply set_eq_protocol_state with (state_union sigma' nil).
+      * simpl. apply (protocol_state_cons c v sigma); assumption.
+      * apply set_union_comm.
+      * apply set_union_nodup; try constructor. assumption.
+    + { destruct (message_eq_dec (c0, v0, hash_state.hash_state sigma0) (c, v, hash_state.hash_state sigma)).
+      - inversion e; subst; clear e.
+        apply (protocol_state_cons c v sigma); try assumption.
+      + apply set_union_intro. right. assumption.
+      + apply set_eq_protocol_state with (state_remove (c, v, hash_state.hash_state sigma0)
+          (state_union sig1
+             (state_remove (c, v, hash_state.hash_state sigma) sigma'))); try assumption.
+  Admitted.
 
-Theorem two_party_common_futures : forall sigma1 sigma2 sigma,
+Theorem two_party_common_futures : forall sigma1 sigma2,
   protocol_state sigma1 ->
   protocol_state sigma2 ->
-  sorted_union sigma1 sigma2 sigma ->
-  fault_tolerance_condition sigma ->
+  fault_tolerance_condition (state_union sigma1 sigma2) ->
   exists sigma',
-  protocol_state(sigma') /\
-  sigma1 => sigma' /\
-  sigma2 => sigma'.
+  protocol_state sigma' /\
+  sigma' in_Futures sigma1  /\
+  sigma' in_Futures sigma2.
 Proof.
   intros.
-  exists sigma.
+  exists (state_union sigma1 sigma2).
   split.
-  - apply (union_protocol_2states _ _ _ H H0 H1 H2).
-  - split.
-    apply (sorted_union_subset_left _ _ _ H1).
-    apply (sorted_union_subset_right _ _ _ H1).
+  - apply (union_protocol_2states _ _ H H0 H1).
+  - split; constructor; try assumption; split; try apply union_protocol_2states; try assumption; intro msg; intros; apply set_union_intro.
+    + left. assumption.
+    + right. assumption.
 Qed.
 
-(*
-Theorem union_protocol_nstates : forall sigmas sigma,
+Theorem union_protocol_nstates : forall sigmas,
   Forall protocol_state sigmas ->
-  fold sorted_union sigmas sigma ->
-  fault_tolerance_condition sigma ->
-  protocol_state(sigma).
+  fault_tolerance_condition (fold_right state_union state_empty sigmas) ->
+  protocol_state (fold_right state_union state_empty sigmas).
 Proof.
   induction sigmas; intros.
-  - inversion H0.
-  - destruct sigmas.
-    + apply Forall_inv in H. inversion H0; subst.
-      assumption. 
-    + apply Forall_inv in H as PSa. apply Forall_tail in H.
-      inversion H0; subst.
-      apply (Forall_impl
-        locally_sorted
-        protocol_state_sorted) in H as LSssigmas.
-      apply sorted_union_locally_sorted_iterated in H6 as LSfa; try assumption.
-      apply protocol_state_sorted in PSa as LSa.
-      apply sorted_union_locally_sorted in H7 as LSsigma; try assumption.
-      apply sorted_union_subset_right in H7 as Sub_fa_sigma.
-      assert (FTCsigma := H1).
-      apply (fault_tolerance_condition_backwards_subset fa) in H1; try assumption.
-      rename H1 into FTCfa.
-      apply IHsigmas in FTCfa; try assumption.
-      apply (union_protocol_2states _ _ _ PSa FTCfa H7).
-      assumption.
-Qed.
-
+  - simpl. constructor.
+  - inversion H; subst; clear H.
+    simpl in H0.
+  Admitted.
 (* TODO: Maybe introduce a definition for the "fun" below *)
 
-Theorem n_party_common_futures : forall sigmas sigma,
+Theorem n_party_common_futures : forall sigmas,
   Forall protocol_state sigmas ->
-  fold sorted_union sigmas sigma ->
-  fault_tolerance_condition sigma ->
+  fault_tolerance_condition (fold_right state_union state_empty sigmas) ->
   exists sigma',
     protocol_state(sigma') /\
-    Forall (fun sigma => sigma => sigma') sigmas.  (* P(sigma) ::= sigma => sigma' *)
+    Forall (fun sigma => sigma' in_Futures sigma) sigmas.  (* P(sigma) ::= sigma => sigma' *)
 Proof.
   intros.
-  exists sigma.
-  apply (union_protocol_nstates sigmas sigma) in H1; try assumption.
+  exists (fold_right state_union state_empty sigmas).
+  apply (union_protocol_nstates sigmas) in H0; try assumption.
   split; try assumption.
-  apply sorted_union_subset. assumption.
+  apply Forall_forall; intros.
+  rewrite Forall_forall in H. apply H in H1 as Hpsx.
+  constructor; try assumption. split; try assumption.
+  apply set_union_incl_iterated. assumption.
 Qed.
-*)

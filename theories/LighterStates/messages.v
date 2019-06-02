@@ -10,3 +10,14 @@ Definition validator (msg : message) : V :=
 
 Parameter Hash : message -> hash.
 
+Lemma message_eq_dec : forall (msg1 msg2 : message), {msg1 = msg2} + {msg1 <> msg2}.
+Proof.
+  destruct msg1 as [(c1, v1) j1]. destruct msg2 as [(c2, v2) j2].
+  destruct (c_eq_dec c1 c2).
+  - subst. destruct (v_eq_dec v1 v2).
+    + subst. destruct (justification_eq_dec j1 j2).
+      * subst. left. reflexivity.
+      * right. intro. inversion H; subst. apply n. reflexivity.
+    + right. intro. inversion H; subst. apply n. reflexivity.
+  - right. intro. inversion H; subst. apply n. reflexivity.
+Qed.

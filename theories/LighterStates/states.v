@@ -1,37 +1,23 @@
-Require Import Coq.Classes.RelationClasses.
+Require Import Coq.Lists.ListSet.
 Require Import List.
 
-Require Import Casper.preamble.
-
-Require Import Casper.sorted_lists.
-Require Import Casper.LightStates.messages.
+Require Import Casper.LighterStates.messages.
 
 (** Hash sets **)
 
-Definition state : Set := list message.
+Definition state := set message.
 
-Definition state_in := Inb message_compare.
+Definition state_empty := empty_set message.
 
-Definition state_compare := list_compare message_compare.
+Definition state_add := set_add message_eq_dec.
 
-Definition state_compare_strict_order : CompareStrictOrder state_compare :=
-  list_compare_strict_order message message_compare message_compare_strict_order.
+Definition state_remove := set_remove message_eq_dec.
 
-Lemma state_compare_refl : forall sigma, state_compare sigma sigma = Eq.
+Definition state_in := set_mem message_eq_dec.
+
+Definition state_union := set_union message_eq_dec.
+
+Lemma state_eq_dec : forall (sigma1 sigma2 : state), {sigma1 = sigma2} + {sigma1 <> sigma2}.
 Proof.
-  apply compare_eq_refl . 
-  apply (proj1 state_compare_strict_order).
+  intros. apply list_eq_dec. apply message_eq_dec.
 Qed.
-
-Definition state_lt := compare_lt state_compare.
-
-Definition state_lt_strict_order : StrictOrder state_lt :=
-  compare_lt_strict_order state state_compare state_compare_strict_order.
-
-Definition state_lt_total_order : TotalOrder state_lt :=
-  compare_lt_total_order state state_compare state_compare_strict_order.
-
-Definition state_eq_dec : EqualityDec state :=
-  compare_eq_dec state state_compare state_compare_strict_order.
-
-Definition state_union : state -> state -> state := SortMessages.merge.
