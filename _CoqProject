@@ -32,4 +32,5 @@ theories/LightStates/states.v
 theories/LightStates/hash_state.v
 theories/LightStates/fault_weights.v
 theories/LightStates/common_futures.v
+theories/LightStates/consistent_decisions_prop_protocol_states.v
 

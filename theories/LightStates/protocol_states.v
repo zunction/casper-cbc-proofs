@@ -128,3 +128,13 @@ Definition Reachable (sigma1 sigma2 : state) : Prop :=
 Notation "sigma2 'in_Futures' sigma1" :=
   (Reachable sigma1 sigma2)
   (at level 20).
+
+
+Lemma in_Futures_trans : forall sigma1 sigma2 sigma3,
+  sigma1 in_Futures sigma2 ->
+  sigma2 in_Futures sigma3 ->
+  sigma1 in_Futures sigma3.
+Proof.
+  intros. destruct H as [Hps2 [Hps1 Hincl21]]. destruct H0 as [Hps3 [_ Hincl32]].
+  repeat (split; try assumption). apply incl_tran with sigma2; assumption.
+Qed.
