@@ -1,141 +1,116 @@
-Require Import Coq.Bool.Bool.
 Require Import Coq.Reals.Reals.
+Require Import Coq.Lists.ListSet.
 Require Import List.
-Import ListNotations.
 
-Require Import Casper.preamble.
+Require Import Casper.ListExtras.
+Require Import Casper.ListSetExtras.
 
-Require Import Casper.consensus_values.
-Require Import Casper.validators.
+Require Import Casper.LightStates.consensus_values.
+Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
-Require Import Casper.sorted_lists.
 Require Import Casper.LightStates.messages.
 Require Import Casper.LightStates.states.
 
-Definition equivocating_messages (msg1 msg2 : message) : Prop :=
-  match msg1, msg2 with
-    (c1, v1, j1), (c2, v2, j2) =>
-      v1 = v2 /\
-      (c1 <> c2 \/ j1 <> j2) /\
-      not (In (Hash (c1,v1,j1)) j2) /\
-      not (In (Hash (c2,v2,j2)) j1)
-  end.
-
-Definition equivocating_messages_fn (msg1 msg2 : message) : bool :=
-  match message_compare msg1 msg2 with
-  | Eq => false
+Definition equivocating_messages (msg1 msg2 : message) : bool :=
+  match message_eq_dec msg1 msg2 with
+  | left _  => false
   | _ => match msg1, msg2 with (c1,v1,j1), (c2,v2,j2) =>
-      match v_compare v1 v2 with
-      | Eq => negb (hash_list_in (Hash msg1) j2) && negb (hash_list_in (Hash msg2) j1)
-      | _ => false
+      match v_eq_dec v1 v2 with
+      | left _  => negb (justification_in (Hash msg1) j2) && negb (justification_in (Hash msg2) j1)
+      | right _ => false
       end
     end
   end.
 
-Lemma equivocating_messages_function :
-  PredicateFunction2 equivocating_messages equivocating_messages_fn.
+Definition equivocating_message_state (msg : message) : state -> bool :=
+  existsb (equivocating_messages msg).
+
+Lemma equivocating_message_state_incl : forall sigma sigma',
+  incl sigma sigma' ->
+  forall msg,
+  equivocating_message_state msg sigma = true -> equivocating_message_state msg sigma' = true.
 Proof.
-  intros [(c1, v1) j1] [(c2, v2) j2]; unfold equivocating_messages_fn; split; intros.
-  - destruct H as [Hv [[Hc | Hj] [Hin2 Hin1]]]; subst
-    ; rewrite v_compare_refl
-    ; apply hash_list_compare_not_in in Hin1
-    ; apply hash_list_compare_not_in in Hin2
-    ; rewrite Hin1
-    ; rewrite Hin2
-    ; simpl
-    ; rewrite v_compare_refl
-    ; destruct (c_compare c1 c2) eqn:Hcc
-    ; ( apply compare_lt_neq in Hcc
-      || apply compare_gt_neq in Hcc
-      || apply (proj1 c_compare_strict_order) in Hcc
-      )
-    ; try apply (proj1 c_compare_strict_order)
-    ; try reflexivity.
-    + exfalso. apply Hc. assumption.
-    + destruct (hash_list_compare j1 j2) eqn:Hjc
-      ; ( apply compare_lt_neq in Hjc
-        || apply compare_gt_neq in Hjc
-        || apply (proj1 hash_list_compare_strict_order) in Hjc
-        )
-      ; try apply (proj1 hash_list_compare_strict_order)
-      ; try reflexivity
-      .
-      exfalso; apply Hj; apply Hjc.
-  - destruct (message_compare (c1, v1, j1) (c2, v2, j2)) eqn:Hmsg
-    ; destruct (v_compare v1 v2) eqn:Hv
-    ; try discriminate
-    ; apply (proj1 v_compare_strict_order) in Hv
-    ; subst
-    ; apply andb_true_iff in H
-    ; destruct H as [Hj2 Hj1]
-    ; apply negb_true_iff in Hj1
-    ; apply negb_true_iff in Hj2
-    ; apply hash_list_compare_not_in in Hj1
-    ; apply hash_list_compare_not_in in Hj2
-    ; split ; try reflexivity
-    ; repeat (split; try assumption)
-    ; clear Hj1; clear Hj2
-    ; (apply compare_lt_neq in Hmsg || apply compare_gt_neq in Hmsg)
-    ; try apply (proj1 message_compare_strict_order)
-    ; apply message_neq in Hmsg
-    ; destruct Hmsg as [Hc | [Hv | Hj]]
-    ; try (left; assumption)
-    ; try (right; assumption)
-    ; exfalso; apply Hv; reflexivity
-    .
+  unfold equivocating_message_state. 
+  intros. rewrite existsb_exists in *. destruct H0 as [x [Hin Heq]]. exists x.
+  split; try assumption.
+  apply H. assumption.
 Qed.
 
+Definition equivocating_validators (sigma : state) : set V :=
+  set_map v_eq_dec validator (filter (fun msg => equivocating_message_state msg sigma) sigma).
 
-Definition equivocating_message_state (msg : message) : state -> Prop :=
-  Exists (equivocating_messages msg).
-
-Definition equivocating_message_state_fn (msg : message) : state -> bool :=
-  existsb (equivocating_messages_fn msg).
-
-Lemma equivocating_message_state_function :
-  PredicateFunction2 equivocating_message_state equivocating_message_state_fn.
+Lemma equivocating_validators_nodup : forall sigma,
+  NoDup (equivocating_validators sigma).
 Proof.
-  unfold equivocating_message_state_fn. unfold equivocating_message_state.
-  intros msg sigma.
-  rewrite existsb_exists. rewrite Exists_exists.
-  split; intros; destruct H as [x [Hin H]]; exists x; split; try assumption
-  ; apply equivocating_messages_function; try assumption.
+  intros. apply set_map_nodup.
 Qed.
 
-Inductive equivocating_validators : state -> list V -> Prop :=
-  equivocating_validators_intro : forall sigma vs emsgs,
-    filter_rel (fun msg => equivocating_message_state msg sigma) sigma emsgs ->
-    fold_rel (fun msg => @add_in_sorted_list V v_lt (validator msg)) [] emsgs vs ->
-    equivocating_validators sigma vs.
-
-Definition equivocating_validators_fn (sigma : state) : list V :=
-  fold_right (fun msg vs => @add_in_sorted_list_fn V v_compare (validator msg) vs) []
-    (filter (fun msg => equivocating_message_state_fn msg sigma) sigma).
-
-Lemma equivocating_validators_function :
-  RelationFunction equivocating_validators equivocating_validators_fn.
+Lemma equivocating_validators_incl : forall sigma sigma',
+  incl sigma sigma' ->
+  incl (equivocating_validators sigma) (equivocating_validators sigma').
 Proof.
-  unfold equivocating_validators_fn.
-  intros sigma vs.
-  remember (fun msg : message => equivocating_message_state msg sigma) as eq_msg.
-  remember (fun msg : message => equivocating_message_state_fn msg sigma) as eq_msg_fn.
-  remember (fun msg : message => @add_in_sorted_list V v_lt (validator msg)) as add_in_sorted_r.
-  remember (fun (msg : message) (vs : list V) =>  add_in_sorted_list_fn (validator msg) vs) as add_in_sorted_fn.
-  split; intros.
-  - inversion H.
-    rewrite <- Heqeq_msg in H0; apply (filter_rel_function _ eq_msg eq_msg_fn) in H0.
-    + rewrite H0.
-      rewrite <- Heqadd_in_sorted_r in H1; apply (fold_rel_function _ _ add_in_sorted_r add_in_sorted_fn) in H1.
-      * rewrite H1 . reflexivity.
-      * subst. intros a b c. apply add_in_sorted_list_function. apply v_compare_strict_order.
-    + subst. intro a. apply equivocating_message_state_function.
-  - apply equivocating_validators_intro with (filter eq_msg_fn sigma). 
-    + rewrite <- Heqeq_msg; apply (filter_rel_function _ eq_msg eq_msg_fn); try reflexivity.
-      subst. intro a. apply equivocating_message_state_function.
-    + rewrite <- Heqadd_in_sorted_r; apply (fold_rel_function _ _ add_in_sorted_r add_in_sorted_fn)
-      ; try assumption.
-      subst. intros a b c. apply add_in_sorted_list_function. apply v_compare_strict_order.
+  intros.
+  apply set_map_incl. apply incl_tran with (filter (fun msg : message => equivocating_message_state msg sigma) sigma').
+  - apply filter_incl; assumption.
+  - apply filter_incl_fn. intro. apply equivocating_message_state_incl. assumption.
 Qed.
 
-Definition fault_weight_state_fn (sigma : state) : R :=
-  (fold_right Rplus 0%R (map weight (equivocating_validators_fn sigma))).
+Definition sum_weights : set V -> R := fold_right (fun v r => (weight v + r)%R) 0%R.
+
+Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_validators sigma).
+
+Lemma sum_weights_in : forall v vs,
+  NoDup vs ->
+  In v vs ->
+  sum_weights vs = (weight v + sum_weights (set_remove v_eq_dec v vs))%R.
+Proof.
+  induction vs; intros; inversion H0; subst; clear H0.
+  - inversion H; subst; clear H. simpl. apply Rplus_eq_compat_l.
+    destruct (eq_dec_left v_eq_dec v). rewrite H. reflexivity.
+  - inversion H; subst; clear H. simpl. assert (Hav := H3). apply (in_not_in _ _ _ _ H1) in Hav.
+    destruct (v_eq_dec v a); try (exfalso; apply Hav; assumption). simpl.
+    rewrite <- Rplus_assoc. rewrite (Rplus_comm (weight v) (weight a)). rewrite Rplus_assoc. 
+    apply Rplus_eq_compat_l. apply IHvs; assumption.
+Qed.
+
+Lemma sum_weights_incl : forall vs vs',
+  NoDup vs ->
+  NoDup vs' ->
+  incl vs vs' ->
+  (sum_weights vs <= sum_weights vs')%R.
+Proof.
+  intros vs vs'. generalize dependent vs.
+  induction vs'; intros.
+  - apply incl_empty in H1; subst. apply Rle_refl.
+  - inversion H0; subst; clear H0.
+    destruct (in_dec v_eq_dec a vs).
+    + apply sum_weights_in in i. rewrite i. simpl.
+      apply Rplus_le_compat_l. apply IHvs'.
+      * apply (set_remove_nodup v_eq_dec a). assumption.
+      * assumption.
+      * intros x Hrem. apply set_remove_iff in Hrem; try assumption.
+        destruct Hrem as [Hin Hxa].
+        apply H1 in Hin. destruct Hin; try assumption.
+        exfalso; subst. apply Hxa. reflexivity.
+      * assumption.
+    + simpl. apply Rle_trans with (sum_weights vs').
+      * apply IHvs'; try assumption.
+        intros x Hin. apply H1 in Hin as Hin'. destruct Hin'; try assumption.
+        exfalso; subst. apply n. assumption.
+      * rewrite <- Rplus_0_l at 1. apply Rplus_le_compat_r. left. apply weight_positive.
+Qed.
+
+Lemma fault_weight_state_incl : forall sigma sigma',
+  incl sigma sigma' ->
+  (fault_weight_state sigma <= fault_weight_state sigma')%R.
+Proof.
+  intros. apply sum_weights_incl; try apply equivocating_validators_nodup.
+  apply equivocating_validators_incl. assumption.
+Qed.
+
+Lemma fault_weight_state_add : forall msg sigma,
+  (fault_weight_state sigma <= fault_weight_state (set_add message_eq_dec msg sigma))%R.
+Proof.
+  intros.
+  apply fault_weight_state_incl. intro msg'. apply set_add_intro1.
+Qed.
