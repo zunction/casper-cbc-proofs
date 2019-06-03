@@ -152,16 +152,15 @@ Inductive equivocating_validators : state -> list V -> Prop :=
       equivocating_validators (next msg sigma) vs
   .
 
-Lemma equivocating_validators_functional : forall sigma vs1 vs2,
-  equivocating_validators sigma vs1 ->
-  equivocating_validators sigma vs2 ->
-  vs1 = vs2
-  .
-  Admitted.
-
-Lemma equivocating_validators_total : forall sigma,
-  exists vs, equivocating_validators sigma vs.
-  Admitted.
+Lemma equivocating_validators_empty : forall vs,
+  equivocating_validators Empty vs ->
+  vs = [].
+Proof.
+  intros.
+  inversion H; subst.
+  - reflexivity.
+  - apply no_confusion_next_empty in H0. inversion H0.
+Qed.
 
 Lemma equivocating_validators_fold_nonnegative : forall vs,
   (0 <= fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs))%R.
@@ -177,14 +176,43 @@ Proof.
     ; assumption.
 Qed.
 
-Lemma equivocating_validators_empty : forall vs,
-  equivocating_validators Empty vs ->
-  vs = [].
+Lemma equivocating_validators_functional : forall sigma vs1 vs2,
+  equivocating_validators sigma vs1 ->
+  equivocating_validators sigma vs2 ->
+  vs1 = vs2
+  .
 Proof.
-  intros.
-  inversion H; subst.
-  - reflexivity.
-  - apply no_confusion_next_empty in H0. inversion H0.
+  intros. 
+  generalize dependent vs2.
+  induction H; intros.
+  - apply equivocating_validators_empty in H0; subst. reflexivity.
+  - inversion H2; subst.
+    + apply IHequivocating_validators in H9; subst.
+      apply (add_in_sorted_list_functional V v_compare v_compare_strict_order v vs0 vs' vs2 H1 H10).
+    + rewrite add_is_next in H3. apply no_confusion_next in H3. destruct H3; subst.
+      contradiction.
+  - inversion H1; subst.
+    + symmetry in H3. apply no_confusion_next_empty in H3. inversion H3.
+    + rewrite add_is_next in H2. apply no_confusion_next in H2. destruct H2; subst.
+      contradiction.
+    + apply no_confusion_next in H2. destruct H2; subst.
+      apply IHequivocating_validators in H4. assumption.
+Qed.
+    
+Lemma equivocating_validators_total : forall sigma,
+  exists vs, equivocating_validators sigma vs.
+Proof.
+  intros. induction sigma.
+  - exists nil. constructor.
+  - rewrite add_is_next.
+    destruct IHsigma2.
+    destruct (equivocating_message_state_dec (c,v,sigma1) sigma2).
+    + assert (Hvs := add_in_sorted_list_total V v_compare v x v_compare_strict_order).
+      destruct Hvs.
+      exists x0.
+      apply (equivocating_validators_Next c v sigma1 sigma2 x x0 H0 H H1).
+    + exists x.
+      apply (equivocating_validators_Next' (c,v,sigma1) sigma2 x H0 H).
 Qed.
 
 Lemma equivocating_validators_sorted_subset : forall sigma sigma' vs vs',
@@ -275,18 +303,6 @@ Inductive fault_weight_state : state -> R -> Prop :=
     fault_weight_state sigma (fold_right (fun r1 r2 => (r1 + r2)%R) 0%R (map weight vs))
   .
 
-Lemma fault_weight_state_functional : forall sigma r1 r2,
-  fault_weight_state sigma r1 ->
-  fault_weight_state sigma r2 ->
-  r1 = r2
-  .
-  Admitted.
-
-Lemma fault_weight_state_total : forall sigma,
-  exists r, fault_weight_state sigma r.
-  Admitted.
-
-
 Lemma fault_weight_state_empty : forall r,
   fault_weight_state Empty r ->
   (r = 0)%R.
@@ -295,6 +311,16 @@ Proof.
   inversion H; subst.
   apply equivocating_validators_empty in H0; subst.
   simpl. reflexivity.
+Qed.
+
+Lemma fault_weight_state_empty' : 
+  fault_weight_state Empty 0.
+Proof.
+  intros.
+  destruct (equivocating_validators_total Empty).
+  apply fault_weight_state_intro in H as H1.
+  apply equivocating_validators_empty in H; subst.
+  simpl in H1. assumption.
 Qed.
 
 Lemma fault_weight_state_nonnegative : forall sigma r,
@@ -306,6 +332,40 @@ Proof.
   apply equivocating_validators_fold_nonnegative.
 Qed.
 
+
+Lemma fault_weight_state_functional : forall sigma r1 r2,
+  fault_weight_state sigma r1 ->
+  fault_weight_state sigma r2 ->
+  r1 = r2
+  .
+Proof.
+  intros.
+  generalize dependent r2.
+  induction H; intros.
+  inversion H0; subst.
+  apply (equivocating_validators_functional _ _ _ H) in H1; subst.
+  reflexivity.
+Qed.
+
+Lemma fault_weight_state_total : forall sigma,
+  exists r, fault_weight_state sigma r.
+Proof.
+  intros. induction sigma.
+  - exists 0%R. apply fault_weight_state_empty'.
+  - destruct (equivocating_message_state_dec (c,v,sigma1) sigma2)
+    ; rewrite add_is_next.
+    + destruct (equivocating_validators_total sigma2).
+      assert (Hx := add_in_sorted_list_total V v_compare v x v_compare_strict_order). destruct Hx.
+      apply (equivocating_validators_Next c v sigma1 sigma2 x x0 H H0) in H1.
+      apply fault_weight_state_intro in H1.
+      exists (fold_right (fun r1 r2 : R => (r1 + r2)%R) 0%R (map weight x0)).
+      assumption.
+    + destruct (equivocating_validators_total sigma2).
+      apply (equivocating_validators_Next' (c,v,sigma1) sigma2 x H) in H0.
+      apply fault_weight_state_intro in H0.
+      exists (fold_right (fun r1 r2 : R => (r1 + r2)%R) 0%R (map weight x)).
+      assumption.
+Qed.
 
 (** Needed for theorem proof. Proofs for them are below **)
 
