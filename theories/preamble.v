@@ -248,7 +248,7 @@ Proof.
   - right; right.  apply H. assumption.
 Qed.
 
-Lemma compare_assymetric : forall A (compare : A -> A -> comparison),
+Lemma compare_asymmetric_intro : forall A (compare : A -> A -> comparison),
   CompareStrictOrder compare -> CompareAsymmetric compare.
 Proof.
   intros. destruct H as [R TR]. intros; split; intros.
@@ -307,7 +307,7 @@ Proof.
   destruct (compare x y) eqn:Hcmp.
   - apply R in Hcmp. left. assumption.
   - right. left. reflexivity.
-  - right. right. apply compare_assymetric in CSO. apply CSO in Hcmp. assumption.
+  - right. right. apply compare_asymmetric_intro in CSO. apply CSO in Hcmp. assumption.
 Qed.
 
 Lemma compare_eq_dec : forall A (compare : A -> A -> comparison),

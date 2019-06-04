@@ -15,8 +15,6 @@ Inductive locally_sorted : state -> Prop :=
           locally_sorted (next (c, v, j) (next msg' sigma))
   .
 
-
-
 Definition locally_sorted_msg (msg : message) : Prop :=
   locally_sorted (next msg Empty).
 
@@ -62,6 +60,42 @@ Proof.
   }
 Qed.
 
+Lemma locally_sorted_next_next : forall msg1 msg2 sigma,
+  locally_sorted (next msg1 (next msg2 sigma)) ->
+  message_lt msg1 msg2.
+Proof.
+  intros. apply locally_sorted_message_characterization in H.
+  destruct H as [H | [[msg [_ H]] | [msg1' [msg2' [sigma' [H [_ [_ Hlt]]]]]]]].
+  - exfalso. apply (no_confusion_next_empty _ _ H).
+  - apply no_confusion_next in H. destruct H as [_ H].
+    exfalso. apply (no_confusion_next_empty _ _ H).
+  - apply no_confusion_next in H. destruct H as [Heq H]; subst.
+    apply no_confusion_next in H. destruct H as [Heq H]; subst.
+    assumption.
+Qed.
+
+Lemma locally_sorted_remove_second : forall msg1 msg2 sigma,
+  locally_sorted (next msg1 (next msg2 sigma)) ->
+  locally_sorted (next msg1 sigma).
+Proof.
+  intros.
+  apply locally_sorted_message_characterization in H.
+  destruct H as [H | [[msg [_ H]] | [msg1' [msg2' [sigma' [Heq [H [Hj Hlt]]]]]]]].
+  - exfalso. apply (no_confusion_next_empty _ _ H).
+  - apply no_confusion_next in H. destruct H as [_ H].
+    exfalso. apply (no_confusion_next_empty _ _ H).
+  - apply no_confusion_next in Heq. destruct Heq as [Heq' Heq]; subst.
+    apply no_confusion_next in Heq. destruct Heq as [Heq' Heq]; subst.
+    apply locally_sorted_message_characterization in H.
+    destruct H as [H | [[msg [_ H]] | [msg2'' [msg3 [sigma'' [Heq [H [_ Hlt2]]]]]]]].
+    + exfalso. apply (no_confusion_next_empty _ _ H).
+    + apply no_confusion_next in H. destruct H; subst. apply Hj.
+    + apply no_confusion_next in Heq. destruct Heq; subst.
+      apply (message_lt_transitive _ _ _ Hlt) in Hlt2. clear Hlt.
+      destruct msg1' as [(c1', v1') j1']. destruct msg3 as [(c3, v3) j3].
+      apply locally_sorted_message_justification in Hj.
+      apply LSorted_Next; assumption. 
+Qed.
 
 Lemma locally_sorted_head : forall msg sigma,
   locally_sorted (next msg sigma) ->
