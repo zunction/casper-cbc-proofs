@@ -33,5 +33,5 @@ Definition c_lt_strict_order: StrictOrder c_lt :=
 Definition c_lt_total_order: TotalOrder c_lt :=
   compare_lt_total_order C c_compare c_compare_strict_order.
 
-Definition c_eq_dec : EqualityDec C :=
+Definition c_eq_dec : forall x y : C, {x = y} + {x <> y} :=
   compare_eq_dec C c_compare c_compare_strict_order.

@@ -164,7 +164,7 @@ Proof.
   induction H.
   - constructor.
   - apply (add_in_sorted_sorted (c, v, sigma) sigma'); try assumption.
-  apply locally_sorted_msg_justification. assumption.
+  apply locally_sorted_message_justification. assumption.
 Qed.
 
 

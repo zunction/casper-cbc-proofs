@@ -23,11 +23,11 @@ Inductive sorted_union : state -> state -> state -> Prop :=
       sorted_union sigma1 sigma2 sigma' ->
       sorted_union (next msg sigma1) (next msg sigma2) (next msg sigma')
   | Sorted_union_Next_lt : forall msg1 sigma1 msg2 sigma2 sigma',
-      msg_lt msg1 msg2 ->
+      message_lt msg1 msg2 ->
       sorted_union sigma1 (next msg2 sigma2) sigma' ->
       sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg1 sigma')
   | Sorted_union_Next_gt : forall msg1 sigma1 msg2 sigma2 sigma',
-      msg_lt msg2 msg1 ->
+      message_lt msg2 msg1 ->
       sorted_union (next msg1 sigma1) sigma2 sigma' ->
       sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg2 sigma')
   .
@@ -260,13 +260,13 @@ Qed.
 Lemma next_sorted_union_ind_left : forall msg1 msg2 gamma1 gamma2 gamma',
     locally_sorted (next msg1 gamma1) ->
     locally_sorted (next msg2 gamma2) ->
-    msg_lt msg1 msg2 ->
+    message_lt msg1 msg2 ->
     sorted_union gamma1 (next msg2 gamma2) gamma' ->
     locally_sorted gamma' ->
     locally_sorted (next msg1 gamma').
 Proof.
   intros msg1 msg2 gamma1 gamma2 gamma' H H0 LT HUnion_next LSgamma'.
-  apply locally_sorted_msg_characterization in H.
+  apply locally_sorted_message_characterization in H.
   destruct H as 
     [ Hcempty
     | [[cmsg0 [LScmsg0 Hcnext]]
@@ -289,7 +289,7 @@ Proof.
     ; try (exfalso; symmetry in Uempty; apply (no_confusion_next_empty _ _ Uempty))
     ; apply no_confusion_next in Unext1; destruct Unext1; subst
     ; apply no_confusion_next in Unext2; destruct Unext2; subst
-    ; apply locally_sorted_msg_characterization; right; right
+    ; apply locally_sorted_message_characterization; right; right
     .
     * exists cmsg1. exists msg2. exists gamman'.
       split; try reflexivity. repeat (split; try assumption).
@@ -316,7 +316,7 @@ Proof.
   ; intros
   ; try assumption
   .
-  - apply locally_sorted_msg_characterization in H.
+  - apply locally_sorted_message_characterization in H.
     destruct H as 
       [ Hcempty
       | [[cmsg0 [LScmsg0 Hcnext]]

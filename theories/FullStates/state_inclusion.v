@@ -69,8 +69,8 @@ Proof.
   apply (in_sort_state _ _ Hsigma2s) in Hin.
   destruct Hin as [x' [Hx's Hin]]. 
   exists x'. split; try assumption.
-  apply (msg_sort_eq _ _ _ Hxs) in Hx's.
-  apply (msg_eq_transitive msg x x'); assumption.
+  apply (message_sort_eq _ _ _ Hxs) in Hx's.
+  apply (message_eq_transitive msg x x'); assumption.
 Qed.
 
 Theorem sorted_state_inclusion : forall sigma1 sigma2,

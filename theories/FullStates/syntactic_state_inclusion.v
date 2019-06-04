@@ -37,7 +37,7 @@ Proof.
   apply H1 in Hin'. inversion Hin'; subst; clear Hin'.
   apply no_confusion_next in H2; destruct H2; subst.
   destruct H4; try assumption.
-  subst. exfalso. apply (msg_lt_irreflexive _ Hlt).
+  subst. exfalso. apply (message_lt_irreflexive _ Hlt).
 Qed.
 
 Lemma sorted_syntactic_state_inclusion : forall sigma sigma' msg msg',
@@ -46,7 +46,7 @@ Lemma sorted_syntactic_state_inclusion : forall sigma sigma' msg msg',
   syntactic_state_inclusion (next msg sigma) (next msg' sigma') ->
   (msg = msg' /\ syntactic_state_inclusion sigma sigma')
   \/
-  (msg_lt msg' msg /\ syntactic_state_inclusion (next msg sigma) sigma').
+  (message_lt msg' msg /\ syntactic_state_inclusion (next msg sigma) sigma').
 Proof.
   intros.
   assert (Hin : in_state msg (next msg' sigma')).
@@ -66,14 +66,14 @@ Proof.
       inversion Hin1; subst.
       apply no_confusion_next in H3; destruct H3; subst.
       destruct H5; subst; try assumption.
-      exfalso. apply (msg_lt_irreflexive _ H2).
+      exfalso. apply (message_lt_irreflexive _ H2).
     + apply (state_set_In _ _ _ H) in H3.
       apply H1 in Hin1.
       inversion Hin1; subst.
       apply no_confusion_next in H4; destruct H4; subst.
       destruct H6; subst; try assumption.
-      exfalso. apply (msg_lt_transitive _ _ _ H2) in H3.
-      apply (msg_lt_irreflexive _ H3).
+      exfalso. apply (message_lt_transitive _ _ _ H2) in H3.
+      apply (message_lt_irreflexive _ H3).
 Qed.
 
 Lemma sorted_syntactic_state_inclusion_eq_ind : forall sigma1 sigma2 msg1 msg2,
@@ -88,9 +88,9 @@ Proof.
   apply sorted_syntactic_state_inclusion in H2; try assumption.
   destruct H1; destruct H2; destruct H1; destruct H2; subst.
   - repeat (split; try reflexivity; try assumption).
-  - exfalso. apply (msg_lt_irreflexive _ H2).
-  - exfalso. apply (msg_lt_irreflexive _ H1).
-  - exfalso. apply (msg_lt_transitive _ _ _ H1) in H2. apply (msg_lt_irreflexive _ H2).
+  - exfalso. apply (message_lt_irreflexive _ H2).
+  - exfalso. apply (message_lt_irreflexive _ H1).
+  - exfalso. apply (message_lt_transitive _ _ _ H1) in H2. apply (message_lt_irreflexive _ H2).
 Qed.
 
 Theorem sorted_syntactic_state_inclusion_equality_predicate : forall sigma1 sigma2,

@@ -32,7 +32,7 @@ Proof.
     apply protocol_state_sorted in Hsig2 as LS_sig2.
     apply protocol_state_sorted in H1_ as LS_sigma.
     apply protocol_state_sorted in H3 as LS_sigma''.
-    apply (locally_sorted_msg_justification c v sigma) in LS_sigma as LS_msg.
+    apply (locally_sorted_message_justification c v sigma) in LS_sigma as LS_msg.
     destruct (sorted_union_total sigma' sig2) as [sigma2' HUnion2']; try assumption.
     rewrite sorted_union_singleton in H1.
     (* ({msg} U sigma') U sig2 = sig *)

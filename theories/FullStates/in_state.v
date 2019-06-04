@@ -29,10 +29,10 @@ Proof.
     + left. constructor. left. assumption.
     + destruct IHsigma2.
       * left. constructor. right. assumption.
-      * right. intro. inversion H1; subst; clear H1.
+      * right. intro. inversion H0; subst; clear H0.
         rewrite add_is_next in *.
-        apply no_confusion_next in H2; destruct H2; subst.
-        destruct H4; try apply (H H1); apply (H0 H1).
+        apply no_confusion_next in H1; destruct H1; subst.
+        destruct H3; try apply (n H0); apply (H H0).
 Qed.
 
 Lemma in_singleton_state : forall msg msg',
@@ -53,15 +53,15 @@ Lemma in_sorted_state : forall sigma,
 Proof.
   intros sigma H. induction H; intros.
   - exfalso. apply (in_empty_state _ H).
-  - apply in_singleton_state in H0; subst. apply locally_sorted_msg_justification. assumption.
+  - apply in_singleton_state in H0; subst. apply locally_sorted_message_justification. assumption.
   - inversion H2; subst; clear H2. rewrite add_is_next in H3.
     apply no_confusion_next in H3; destruct H3; subst.
     destruct H5; subst.
-    + apply locally_sorted_msg_justification. assumption.
+    + apply locally_sorted_message_justification. assumption.
     + apply IHlocally_sorted2 ; assumption.
 Qed.
 
-Theorem add_in_sorted_msg_preservation : forall msg sigma sigma',
+Theorem add_in_sorted_message_preservation : forall msg sigma sigma',
   add_in_sorted msg sigma sigma' ->
   in_state msg sigma'.
 Proof.
@@ -96,7 +96,7 @@ Qed.
 Lemma state_set_In : forall msg1 msg2 sigma,
   locally_sorted (next msg2 sigma) ->
   in_state msg1 sigma ->
-  msg_lt msg2 msg1.
+  message_lt msg2 msg1.
 Proof.
   intros. generalize dependent msg1. generalize dependent msg2. induction sigma; intros.
   - apply in_empty_state in H0; inversion H0.
@@ -105,7 +105,7 @@ Proof.
      destruct msg2 as [(c2, v2) j2]. inversion H; subst; clear H.
     rewrite add_is_next in *.  apply no_confusion_next in H5. destruct H5; subst.
     destruct H3; subst; try assumption.
-    apply (msg_lt_transitive (c2, v2, j2) (c, v, sigma1) msg1 H6).
+    apply (message_lt_transitive (c2, v2, j2) (c, v, sigma1) msg1 H6).
     apply IHsigma2; assumption.
 Qed.
 

@@ -10,7 +10,7 @@ Inductive locally_sorted : state -> Prop :=
           locally_sorted (next (c, v, j) Empty)
   | LSorted_Next : forall c v j msg' sigma, 
           locally_sorted j  ->
-          msg_lt (c, v, j) msg' -> 
+          message_lt (c, v, j) msg' -> 
           locally_sorted (next msg' sigma) -> 
           locally_sorted (next (c, v, j) (next msg' sigma))
   .
@@ -20,7 +20,7 @@ Inductive locally_sorted : state -> Prop :=
 Definition locally_sorted_msg (msg : message) : Prop :=
   locally_sorted (next msg Empty).
 
-Lemma locally_sorted_msg_justification : forall c v j,
+Lemma locally_sorted_message_justification : forall c v j,
   locally_sorted_msg (c,v,j) <-> locally_sorted j.
 Proof.
   intros; split; intro.
@@ -28,7 +28,7 @@ Proof.
   - apply LSorted_Singleton. assumption.
 Qed.
 
-Theorem locally_sorted_msg_characterization : forall sigma,
+Theorem locally_sorted_message_characterization : forall sigma,
   locally_sorted sigma <->
   sigma = Empty
   \/
@@ -38,7 +38,7 @@ Theorem locally_sorted_msg_characterization : forall sigma,
     sigma = next msg1 (next msg2 sigma') 
     /\ locally_sorted (next msg2 sigma')
     /\ locally_sorted_msg msg1
-    /\ msg_lt msg1 msg2
+    /\ message_lt msg1 msg2
   ).
 Proof.
   split; intros.
@@ -46,18 +46,18 @@ Proof.
     - left. reflexivity.
     - right. left. exists (c,v,j).
       split; try reflexivity.
-      apply locally_sorted_msg_justification. assumption.
+      apply locally_sorted_message_justification. assumption.
     - right. right. exists (c, v, j). exists msg'. exists sigma0.
       split; try reflexivity.
       repeat (split; try assumption).
-      apply locally_sorted_msg_justification. assumption.
+      apply locally_sorted_message_justification. assumption.
   }
   { destruct H as [H | [H | H]]; subst; try constructor.
     - destruct H as [msg [LSmsg EQ]]; subst.
-      destruct msg as [(c,v) j]. apply locally_sorted_msg_justification in LSmsg.
+      destruct msg as [(c,v) j]. apply locally_sorted_message_justification in LSmsg.
       constructor. assumption.
     - destruct H as [msg1 [msg2 [sigma' [EQ [LS2' [LSmsg1 LT]]]]]]; subst.
-      destruct msg1 as [(c1,v1) j1]. apply locally_sorted_msg_justification in LSmsg1.
+      destruct msg1 as [(c1,v1) j1]. apply locally_sorted_message_justification in LSmsg1.
       constructor; assumption.
   }
 Qed.
@@ -67,7 +67,7 @@ Lemma locally_sorted_head : forall msg sigma,
   locally_sorted (next msg sigma) ->
   locally_sorted_msg msg.
 Proof.
-  intros [(c, v) j] sigma H. inversion H; subst; apply locally_sorted_msg_justification; assumption.
+  intros [(c, v) j] sigma H. inversion H; subst; apply locally_sorted_message_justification; assumption.
 Qed.
 
 Lemma locally_sorted_tail : forall msg sigma,
@@ -75,7 +75,7 @@ Lemma locally_sorted_tail : forall msg sigma,
   locally_sorted sigma.
 Proof.
   intros.
-  apply locally_sorted_msg_characterization in H.
+  apply locally_sorted_message_characterization in H.
   destruct H as 
     [ Hcempty
     | [[cmsg0 [LScmsg0 Hcnext]]
@@ -103,7 +103,7 @@ Proof.
   | sc sv sj [(sc', sv') sj'] ssigma LSsj _  LT LSs
   ]
   ; intros [(c, v) j] sigma' LSmsg AddA
-  ; apply locally_sorted_msg_justification in LSmsg as LSj
+  ; apply locally_sorted_message_justification in LSmsg as LSj
   ; inversion AddA as 
     [ [(ca, va) ja] AA AEmpty AC
     | [(ca, va) ja] sigmaA AA ANext AC
@@ -135,7 +135,7 @@ Lemma locally_sorted_next_message : forall msg sigma,
   add_in_sorted msg sigma (next msg sigma).
 Proof.
   intros.
-  apply locally_sorted_msg_characterization in H.
+  apply locally_sorted_message_characterization in H.
   destruct H as 
     [ Hcempty
     | [[cmsg0 [LScmsg0 Hcnext]]

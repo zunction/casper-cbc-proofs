@@ -20,126 +20,105 @@ Inductive state : Set :=
   | Next : C ->  V -> state -> state -> state.
 
 
-Notation "'add' ( c , v , msg ) 'to' sigma" :=
-  (Next c v msg sigma)
+Notation "'add' ( c , v , j ) 'to' sigma" :=
+  (Next c v j sigma)
   (at level 20).
 
 (********************)
 (* State properties *)
 (********************)
 
-Inductive state_lt : state -> state -> Prop :=
-  | state_lt_Empty : forall c v j sigma, 
-      state_lt Empty (add (c,v,j) to sigma)
-  | state_lt_C : forall c1 c2 v1 v2 j1 j2 sigma1 sigma2,
-      c_lt c1 c2 ->
-      state_lt (add (c1,v1,j1) to sigma1) (add (c2,v2,j2) to sigma2)
-  | state_lt_V : forall c v1 v2 j1 j2 sigma1 sigma2,
-      v_lt v1 v2 -> 
-      state_lt (add (c,v1,j1) to sigma1) (add (c,v2,j2) to sigma2)
-  | state_lt_M : forall c v j1 j2 sigma1 sigma2,
-      state_lt j1 j2 ->
-      state_lt (add (c,v,j1) to sigma1) (add (c,v,j2) to sigma2)
-  | state_lt_Next : forall c v j sigma1 sigma2,
-      state_lt sigma1 sigma2 ->
-      state_lt (add (c,v,j) to sigma1) (add (c,v,j) to sigma2)
-  .
+Fixpoint state_compare (sigma1 sigma2 : state) : comparison :=
+  match sigma1, sigma2 with
+  | Empty, Empty => Eq
+  | Empty, _ => Lt
+  | _, Empty => Gt
+  | add (c1, v1, j1) to sigma1, add (c2, v2, j2) to sigma2 =>
+    match c_compare c1 c2 with
+    | Eq =>
+      match v_compare v1 v2 with
+      | Eq =>
+        match state_compare j1 j2 with
+        | Eq => state_compare sigma1 sigma2
+        | cmp_j => cmp_j
+        end
+      | cmp_v => cmp_v
+      end
+    | cmp_c => cmp_c
+    end
+  end.
 
-Lemma state_lt_irreflexive : Irreflexive state_lt.
+Lemma state_compare_reflexive : CompareReflexive state_compare.
 Proof.
- assert (SOc : StrictOrder c_lt); try apply c_lt_strict_order.
- assert (SOv : StrictOrder v_lt); try apply v_lt_strict_order. 
- assert (EE : not(state_lt Empty Empty)); try (unfold not; intros; inversion H).
- unfold Irreflexive. unfold Reflexive. induction x.
-    + apply EE.
-    + unfold complement. intros. inversion H; subst.
-      * destruct SOc. 
-        apply StrictOrder_Irreflexive in H1. inversion H1.
-      * destruct SOv. 
-        apply StrictOrder_Irreflexive in H1. inversion H1.
-      * apply IHx1 in H1. inversion H1.
-      * apply IHx2 in H1. inversion H1.
+  destruct c_compare_strict_order as [Rc _].
+  destruct v_compare_strict_order as [Rv _].
+  intro x. induction x; intros; destruct y; split; intros; try discriminate; try reflexivity.
+  - simpl in H.
+    destruct (c_compare c c0) eqn:Hcmp; try discriminate.
+    apply Rc in Hcmp; subst.
+    destruct (v_compare v v0) eqn:Hcmp; try discriminate.
+    apply Rv in Hcmp; subst.
+    destruct (state_compare x1 y1) eqn:Hcmp; try discriminate.
+    apply IHx1 in Hcmp. apply IHx2 in H. subst.
+    reflexivity.
+  - inversion H; subst. simpl.
+    rewrite compare_eq_refl; try apply Rc.
+    rewrite compare_eq_refl; try apply Rv.
+    assert (state_compare y1 y1 = Eq). { apply IHx1. reflexivity. }
+    assert (state_compare y2 y2 = Eq). { apply IHx2. reflexivity. }
+    rewrite H0. assumption.
 Qed.
 
-Lemma state_lt_transitive: Transitive state_lt.
+Lemma state_compare_transitive : CompareTransitive state_compare.
 Proof.
-  assert (SOc : StrictOrder c_lt); try apply c_lt_strict_order.
-  assert (SOv : StrictOrder v_lt); try apply v_lt_strict_order.
-  destruct SOc as [_ Soc]. 
-  destruct SOv as [_ Sov]. 
-  unfold Transitive in *.
-  intros. generalize dependent x. induction H0.
-  - intros. inversion H.
-  - intros. inversion H0; subst; try (apply state_lt_C; assumption).
-    + constructor.
-    + apply state_lt_C; try assumption. apply (Soc _ _ _ H3 H). 
-  - intros. inversion H0; subst; try (apply state_lt_V; assumption).
-    + constructor.
-    + apply state_lt_C. assumption.
-    + apply state_lt_V. apply (Sov _ _ _ H3 H).
-  - intros; subst. inversion H; subst.
-    + constructor.
-    + apply state_lt_C. assumption.
-    + apply state_lt_V. assumption.
-    + apply state_lt_M. apply IHstate_lt. assumption.
-    + apply state_lt_M. assumption. 
-  - intros; subst. inversion H; subst.
-    + constructor.
-    + apply state_lt_C. assumption.
-    + apply state_lt_V. assumption.
-    + apply state_lt_M. assumption.
-    + apply state_lt_Next. apply IHstate_lt. assumption.
+  destruct c_compare_strict_order as [Rc Tc].
+  destruct v_compare_strict_order as [Rv Tv].
+  - intros x y. generalize dependent x.
+    induction y; intros; destruct x; destruct z; try assumption
+    ; destruct comp; try discriminate
+    ; simpl
+    ; inversion H; clear H
+    ; destruct (c_compare c0 c) eqn:Hc0; try discriminate
+    ; inversion H0; clear H0
+    ; destruct (c_compare c c1) eqn:Hc1; try discriminate
+    ; try (apply (Tc c0 c c1 _ Hc0) in Hc1 ; rewrite Hc1; reflexivity)
+    ; try (apply Rc in Hc0; subst; rewrite Hc1; try reflexivity)
+    ; try (apply Rc in Hc1; subst; rewrite Hc0; try reflexivity)
+    ; destruct (v_compare v0 v) eqn:Hv0; try discriminate
+    ; destruct (v_compare v v1) eqn:Hv1; try discriminate
+    ; try (apply (Tv v0 v v1 _ Hv0) in Hv1; rewrite Hv1; try reflexivity)
+    ; try (apply Rv in Hv0; subst; rewrite Hv1; try reflexivity)
+    ; try (apply Rv in Hv1; subst; rewrite Hv0; try reflexivity)
+    ; destruct (state_compare x1 y1) eqn:Hj0; try discriminate
+    ; destruct (state_compare y1 z1) eqn:Hj1; try discriminate
+    ; try (apply (IHy1 x1 z1 _ Hj0) in Hj1; rewrite Hj1; try reflexivity)
+    ; try (apply state_compare_reflexive in Hj0; subst; rewrite Hj1; try reflexivity)
+    ; try (apply state_compare_reflexive in Hj1; subst; rewrite Hj0; try reflexivity)
+    ; try rewrite H1; try rewrite H2
+    ; try (apply (IHy2 x2 z2 _ H2) in H1; rewrite H1; try reflexivity)
+    .
 Qed.
 
-Lemma state_lt_strict_order : StrictOrder state_lt.
+Lemma state_compare_strict_order : CompareStrictOrder state_compare.
 Proof.
-  constructor.
-  - apply state_lt_irreflexive.
-  - apply state_lt_transitive.
+  split.
+  - apply state_compare_reflexive.
+  - apply state_compare_transitive.
 Qed.
 
-Theorem state_lt_total_order : TotalOrder state_lt.
-Proof.
-  unfold TotalOrder.
-  intros. generalize dependent c2.
-  induction c1.
-  - induction c2.
-    + left. reflexivity.
-    + right. left. apply state_lt_Empty.
-  - induction c2.
-    + right. right. apply state_lt_Empty.
-    + destruct (c_lt_total_order c c0); subst.
-      * destruct (v_lt_total_order v v0); subst.
-        { destruct (IHc1_1 c2_1); subst.
-            { destruct (IHc1_2 c2_2); subst.
-                { left. reflexivity. }
-                { destruct H. 
-                    { right. left. apply state_lt_Next. assumption. }
-                    { right. right. apply state_lt_Next. assumption. }
-                 }
-             }
-            {  destruct H. 
-              { right. left. apply state_lt_M. assumption. }
-              { right. right. apply state_lt_M. assumption. }
-            }
-        }
-        { destruct H.
-          { right. left. apply state_lt_V.  assumption. }
-          { right. right. apply state_lt_V. assumption. }
-        } 
-     * destruct H.
-        { right. left. apply state_lt_C.
-          {assumption. }
-        }
-        { right. right. apply state_lt_C. 
-          {assumption. }
-        }
-Qed.
+Definition state_lt := compare_lt state_compare.
 
-Corollary state_eq_dec : forall x y : state, x = y \/ x <> y.
-Proof.
-  apply strict_total_order_eq_dec with state_lt.
-  - apply state_lt_strict_order.
-  - apply state_lt_total_order.
-Qed.
+Definition state_lt_irreflexive : Irreflexive state_lt :=
+  compare_lt_irreflexive state state_compare state_compare_reflexive.
 
+Definition state_lt_transitive: Transitive state_lt :=
+  compare_lt_transitive state state_compare state_compare_transitive.
+
+Definition state_lt_strict_order: StrictOrder state_lt :=
+  compare_lt_strict_order state state_compare state_compare_strict_order.
+
+Definition state_lt_total_order: TotalOrder state_lt :=
+  compare_lt_total_order state state_compare state_compare_strict_order.
+
+Definition state_eq_dec : forall x y : state, {x = y} + {x <> y} :=
+  compare_eq_dec state state_compare state_compare_strict_order.

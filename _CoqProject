@@ -1,4 +1,5 @@
 -Q theories Casper
+theories/RealsExtras.v
 theories/preamble.v
 theories/consensus_values.v
 theories/validators.v

@@ -94,30 +94,30 @@ Proof.
   assumption.
 Qed.
 
-Definition msg_eq (msg1 : message) (msg2 : message) : Prop :=
+Definition message_eq (msg1 : message) (msg2 : message) : Prop :=
   state_eq (next msg1 Empty) (next msg2 Empty).
 
-Lemma msg_sort_eq : forall msg1 msg2 msgs,
-  msg_sort msg1 msgs -> msg_sort msg2 msgs -> msg_eq msg1 msg2.
+Lemma message_sort_eq : forall msg1 msg2 msgs,
+  message_sort msg1 msgs -> message_sort msg2 msgs -> message_eq msg1 msg2.
 Proof.
-  unfold msg_sort. unfold msg_eq. intros.
+  unfold message_sort. unfold message_eq. intros.
   constructor. exists (next msgs Empty).
   split; assumption.
 Qed.
 
-Lemma msg_eq_reflexive : Reflexive msg_eq.
+Lemma message_eq_reflexive : Reflexive message_eq.
 Proof.
-  unfold Reflexive. unfold msg_eq. intro. apply state_eq_reflexive.
+  unfold Reflexive. unfold message_eq. intro. apply state_eq_reflexive.
 Qed.
 
-Lemma msg_eq_transitive : Transitive msg_eq.
+Lemma message_eq_transitive : Transitive message_eq.
 Proof.
   unfold Transitive.
-  unfold msg_eq. intros msg1 msg2 msg3. apply state_eq_transitive.
+  unfold message_eq. intros msg1 msg2 msg3. apply state_eq_transitive.
 Qed.
 
-Lemma msg_eq_construct : forall msg1 msg2,
-  msg_eq msg1 msg2
+Lemma message_eq_construct : forall msg1 msg2,
+  message_eq msg1 msg2
   -> exists c v j1 j2, msg1 = (c, v, j1)/\ msg2 = (c, v, j2) /\ state_eq j1 j2.
 Proof.
   intros. inversion H; subst; clear H.
@@ -142,7 +142,7 @@ Qed.
 (*******************************)
 
 Definition in_state_eq (msg : message) (sigma' : state) : Prop :=
-  exists msg', in_state msg' sigma' /\ msg_eq msg msg'.
+  exists msg', in_state msg' sigma' /\ message_eq msg msg'.
 
 Lemma in_state_eq_empty : forall msg, ~ in_state_eq msg Empty.
 Proof.
@@ -152,7 +152,7 @@ Qed.
 
 Lemma in_state_eq_next : forall msg msg' sigma',
   in_state_eq msg (next msg' sigma') ->
-  msg_eq msg msg' \/ in_state_eq msg sigma'.
+  message_eq msg msg' \/ in_state_eq msg sigma'.
 Proof.
   unfold in_state_eq.
   intros. destruct H as [msg'' [Hin Heq]].
@@ -172,13 +172,13 @@ Proof.
   intros. split; intros.
   {
   inversion H1; subst; clear H1. destruct H2.
-  apply msg_eq_construct in H2.
+  apply message_eq_construct in H2.
   destruct H2 as [c0 [v0 [j1 [j2 [EQ1 [EQ2 SEQ]]]]]]; subst.
   apply in_sorted_state in H1 as Hj2s; try assumption.
   inversion SEQ; subst; clear SEQ.
   destruct H2 as [js [Hj1s Hj2s']].
-  apply locally_sorted_msg_justification in H0.
-  apply locally_sorted_msg_justification in Hj2s.
+  apply locally_sorted_message_justification in H0.
+  apply locally_sorted_message_justification in Hj2s.
   apply sort_sorted_idem in H0.
   apply sort_sorted_idem in Hj2s.
   apply (sort_functional _ _ _ H0) in Hj1s; subst; clear H0.
@@ -187,7 +187,7 @@ Proof.
   }
   {
     exists msg. split; try assumption.
-    apply msg_eq_reflexive.
+    apply message_eq_reflexive.
   }
 Qed.
 

@@ -7,10 +7,10 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Next_eq : forall msg sigma,
           add_in_sorted msg (next msg sigma) (next msg sigma)
    | add_in_Next_lt : forall msg msg' sigma,
-          msg_lt msg msg' ->  
+          message_lt msg msg' ->  
           add_in_sorted msg (next msg' sigma) (next msg (next msg' sigma))
    | add_in_Next_gt : forall msg msg' sigma sigma',
-          msg_lt msg' msg ->
+          message_lt msg' msg ->
           add_in_sorted msg sigma sigma' ->
           add_in_sorted msg (next msg' sigma) (next msg' sigma')
   .
@@ -75,9 +75,9 @@ Proof.
     | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' BA BB BC]
     ;  clear AddA; clear AddB; subst
     ; try reflexivity
-    ; try (apply (msg_lt_transitive _ _ _ LTA) in LTB)
-    ; try (destruct (msg_lt_irreflexive _ LTB))
-    ; try (destruct (msg_lt_irreflexive _ LTA)).
+    ; try (apply (message_lt_transitive _ _ _ LTA) in LTB)
+    ; try (destruct (message_lt_irreflexive _ LTB))
+    ; try (destruct (message_lt_irreflexive _ LTA)).
     apply (IHsigma1_1 _ _ _ AddA') in AddB'; subst.
     reflexivity.
 Qed.
@@ -90,7 +90,7 @@ Proof.
   ; intros [(c, v) j]
   ; try (rewrite add_is_next in *).
   - exists (next (c,v,j) Empty). apply add_in_Empty.
-  - destruct (msg_lt_total_order (c,v,j) (sc,sv,sj)) as [Heq | [LT | GT]].
+  - destruct (message_lt_total_order (c,v,j) (sc,sv,sj)) as [Heq | [LT | GT]].
     + inversion Heq; subst. exists (next (sc,sv,sj) sigma1).
       apply add_in_Next_eq.
     + exists (next (c,v,j) (next (sc, sv, sj) sigma1)).

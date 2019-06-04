@@ -1,7 +1,6 @@
 Require Import Coq.Bool.Bool.
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Classes.RelationClasses.
-Require Import Coq.Reals.Reals.
 
 Require Import List.
 Import ListNotations.
@@ -219,9 +218,6 @@ Class CompareStrictOrder {A} (compare : A -> A -> comparison) : Prop :=
 Class CompareAsymmetric {A} (compare : A -> A -> comparison) : Prop :=
     compare_asymmetric : forall x y, compare x y = Lt <-> compare y x = Gt.
 
-Class EqualityDec (A : Type) : Prop :=
-    equality_dec : forall x y : A, x = y \/ x <> y.
-
 Class EqualRelations {A} (r1 r2 : relation A) : Prop :=
     equal_relations : forall x y, r1 x y <-> r2 x y.
 
@@ -316,9 +312,9 @@ Qed.
 
 Lemma compare_eq_dec : forall A (compare : A -> A -> comparison),
   CompareStrictOrder compare ->
-  EqualityDec A.
+  forall x y : A, {x = y} + {x <> y}.
 Proof.
-  intros. intros x y.
+  intros.
   destruct (compare x y) eqn:Hxy
   ; try (left; apply (proj1 H); assumption)
   ; right; intro; subst
@@ -338,65 +334,4 @@ Proof.
   ; try (left; assumption)
   ; try (right; intro; subst; apply (StrictOrder_Irreflexive _ H); assumption)
   .
-Qed.
-
-(** This lemma is needed in fault_weight_state_backwards **)
-Lemma Rplusminus_assoc : forall r1 r2 r3, 
-  (r1 + r2 - r3)%R = (r1 + (r2 - r3))%R.
-Proof.
-  intros. unfold Rminus.
-  apply Rplus_assoc.
-Qed.
-
-(** This lemma is needed in fault_weight_state_sorted_subset **)
-Lemma Rplusminus_assoc_r : forall r1 r2 r3, 
-  (r1 - r2 + r3)%R = (r1 + (- r2 + r3))%R.
-Proof.
-  intros. unfold Rminus.
-  apply Rplus_assoc.
-Qed.
-
-(** This lemma is needed in fault_weight_state_sorted_subset **)
-Lemma Rplus_opp_l : forall r, (Ropp r + r)%R = 0%R.
-Proof.
-  intros.
-  rewrite Rplus_comm.
-  apply Rplus_opp_r.
-Qed.
-
-(** This lemma is needed in fault_weight_state_sorted_subset **)
-Lemma Rplus_ge_reg_neg_r : forall r1 r2 r3,
-  (r2 <= 0)%R -> (r3 <= r1 + r2)%R -> (r3 <= r1)%R.
-Proof.
-  intros.
-  apply Rge_le.
-  apply Rle_ge in H.
-  apply Rle_ge in H0.
-  apply (Rplus_ge_reg_neg_r r1 r2 r3 H H0).
-Qed.
-
-(** This lemma is needed in fault_weight_state_sorted_subset **)
-Lemma Rminus_lt_r : forall r1 r2,
-  (0 <= r2)%R -> (r1 - r2 <= r1)%R.
-Proof.
-  intros.
-  rewrite <- Rplus_0_r.
-  unfold Rminus.
-  apply Rplus_le_compat_l. 
-  apply Rge_le.
-  apply Ropp_0_le_ge_contravar.
-  assumption.
-Qed.
-
-Lemma Rminus_lt_r_strict : forall r1 r2,
-  (0 < r2)%R -> (r1 - r2 <= r1)%R.
-Proof.
-  intros.
-  rewrite <- Rplus_0_r.
-  unfold Rminus.
-  apply Rplus_le_compat_l. 
-  apply Rge_le.
-  apply Ropp_0_le_ge_contravar.
-  apply Rlt_le in H.
-  assumption.
 Qed.

@@ -34,7 +34,7 @@ Definition v_lt_strict_order: StrictOrder v_lt :=
 Definition v_lt_total_order: TotalOrder v_lt :=
   compare_lt_total_order V v_compare v_compare_strict_order.
 
-Definition v_eq_dec : EqualityDec V :=
+Definition v_eq_dec : forall x y : V, {x = y} + {x <> y} :=
   compare_eq_dec V v_compare v_compare_strict_order.
 
 (***********************)

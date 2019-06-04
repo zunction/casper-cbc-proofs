@@ -42,23 +42,23 @@ Proof.
       * right. unfold not. intros.
         inversion H. destruct H1. destruct H1. contradiction. contradiction.
       * destruct (in_state_dec (c2,v2,j1) j2).
-        { right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
+        { right. unfold not. intros. inversion H0. destruct H2. destruct H3. contradiction. }
         { destruct (in_state_dec (c2,v2,j2) j1). 
-           {right. unfold not. intros. inversion H2. destruct H4. destruct H5. contradiction. }
+           {right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
            { left. constructor; try reflexivity. split.
               { right. assumption. }
               { split; assumption. }
            }
         }
     + destruct (in_state_dec (c1,v2,j1) j2).
-      * right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction.
+      * right. intro. inversion H0. destruct H2. destruct H3. contradiction.
       * destruct (in_state_dec (c2,v2,j2) j1).
-        { right. unfold not. intros. inversion H2. destruct H4. destruct H5. contradiction. }
+        { right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
         { left. constructor; try reflexivity. split.
           { left. assumption. }
           { split; assumption. }
         }
- - right. unfold not. intros. inversion H0. contradiction.
+ - right. unfold not. intros. inversion H. contradiction.
 Qed.
 
 (******************************)
@@ -450,7 +450,7 @@ Proof.
   inversion H0; subst.
   inversion H1; subst.
   assert (H4 := equivocating_validators_sorted_subset _ _ _ _ H H2 H3).
-  apply (equivocating_validators_fold_subset _ _ _ _ H2 H3 H4).
+  apply equivocating_validators_fold_subset. assumption.
 Qed.
 
 Corollary fault_weight_state_add : forall msg sigma sigma' r1 r2,

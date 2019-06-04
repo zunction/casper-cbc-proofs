@@ -65,7 +65,7 @@ Lemma sorted_syntactic_state_union_decomposition_step : forall sigma1 msg2 sigma
   locally_sorted (next msg12 sigma12) ->
   syntactic_state_union (next msg12 sigma1) (next msg2 sigma2) (next msg12 sigma12) ->
   in_state msg2 sigma12 ->
-  msg_lt msg12 msg2 /\ syntactic_state_union sigma1 (next msg2 sigma2) sigma12.
+  message_lt msg12 msg2 /\ syntactic_state_union sigma1 (next msg2 sigma2) sigma12.
 Proof.
   intros.
   rename H3 into H4.
@@ -81,7 +81,7 @@ Proof.
     ; apply no_confusion_next in H5; destruct H5; subst
     ; destruct H7; subst
     .
-    * exfalso; apply (msg_lt_irreflexive _ Hlt12).
+    * exfalso; apply (message_lt_irreflexive _ Hlt12).
     * left; assumption.
     * right; constructor; left; reflexivity.
     * right; constructor; right; assumption.
@@ -95,12 +95,12 @@ Proof.
     apply no_confusion_next in H8; destruct H8; subst.
     destruct H7; try assumption; subst.
     exfalso. destruct H3.
-    * apply (state_set_In _ _ _ H) in H3. apply (msg_lt_irreflexive _ H3).
+    * apply (state_set_In _ _ _ H) in H3. apply (message_lt_irreflexive _ H3).
     * inversion H3; subst; clear H3.
       apply no_confusion_next in H5; destruct H5; subst.
-      destruct H7; subst; apply msg_lt_irreflexive with msg2; try assumption.
+      destruct H7; subst; apply message_lt_irreflexive with msg2; try assumption.
       apply (state_set_In _ _ _ H0) in H3. 
-      apply (msg_lt_transitive _ _ _ H3 Hlt122).
+      apply (message_lt_transitive _ _ _ H3 Hlt122).
 Qed.
 
 Lemma sorted_syntactic_state_union_decomposition : forall msg1 sigma1 msg2 sigma2 msg12 sigma12,
@@ -110,9 +110,9 @@ Lemma sorted_syntactic_state_union_decomposition : forall msg1 sigma1 msg2 sigma
   syntactic_state_union (next msg1 sigma1) (next msg2 sigma2) (next msg12 sigma12) ->
   msg12 = msg1 /\ msg12 = msg2 /\  syntactic_state_union sigma1 sigma2 sigma12
   \/
-  msg12 = msg1 /\ msg_lt msg12 msg2 /\  syntactic_state_union sigma1 (next msg2 sigma2) sigma12
+  msg12 = msg1 /\ message_lt msg12 msg2 /\  syntactic_state_union sigma1 (next msg2 sigma2) sigma12
   \/
-  msg12 = msg2 /\ msg_lt msg12 msg1 /\  syntactic_state_union (next msg1 sigma1) sigma2 sigma12
+  msg12 = msg2 /\ message_lt msg12 msg1 /\  syntactic_state_union (next msg1 sigma1) sigma2 sigma12
   .
 Proof.
   intros.
@@ -134,7 +134,7 @@ Proof.
       ; inversion H4; subst; clear H4
       ; apply no_confusion_next in H5; destruct H5; subst
       ; destruct H7; subst
-      ; try (exfalso; apply (msg_lt_irreflexive _ Hlt))
+      ; try (exfalso; apply (message_lt_irreflexive _ Hlt))
       .
       * left; assumption.
       * right; assumption.
@@ -148,8 +148,8 @@ Proof.
       apply no_confusion_next in H7; destruct H7; subst.
       destruct H6; try assumption; subst.
       exfalso. destruct H3.
-      * apply (state_set_In _ _ _ H) in H3. apply (msg_lt_irreflexive _ H3).
-      * apply (state_set_In _ _ _ H0) in H3. apply (msg_lt_irreflexive _ H3).
+      * apply (state_set_In _ _ _ H) in H3. apply (message_lt_irreflexive _ H3).
+      * apply (state_set_In _ _ _ H0) in H3. apply (message_lt_irreflexive _ H3).
   - right. left. split; try reflexivity. 
     apply sorted_syntactic_state_union_decomposition_step; assumption.
   - right. right.  split; try reflexivity.
@@ -168,10 +168,10 @@ Proof.
     ; apply no_confusion_next in f; destruct f; subst
     ; destruct d; subst
     .
-    + apply (msg_lt_irreflexive _ H3).
-    + apply (state_set_In _ _ _ H) in H5. apply (msg_lt_irreflexive msg1).
-      apply (msg_lt_transitive _ _ _ H5 H3).
-    + apply (msg_lt_irreflexive _ H4).
-    + apply (state_set_In _ _ _ H0) in H5. apply (msg_lt_irreflexive msg2).
-      apply (msg_lt_transitive _ _ _ H5 H4).
+    + apply (message_lt_irreflexive _ H3).
+    + apply (state_set_In _ _ _ H) in H5. apply (message_lt_irreflexive msg1).
+      apply (message_lt_transitive _ _ _ H5 H3).
+    + apply (message_lt_irreflexive _ H4).
+    + apply (state_set_In _ _ _ H0) in H5. apply (message_lt_irreflexive msg2).
+      apply (message_lt_transitive _ _ _ H5 H4).
 Qed.

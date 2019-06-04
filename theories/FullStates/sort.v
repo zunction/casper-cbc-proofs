@@ -21,7 +21,7 @@ Proof.
   intros.
   induction H; try constructor.
   apply add_in_sorted_sorted with (c, v, js) sigmas; try assumption.
-  apply locally_sorted_msg_justification; assumption.
+  apply locally_sorted_message_justification; assumption.
 Qed.
 
 Theorem sort_sorted_idem : forall sigma,
@@ -71,18 +71,18 @@ Proof.
   apply (no_confusion_next_empty msg' sigma' H).
 Qed.
 
-Definition msg_sort (msg : message) (msgs : message) : Prop :=
+Definition message_sort (msg : message) (msgs : message) : Prop :=
   sort (next msg Empty) (next msgs Empty).
 
-Lemma msg_sort_construct : forall c v j js,
-  sort j js -> msg_sort (c, v, j) (c, v, js).
+Lemma message_sort_construct : forall c v j js,
+  sort j js -> message_sort (c, v, j) (c, v, js).
 Proof.
   intros.
-  unfold msg_sort. apply Sort_next with js Empty; try assumption; constructor.
+  unfold message_sort. apply Sort_next with js Empty; try assumption; constructor.
 Qed.
 
-Lemma msg_sort_destruct : forall msg msgs,
-  msg_sort msg msgs ->
+Lemma message_sort_destruct : forall msg msgs,
+  message_sort msg msgs ->
   exists c v j js, msg = (c,v,j) /\ msgs = (c,v,js) /\ sort j js.
 Proof.
   intros.
@@ -99,7 +99,7 @@ Proof.
 Qed.
 
 Definition in_state_sorted (msg : message) (sigmas : state) : Prop :=
-  exists msgs,  msg_sort msg msgs /\ in_state msgs sigmas .
+  exists msgs,  message_sort msg msgs /\ in_state msgs sigmas .
 
 Theorem in_sorted_state_all : forall sigma sigmas,
   sort sigma sigmas ->
@@ -112,8 +112,8 @@ Proof.
     apply no_confusion_next in H3; destruct H3; subst.
     destruct H5; subst.
     + exists (c,v,js). split; try assumption.
-      * apply msg_sort_construct; assumption.
-      * apply add_in_sorted_msg_preservation with sigmas; assumption.
+      * apply message_sort_construct; assumption.
+      * apply add_in_sorted_message_preservation with sigmas; assumption.
     + apply IHsort2 in H2.
       destruct H2 as [msgs [Hmsgs Hin]].
       exists msgs. split; try assumption.
@@ -124,7 +124,7 @@ Theorem in_sort_state : forall sigma sigmas,
   sort sigma sigmas ->
   forall msgs,
   in_state msgs sigmas ->
-  exists msg, msg_sort msg msgs /\ in_state msg sigma.
+  exists msg, message_sort msg msgs /\ in_state msg sigma.
 Proof.
   intros sigma sigmas H.
   induction H; intros.
@@ -132,7 +132,7 @@ Proof.
   - apply (add_in_sorted_no_junk _ _ _ H1) in H2.
     destruct H2; subst.
     + exists (c, v, j). split.
-      * apply msg_sort_construct; assumption.
+      * apply message_sort_construct; assumption.
       * constructor. left. reflexivity.
     + apply IHsort2 in H2.
       destruct H2 as [js' [Hjs' Hin]].
