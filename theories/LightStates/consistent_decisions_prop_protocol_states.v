@@ -23,8 +23,6 @@ Definition decided (q : state -> Prop) (sigma : state) : Prop := forall sigma',
 
 (* Forward consistency *)
 Lemma forward_consistency : forall sigma sigma' q,
-  protocol_state(sigma) ->
-  protocol_state(sigma') ->
   sigma' in_Futures sigma ->
   decided q sigma ->
   decided q sigma'.

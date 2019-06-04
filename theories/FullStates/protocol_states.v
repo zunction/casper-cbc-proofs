@@ -147,7 +147,7 @@ Qed.
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
   | protocol_state_next : forall c v sigma sigma' sigma'',
-      protocol_state sigma ->
+      protocol_state sigma -> (* 1 *)
       protocol_state sigma' ->
       full_node_condition sigma sigma' ->
       valid_estimate_condition c sigma ->

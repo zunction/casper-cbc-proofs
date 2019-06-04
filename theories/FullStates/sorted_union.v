@@ -32,6 +32,65 @@ Inductive sorted_union : state -> state -> state -> Prop :=
       sorted_union (next msg1 sigma1) (next msg2 sigma2) (next msg2 sigma')
   .
 
+Fixpoint sorted_union_fn (sigma1 sigma2 : state) : state :=
+  let fix merge sigma2 :=
+    match sigma1, sigma2 with
+    | Empty, _ => sigma2
+    | _, Empty => sigma1
+    | add (c1, v1, j1) to sigma1', add (c2, v2, j2) to sigma2' =>
+      match message_compare (c1, v1, j1) (c2, v2, j2) with
+      | Eq => next (c1, v1, j1) (sorted_union_fn sigma1' sigma2')
+      | Lt => next (c1, v1, j1) (sorted_union_fn sigma1' sigma2)
+      | Gt => next (c2, v2, j2) (merge sigma2')
+      end
+    end
+  in merge sigma2.
+
+Lemma sorted_union_function : RelationFunction2 sorted_union sorted_union_fn.
+Proof.
+  intros sigma1 sigma2 sigma. split. 
+  - intros. induction H; try (destruct sigma; reflexivity)
+    ; try (destruct msg1 as [(c1, v1) j1]; destruct msg2 as [(c2, v2) j2]
+      ; repeat rewrite add_is_next)
+    .
+    + destruct msg as [(c, v) j]. simpl.
+      rewrite message_compare_reflexive.
+      rewrite IHsorted_union. reflexivity.
+    + simpl. rewrite H. repeat rewrite add_is_next. rewrite IHsorted_union. reflexivity.
+    + apply message_compare_asymmetric in H.
+      simpl. rewrite H.
+      assert ((fix merge (sigma0 : state) : state :=
+      match sigma0 with
+      | Empty => add (c1, v1, j1)to sigma1
+      | add (c0, v3, j3)to sigma2' =>
+          match message_compare (c1, v1, j1) (c0, v3, j3) with
+          | Eq => add (c1, v1, j1)to sorted_union_fn sigma1 sigma2'
+          | Lt => add (c1, v1, j1)to sorted_union_fn sigma1 sigma0
+          | Gt => add (c0, v3, j3)to merge sigma2'
+          end
+      end) sigma2 = sorted_union_fn (next (c1, v1, j1) sigma1) sigma2).
+      { reflexivity. }
+      rewrite H1. rewrite IHsorted_union. reflexivity.
+  - generalize dependent sigma. generalize dependent sigma2.
+    induction sigma1; intros.
+    + simpl in H. destruct sigma2; subst; constructor.
+    + destruct sigma2.
+      * subst. rewrite add_is_next. constructor.
+      * simpl in H.
+        { destruct (message_compare (c, v, sigma1_1) (c0, v0, sigma2_1)) eqn:Hcmp.
+        - apply (proj1 message_compare_strict_order) in Hcmp.
+          inversion Hcmp; subst; clear Hcmp.
+          repeat rewrite add_is_next; apply Sorted_union_Next_eq.
+          apply IHsigma1_2; reflexivity.
+        - subst.
+          repeat rewrite add_is_next; apply Sorted_union_Next_lt; try assumption.
+          apply IHsigma1_2; reflexivity.
+        - apply message_compare_asymmetric in Hcmp.
+          subst.
+          repeat rewrite add_is_next; apply Sorted_union_Next_gt; try assumption.
+          admit.
+Admitted.
+
 Lemma sorted_union_to_syntactic_state_union : forall sigma1 sigma2 sigma12,
   sorted_union sigma1 sigma2 sigma12 ->
   syntactic_state_union sigma1 sigma2 sigma12.
@@ -45,63 +104,38 @@ Proof.
     | msg1 gamma1 msg2 gamma2 gamma' GT HUnion_next IHUnion
     ]
   ; split; intros
-  ; try (inversion H; subst; clear H;
-      apply no_confusion_next in H0; destruct H0; subst
-      ; destruct H2
-      ; subst 
-      ; try (constructor; left; reflexivity))
-  ; try (left; constructor; left; reflexivity)
+  ; try (left; assumption)
+  ; try (right; assumption)
+  ; try (destruct H; (exfalso; apply (in_empty_state _ H)) || assumption)
   .
-  - right. assumption.
-  - destruct H.
-    + exfalso. apply (in_empty_state _ H).
-    + assumption.
-  - left. assumption.
-  - destruct H.
-    + assumption.
-    + exfalso. apply (in_empty_state _ H).
-  - apply IHUnion in H; destruct H
-    ; try (left ; constructor; right; assumption)
-    ; right  ; constructor; right; assumption .
-  - constructor.  rewrite IHUnion. 
-    destruct H
-    ; try (inversion H; subst; clear H;
-      apply no_confusion_next in H0; destruct H0; subst
-      ; destruct H2
-      ; subst 
-      ; try (left; reflexivity))
-    .
-    + right. left. assumption.
-    + right. right. assumption.
-  - apply IHUnion in H; destruct H.
-    + left ; constructor; right; assumption.
-    + right; assumption .
-  - constructor.
-    destruct H
-    ; inversion H; subst; clear H
-    ; apply no_confusion_next in H0; destruct H0; subst
-    ; destruct H2
-    ; subst 
-    ; try (left; reflexivity)
-    ; rewrite IHUnion
-    .
+  - rewrite in_state_iff in H. rewrite IHUnion in H.
+    repeat rewrite in_state_iff. destruct H as [H | [H | H]].
+    + left; left; assumption.
+    + left; right; assumption.
+    + right; right; assumption.
+  - rewrite in_state_iff. rewrite IHUnion. repeat rewrite in_state_iff in H.
+    destruct H as [[H | H] | [H | H]]; try (left; assumption).
     + right; left; assumption.
-    + right; right; constructor; left; reflexivity.
-    + right; right; constructor; right; assumption.
-  - right; constructor; left; reflexivity.
-  - apply IHUnion in H. destruct H.
-    +  left; assumption.
-    + right; constructor; right; assumption.
-  - constructor. rewrite IHUnion.
-    destruct H.
+    + right; right; assumption.
+  - rewrite in_state_iff in H. rewrite IHUnion in H. rewrite in_state_iff.
+    destruct H as [H | [H | H]].
+    + left; left; assumption.
+    + left; right; assumption.
+    + right; assumption.
+  - rewrite in_state_iff. rewrite IHUnion. rewrite in_state_iff in H. 
+    destruct H as [[H | H] | H].
+    + left; assumption.
     + right; left; assumption.
-    + inversion H; subst; clear H
-      ; apply no_confusion_next in H0; destruct H0; subst
-      ; destruct H2
-      ; subst 
-      ; try (left; reflexivity)
-      .
-      right. right. assumption.
+    + right; right; assumption.
+  - rewrite in_state_iff in H. rewrite IHUnion in H.
+    destruct H as [H | [H | H]]; try (left; assumption); right; rewrite in_state_iff.
+    + left; assumption.
+    + right; assumption.
+  - rewrite in_state_iff. rewrite IHUnion.
+    destruct H; try (right; left; assumption).
+    rewrite in_state_iff in H. destruct H.
+    + left; assumption.
+    + right; right; assumption.
 Qed.
 
 Lemma sorted_union_idempotent : forall sigma,
@@ -369,16 +403,16 @@ Proof.
   - destruct sigma1; destruct sigma2; repeat rewrite add_is_next in *.
     + constructor.
     + exfalso. apply (in_empty_state (c, v, sigma2_1)).
-      apply H1. right; constructor; left; reflexivity.
+      apply H1. right; rewrite in_state_iff; left; reflexivity.
     + exfalso. apply (in_empty_state (c, v, sigma1_1)).
-      apply H1. left; constructor; left; reflexivity.
+      apply H1. left; rewrite in_state_iff; left; reflexivity.
     + exfalso. apply (in_empty_state (c, v, sigma1_1)).
-      apply H1. left; constructor; left; reflexivity.
+      apply H1. left; rewrite in_state_iff; left; reflexivity.
   - clear IHsigma12_1. rename sigma12_1 into j.
     rename sigma12_2 into sigma12. rename IHsigma12_2 into IHsigma12.
     destruct sigma1; destruct sigma2; repeat rewrite add_is_next in *.
     + exfalso. assert (Hin : in_state (c,v,j) (next (c, v, j) sigma12)).
-      { constructor; left; reflexivity. }
+      { rewrite in_state_iff; left; reflexivity. }
       apply H1 in Hin.
       destruct Hin as [Hin | Hin]; apply (in_empty_state _ Hin).
     + assert (Heq : (next (c0, v0, sigma2_1) sigma2_2) = (next (c, v, j) sigma12)).

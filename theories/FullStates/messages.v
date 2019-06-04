@@ -19,11 +19,16 @@ Fixpoint get_messages (sigma : state) : list message :=
   | add (c, v, j) to sigma' => (c,v,j) :: get_messages sigma'
   end.
 
-
 Definition next (msg : message) (sigma : state) : state :=
   match msg with
   | (c, v, j) => add (c, v, j) to sigma
   end.
+
+Lemma get_messages_next : forall msg sigma,
+  get_messages (next msg sigma) = msg :: get_messages sigma.
+Proof.
+  destruct msg as [(c, v) j]. simpl. reflexivity.
+Qed.
 
 Lemma add_is_next : forall c v j sigma,
   add (c, v, j)to sigma = next (c, v, j) sigma.
@@ -60,6 +65,15 @@ Proof.
     apply no_confusion_next in H. destruct H. assumption.
   - intros msg1 msg2 msg3. unfold message_compare. apply state_compare_transitive.
 Qed.
+
+Lemma message_compare_reflexive : forall msg,
+  message_compare msg msg = Eq.
+Proof.
+  intros. apply (proj1 message_compare_strict_order). reflexivity.
+Qed.
+
+Definition message_compare_asymmetric : CompareAsymmetric message_compare :=
+  compare_asymmetric_intro message message_compare message_compare_strict_order.
 
 Definition message_lt := compare_lt message_compare.
 

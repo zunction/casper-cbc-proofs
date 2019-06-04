@@ -1,3 +1,5 @@
+Require Import Casper.preamble.
+
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 
@@ -15,6 +17,28 @@ Inductive add_in_sorted : message -> state -> state -> Prop :=
           add_in_sorted msg (next msg' sigma) (next msg' sigma')
   .
 
+Fixpoint add_in_sorted_fn (msg: message) (sigma: state) : state :=
+  match msg, sigma with
+  | _, Empty => next msg Empty
+  | msg, add (c, v, j) to sigma' =>
+    match message_compare msg (c, v, j) with
+    | Eq => sigma
+    | Lt => next msg sigma
+    | Gt => next (c, v, j) (add_in_sorted_fn msg sigma')
+    end
+  end.
+
+Lemma add_in_sorted_next : forall msg1 msg2 sigma,
+  add_in_sorted_fn msg1 (next msg2 sigma) =
+    match message_compare msg1 msg2 with
+    | Eq => next msg2 sigma
+    | Lt => next msg1 (next msg2 sigma)
+    | Gt => next msg2 (add_in_sorted_fn msg1 sigma)
+    end.
+Proof.
+  intros msg1 [(c, v) j] sigma. reflexivity.
+Qed.
+
 Lemma add_in_empty : forall msg sigma,
   add_in_sorted msg Empty sigma -> sigma = (next msg Empty).
 Proof.
@@ -28,74 +52,56 @@ Proof.
   - reflexivity.
 Qed.
 
+Lemma add_in_sorted_function : RelationFunction2 add_in_sorted add_in_sorted_fn.
+Proof.
+  intros msg sigma1 sigma2; generalize dependent sigma2.
+  induction sigma1; intros; split; intros.
+  - apply add_in_empty in H. subst. reflexivity.
+  - simpl in H. subst. constructor.
+  - inversion H; subst; repeat rewrite add_is_next in *. 
+    + apply no_confusion_next in H2; destruct H2; subst; simpl.
+      rewrite message_compare_reflexive. reflexivity.
+    + apply no_confusion_next in H0; destruct H0; subst; simpl.
+      unfold message_lt in H2. unfold compare_lt in H2. rewrite H2. reflexivity.
+    + apply no_confusion_next in H0; destruct H0; subst; simpl.
+      unfold message_lt in H1. unfold compare_lt in H1.
+      apply message_compare_asymmetric in H1. rewrite H1.
+      apply IHsigma1_2 in H3. rewrite H3. reflexivity.
+  - simpl in H. destruct (message_compare msg (c, v, sigma1_1)) eqn:Hcmp; subst; repeat rewrite add_is_next.
+    + apply (proj1 message_compare_strict_order) in Hcmp; subst.
+      apply add_in_Next_eq.
+    + apply add_in_Next_lt. assumption.
+    + apply add_in_Next_gt.
+      * apply message_compare_asymmetric in Hcmp. assumption.
+      * apply IHsigma1_2. reflexivity.
+Qed.
+
 Lemma no_confusion_add_in_sorted_empty : forall msg sigma,
   ~ add_in_sorted msg sigma Empty.
 Proof.
-  unfold not. intros msg sigma Hadd.
-  inversion Hadd as
-    [ msg1 A B C 
-    | msg1 sig1 A B C
-    | msg1 sig1 sig2 H1 A B C
-    | msg1 sig1 sig2 H1 H2 A B D C
-    ]
-  ; subst
-  ; apply no_confusion_next_empty in C
-  ; assumption.
+  intros. intro.
+  apply add_in_sorted_function in H.
+  destruct sigma.
+  - simpl in H. apply (no_confusion_next_empty _ _ H).
+  - simpl in H. 
+    destruct (message_compare msg (c, v, sigma1))
+    ; rewrite add_is_next in *
+    ; apply (no_confusion_next_empty _ _ H)
+    .
 Qed.
 
-Theorem add_in_sorted_functional : forall msg sigma1 sigma2 sigma2',
+Lemma add_in_sorted_functional : forall msg sigma1 sigma2 sigma2',
   add_in_sorted msg sigma1 sigma2 ->
   add_in_sorted msg sigma1 sigma2' ->
   sigma2 = sigma2'.
 Proof.
-  intros. generalize dependent msg. generalize dependent sigma2. generalize dependent sigma2'.
-  induction sigma1 as [ | c1 v1 j1 _ ] ; intros sigma2' sigma2 [(c, v) j] AddA AddB.
-  - inversion AddA as 
-    [ [(ca, va) ja] A AEmpty C
-    | [(ca, va) ja] sigmaA A ANext C
-    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA smsg smsg' smsg1
-    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddA' A B C]
-    ; clear AddA; subst.
-    inversion AddB as 
-    [ [(cb, vb) jb] A BEmpty C
-    | [(cb, vb) jb] sigmaB A BNext C
-    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB A B C
-    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' A B C]
-    ; clear AddB; subst.
-    reflexivity.
-  - inversion AddA as 
-    [ [(ca, va) ja] AA AEmpty AC
-    | [(ca, va) ja] sigmaA AA ANext AC
-    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA AA AB AC
-    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddA' AA AB AC]
-    ; inversion AddB as 
-    [ [(cb, vb) jb] BA BEmpty BC
-    | [(cb, vb) jb] sigmaB BA BNext BC
-    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB BA BB BC
-    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' BA BB BC]
-    ;  clear AddA; clear AddB; subst
-    ; try reflexivity
-    ; try (apply (message_lt_transitive _ _ _ LTA) in LTB)
-    ; try (destruct (message_lt_irreflexive _ LTB))
-    ; try (destruct (message_lt_irreflexive _ LTA)).
-    apply (IHsigma1_1 _ _ _ AddA') in AddB'; subst.
-    reflexivity.
+  apply relation_function2_functional with add_in_sorted_fn.
+  apply add_in_sorted_function.
 Qed.
 
-Theorem add_in_sorted_total : forall msg sigma,
+Lemma add_in_sorted_total : forall msg sigma,
   exists sigma', add_in_sorted msg sigma sigma'.
 Proof.
-  intros. generalize dependent msg.
-  induction sigma as [ | sc sv sj _ ] 
-  ; intros [(c, v) j]
-  ; try (rewrite add_is_next in *).
-  - exists (next (c,v,j) Empty). apply add_in_Empty.
-  - destruct (message_lt_total_order (c,v,j) (sc,sv,sj)) as [Heq | [LT | GT]].
-    + inversion Heq; subst. exists (next (sc,sv,sj) sigma1).
-      apply add_in_Next_eq.
-    + exists (next (c,v,j) (next (sc, sv, sj) sigma1)).
-      apply add_in_Next_lt. apply LT.
-    + destruct (IHsigma1 (c, v, j)) as [sigma1' Hsigma1'].
-      exists (next (sc, sv, sj) sigma1').
-      apply add_in_Next_gt; assumption.
+  apply relation_function2_total with add_in_sorted_fn.
+  apply add_in_sorted_function.
 Qed.

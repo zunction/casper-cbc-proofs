@@ -33,14 +33,14 @@ Lemma sorted_subset_syntactic_inclusion : forall sigma sigma',
   sorted_subset sigma sigma' ->
   syntactic_state_inclusion sigma sigma'.
 Proof.
-  intros sigma sigma' H. induction H; intros.
+  unfold syntactic_state_inclusion.
+  intros sigma sigma' H. induction H; intros; repeat rewrite get_messages_next.
   - intros msg H. exfalso. apply (in_empty_state _ H).
-  - intros msg' H0. inversion H0; subst; clear H0. 
-    apply no_confusion_next in H1; destruct H1; subst.
-    destruct H3; subst.
-    + constructor. left. reflexivity.
-    + constructor. right. apply IHsorted_subset. assumption.
-  - constructor. right.  apply IHsorted_subset. assumption.
+  - intros msg' H0. 
+    destruct H0; subst.
+    + left. reflexivity.
+    + right. apply IHsorted_subset. assumption.
+  - intros msg' H'. right.  apply IHsorted_subset. assumption.
 Qed.
 
 
@@ -56,7 +56,7 @@ Proof.
   - destruct sigma.
     + constructor.
     + rewrite add_is_next in *. assert (H2 : in_state (c, v, sigma1) Empty).
-      { apply H1. constructor. left. reflexivity. }
+      { apply H1. left. reflexivity. }
       exfalso. apply (in_empty_state _ H2).
   - clear IHsigma'1. rewrite add_is_next in *.
     apply locally_sorted_tail in H0 as LSsigma'2.

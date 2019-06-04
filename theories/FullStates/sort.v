@@ -1,3 +1,5 @@
+Require Import Casper.preamble.
+
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.
@@ -14,6 +16,29 @@ Inductive sort : state -> state -> Prop :=
     sort sigma sigmas ->
     add_in_sorted (c,v,js) sigmas sigma' ->
     sort (next (c,v,j) sigma) sigma'.
+
+Fixpoint sort_fn (sigma : state) : state :=
+  match sigma with
+  | Empty => Empty
+  | add (c, v, j) to sigma' =>
+    add_in_sorted_fn (c, v, sort_fn j) (sort_fn sigma')
+  end.
+
+Lemma sort_function : RelationFunction sort sort_fn.
+Proof.
+  intros sigma sigma'. generalize dependent sigma'.
+  induction sigma; intros; split; intros.
+  - inversion H; subst. reflexivity.
+  - subst. simpl. constructor.
+  - rewrite add_is_next in H. inversion H; subst; clear H.
+    apply IHsigma1 in H5. apply IHsigma2 in H6.
+    apply add_in_sorted_function in H7.
+    subst. reflexivity.
+  - rewrite add_is_next. subst. apply Sort_next with (sort_fn sigma1) (sort_fn sigma2).
+    + apply IHsigma1. reflexivity.
+    + apply IHsigma2. reflexivity.
+    + apply add_in_sorted_function. reflexivity.
+Qed.
 
 Theorem sort_is_sorted : forall sigma sigmas,
   sort sigma sigmas -> locally_sorted sigmas.
@@ -36,14 +61,8 @@ Qed.
 
 Theorem sort_total : forall sigma, exists sigmas, sort sigma sigmas.
 Proof.
-  induction sigma.
-  - exists Empty. constructor.
-  - rename sigma1 into j. rename sigma2 into sigma.
-    destruct IHsigma1 as [js Hjs].
-    destruct IHsigma2 as [sigmas Hsigmas].
-    destruct (add_in_sorted_total (c, v, js) sigmas) as [sigma' Hsigma'].
-    exists sigma'. rewrite add_is_next .
-    apply Sort_next with js sigmas; assumption.
+  apply relation_function_total with sort_fn.
+  apply sort_function.
 Qed.
 
 Theorem sort_functional : forall sigma sigmas1 sigmas2,
@@ -51,15 +70,8 @@ Theorem sort_functional : forall sigma sigmas1 sigmas2,
   sort sigma sigmas2 ->
   sigmas1 = sigmas2.
 Proof.
-  induction sigma; intros; try rewrite add_is_next in *
-  ; inversion H0; subst; clear H0
-  ; inversion H; subst; clear H
-  .
-  - reflexivity.
-  - apply (IHsigma1 _ _ H6) in H5; subst; clear H6.
-    apply (IHsigma2 _ _ H7) in H9; subst; clear H7.
-    apply (add_in_sorted_functional _ _ _ _ H8) in H10; subst .
-    reflexivity.
+  apply relation_function_functional with sort_fn.
+  apply sort_function.
 Qed.
 
 Lemma sort_empty : forall sigma,
@@ -107,10 +119,8 @@ Theorem in_sorted_state_all : forall sigma sigmas,
 Proof.
   intros sigma sigmas H. unfold in_state_sorted. induction H; intros.
   - exfalso. apply (in_empty_state _ H).
-  - inversion H2; subst; clear H2.
-    rewrite add_is_next in H3.
-    apply no_confusion_next in H3; destruct H3; subst.
-    destruct H5; subst.
+  - rewrite in_state_iff in H2.
+    destruct H2; subst.
     + exists (c,v,js). split; try assumption.
       * apply message_sort_construct; assumption.
       * apply add_in_sorted_message_preservation with sigmas; assumption.
@@ -133,10 +143,10 @@ Proof.
     destruct H2; subst.
     + exists (c, v, j). split.
       * apply message_sort_construct; assumption.
-      * constructor. left. reflexivity.
+      * left. reflexivity.
     + apply IHsort2 in H2.
       destruct H2 as [js' [Hjs' Hin]].
       exists js'. split; try assumption.
-      constructor. right. assumption.
+      right. assumption.
 Qed.
 

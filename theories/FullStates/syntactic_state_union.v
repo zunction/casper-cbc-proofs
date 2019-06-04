@@ -32,29 +32,25 @@ Proof.
   - right; assumption.
   - destruct H; try assumption. 
     apply in_singleton_state in H; subst.
-    constructor; left; reflexivity.
-  - inversion H0; subst; clear H0.
-    apply no_confusion_next in H1; destruct H1; subst.
-    destruct H3; subst.
-    + left. constructor. left. reflexivity.
+    rewrite in_state_iff. left; reflexivity.
+  - rewrite in_state_iff in H0.
+    destruct H0; subst.
+    + left. rewrite in_state_iff. left; reflexivity.
     + right. assumption.
-  - constructor. destruct H0.
+  - rewrite in_state_iff. destruct H0.
     + apply in_singleton_state in H0; subst. left; reflexivity.
     + right. assumption.
-  - inversion H1; subst; clear H1.
-    apply no_confusion_next in H2; destruct H2; subst.
-    destruct H4; subst.
-    + right. constructor. left. reflexivity.
+  - rewrite in_state_iff in H1.
+    destruct H1; subst.
+    + right. rewrite in_state_iff. left. reflexivity.
     + apply IHadd_in_sorted in H1. 
       destruct H1. 
       * left; assumption.
-      * right; constructor; right; assumption.
-  - constructor. rewrite IHadd_in_sorted.
+      * right. rewrite in_state_iff. right; assumption.
+  - rewrite in_state_iff. rewrite IHadd_in_sorted.
     destruct H1.
     + right; left; assumption.
-    + inversion H1; subst; clear H1.
-      apply no_confusion_next in H2; destruct H2; subst.
-      destruct H4; subst.
+    + rewrite in_state_iff in H1. destruct H1; subst.
       * left; reflexivity.
       * right; right; assumption.  
 Qed.
@@ -74,33 +70,29 @@ Proof.
   split; intros.
   + apply (state_set_In _ _ _ H1) in H3 as Hlt12. 
     assert (Hin : in_state msg (next msg12 sigma12)).
-    { constructor; right; assumption. }
+    { apply in_state_iff; right; assumption. }
     apply H2 in Hin.
     destruct Hin as [Hin | Hin]
-    ; inversion Hin; subst
-    ; apply no_confusion_next in H5; destruct H5; subst
-    ; destruct H7; subst
+    ; apply in_state_iff in Hin
+    ; destruct Hin; subst
     .
     * exfalso; apply (message_lt_irreflexive _ Hlt12).
     * left; assumption.
-    * right; constructor; left; reflexivity.
-    * right; constructor; right; assumption.
+    * right; rewrite in_state_iff; left; reflexivity.
+    * right; rewrite in_state_iff; right; assumption.
   + assert (Hin : in_state msg (next msg12 sigma12)).
     { apply H2. destruct H3.
-      - left; constructor; right; assumption.
+      - left; rewrite in_state_iff; right; assumption.
       - right; assumption.
     }
-    inversion Hin; subst; clear Hin.
-    inversion H5; subst; clear H5.
-    apply no_confusion_next in H8; destruct H8; subst.
-    destruct H7; try assumption; subst.
+    rewrite in_state_iff in Hin.
+    destruct Hin; try assumption; subst.
     exfalso. destruct H3.
     * apply (state_set_In _ _ _ H) in H3. apply (message_lt_irreflexive _ H3).
-    * inversion H3; subst; clear H3.
-      apply no_confusion_next in H5; destruct H5; subst.
-      destruct H7; subst; apply message_lt_irreflexive with msg2; try assumption.
+    * apply in_state_iff in H3.
+      destruct H3; subst; apply message_lt_irreflexive with msg; try assumption.
       apply (state_set_In _ _ _ H0) in H3. 
-      apply (message_lt_transitive _ _ _ H3 Hlt122).
+      apply (message_lt_transitive _ _ _ Hlt122 H3).
 Qed.
 
 Lemma sorted_syntactic_state_union_decomposition : forall msg1 sigma1 msg2 sigma2 msg12 sigma12,
@@ -117,36 +109,31 @@ Lemma sorted_syntactic_state_union_decomposition : forall msg1 sigma1 msg2 sigma
 Proof.
   intros.
   assert (Hin1 : in_state msg1 (next msg12 sigma12)).
-  { apply H2. left. constructor. left. reflexivity. }
-  inversion Hin1; subst; clear Hin1.
-  apply no_confusion_next in H3; destruct H3; subst.
+  { apply H2. left. rewrite in_state_iff. left. reflexivity. }
+  rewrite in_state_iff in Hin1.
   assert (Hin2 : in_state msg2 (next msg12 sigma12)).
-  { apply H2. right. constructor. left. reflexivity. }
-  inversion Hin2; subst; clear Hin2.
-  apply no_confusion_next in H3; destruct H3; subst.
-  destruct H5; destruct H6; subst.
+  { apply H2. right. rewrite in_state_iff. left. reflexivity. }
+  rewrite in_state_iff in Hin2.
+  destruct Hin1; destruct Hin2; subst.
   - left. repeat (split; try reflexivity); intros.
     + apply (state_set_In _ _ _ H1) in H3 as Hlt.
-      assert (Hin : in_state msg (next msg12 sigma12)).
-      { constructor. right. assumption. }
+      assert (Hin : in_state msg (next msg2 sigma12)).
+      { rewrite in_state_iff. right. assumption. }
       apply H2 in Hin.
-      destruct Hin 
-      ; inversion H4; subst; clear H4
-      ; apply no_confusion_next in H5; destruct H5; subst
-      ; destruct H7; subst
+      destruct Hin as [Hin | Hin]
+      ; rewrite in_state_iff in Hin
+      ; destruct Hin; subst
       ; try (exfalso; apply (message_lt_irreflexive _ Hlt))
       .
       * left; assumption.
       * right; assumption.
-    + assert (Hin : in_state msg (next msg12 sigma12)).
+    + assert (Hin : in_state msg (next msg2 sigma12)).
       { apply H2. destruct H3.
-        - left; constructor; right; assumption.
-        - right; constructor; right; assumption.
+        - left; rewrite in_state_iff; right; assumption.
+        - right; rewrite in_state_iff; right; assumption.
       }
-      inversion Hin; subst; clear Hin.
-      inversion H4; subst; clear H4.
-      apply no_confusion_next in H7; destruct H7; subst.
-      destruct H6; try assumption; subst.
+      rewrite in_state_iff in Hin.
+      destruct Hin; try assumption; subst.
       exfalso. destruct H3.
       * apply (state_set_In _ _ _ H) in H3. apply (message_lt_irreflexive _ H3).
       * apply (state_set_In _ _ _ H0) in H3. apply (message_lt_irreflexive _ H3).
@@ -161,12 +148,11 @@ Proof.
   - apply (state_set_In _ _ _ H1) in H3.  apply (state_set_In _ _ _ H1) in H4.
     exfalso.
     assert (Hin : in_state msg12 (next msg12 sigma12)).
-    { constructor. left. reflexivity. }
+    { rewrite in_state_iff. left. reflexivity. }
     apply H2 in Hin.
     destruct Hin as [Hin | Hin]
-    ; inversion Hin as [a b c d e f]; subst; clear Hin
-    ; apply no_confusion_next in f; destruct f; subst
-    ; destruct d; subst
+    ; rewrite in_state_iff in Hin
+    ; destruct Hin; subst
     .
     + apply (message_lt_irreflexive _ H3).
     + apply (state_set_In _ _ _ H) in H5. apply (message_lt_irreflexive msg1).

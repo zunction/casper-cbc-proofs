@@ -167,14 +167,14 @@ Proof.
     + reflexivity.
     + simpl. rewrite compare_eq_refl; try reflexivity. apply (proj1 H).
     + simpl. rewrite H0. reflexivity.
-    + simpl. apply compare_assymetric in H0; try assumption. rewrite H0.
+    + simpl. apply compare_asymmetric_intro in H0; try assumption. rewrite H0.
       rewrite IHadd_in_sorted_list. reflexivity.
   - generalize dependent xxs. generalize dependent x. induction xs; intros.
     + simpl in H0; subst. constructor.
     + simpl in H0. destruct (compare x a) eqn:Hcmp; subst.
       * apply (proj1 H) in Hcmp; subst. constructor.
       * constructor. assumption.
-      * apply compare_assymetric in Hcmp; try assumption.
+      * apply compare_asymmetric_intro in Hcmp; try assumption.
         constructor; try assumption.
         apply IHxs. reflexivity.
 Qed.

@@ -27,10 +27,10 @@ Proof.
   unfold in_state_eq.
   destruct H0.
   - exists msg. split; try assumption.
-    constructor. left. reflexivity.
+    rewrite in_state_iff. left. reflexivity.
   - apply H in H0. destruct H0 as [msg0' [Hin Heq]].
     exists msg0'. split; try assumption.
-    constructor. right. assumption.
+    rewrite in_state_iff. right. assumption.
 Qed.
 
 Lemma state_inclusion_next_r : forall msg sigma sigma',
@@ -40,7 +40,7 @@ Proof.
   unfold state_inclusion. intros.
   apply H in H0. destruct H0 as [msg0' [Hin Heq]].
     exists msg0'. split; try assumption.
-    constructor. right. assumption.
+    rewrite in_state_iff. right. assumption.
 Qed.
 
 

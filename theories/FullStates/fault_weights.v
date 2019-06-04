@@ -21,59 +21,61 @@ Require Import Casper.FullStates.locally_sorted.
 (* equivocating_messages *)
 (*************************)
 
-Definition equivocating_messages (msg1 msg2 : message) : Prop :=
-  match msg1, msg2 with
-    (c1, v1, j1), (c2, v2, j2) =>
-      v1 = v2 /\
-      (c1 <> c2 \/ j1 <> j2) /\
-      not (in_state (c1,v1,j1) j2) /\
-      not (in_state (c2,v2,j2) j1)
-  end.
 
-Lemma equivocating_messages_dec : forall msg1 msg2,
-  equivocating_messages msg1 msg2 \/ ~ equivocating_messages msg1 msg2.
-Proof.
-  intros.
-  destruct msg1 as [(c1,v1) j1].
-  destruct msg2 as [(c2,v2) j2].
-  destruct (v_eq_dec v1 v2); subst.
-  - destruct (c_eq_dec c1 c2); subst.
-    + destruct (state_eq_dec j1 j2); subst.
-      * right. unfold not. intros.
-        inversion H. destruct H1. destruct H1. contradiction. contradiction.
-      * destruct (in_state_dec (c2,v2,j1) j2).
-        { right. unfold not. intros. inversion H0. destruct H2. destruct H3. contradiction. }
-        { destruct (in_state_dec (c2,v2,j2) j1). 
-           {right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
-           { left. constructor; try reflexivity. split.
-              { right. assumption. }
-              { split; assumption. }
-           }
-        }
-    + destruct (in_state_dec (c1,v2,j1) j2).
-      * right. intro. inversion H0. destruct H2. destruct H3. contradiction.
-      * destruct (in_state_dec (c2,v2,j2) j1).
-        { right. unfold not. intros. inversion H1. destruct H3. destruct H4. contradiction. }
-        { left. constructor; try reflexivity. split.
-          { left. assumption. }
-          { split; assumption. }
-        }
- - right. unfold not. intros. inversion H. contradiction.
-Qed.
+Definition equivocating_messages (msg1 msg2 : message) : bool :=
+  match message_eq_dec msg1 msg2 with
+  | left _ => false
+  | _ => match msg1, msg2 with (c1, v1, j1), (c2, v2, j2) =>
+      match v_eq_dec v1 v2 with
+      | left _ => negb (in_state_fn msg1 j2) && negb (in_state_fn msg2 j1)
+      | right _ => false
+      end
+    end
+  end.
 
 (******************************)
 (* equivocating_message_state *)
 (******************************)
 
-Inductive equivocating_message_state : message -> state -> Prop :=
-  | equivocating_message_state_head: forall msg1 msg2 sigma,
-      equivocating_messages msg1 msg2 ->
-      equivocating_message_state msg1 (next msg2 sigma)
-  | equivocating_message_state_tail: forall msg1 msg2 sigma,
-      ~ equivocating_messages msg1 msg2 ->
-      equivocating_message_state msg1 sigma ->
-      equivocating_message_state msg1 (next msg2 sigma)
- .
+
+Definition equivocating_message_state (msg : message) (sigma : state) : bool :=
+  existsb (equivocating_messages msg) (get_messages sigma).
+
+Lemma equivocating_message_state_incl : forall sigma sigma',
+  syntactic_state_inclusion sigma sigma' ->
+  forall msg,
+  equivocating_message_state msg sigma = true -> equivocating_message_state msg sigma' = true.
+Proof.
+  unfold equivocating_message_state. 
+  intros. rewrite existsb_exists in *. destruct H0 as [x [Hin Heq]]. exists x.
+  split; try assumption.
+  apply H. assumption.
+Qed.
+
+Definition equivocating_validators (sigma : state) : set V :=
+  set_map v_eq_dec validator (filter (fun msg => equivocating_message_state msg sigma) sigma).
+
+Lemma equivocating_validators_nodup : forall sigma,
+  NoDup (equivocating_validators sigma).
+Proof.
+  intros. apply set_map_nodup.
+Qed.
+
+Lemma equivocating_validators_incl : forall sigma sigma',
+  incl sigma sigma' ->
+  incl (equivocating_validators sigma) (equivocating_validators sigma').
+Proof.
+  intros.
+  apply set_map_incl. apply incl_tran with (filter (fun msg : message => equivocating_message_state msg sigma) sigma').
+  - apply filter_incl; assumption.
+  - apply filter_incl_fn. intro. apply equivocating_message_state_incl. assumption.
+Qed.
+
+Definition sum_weights : set V -> R := fold_right (fun v r => (weight v + r)%R) 0%R.
+
+Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_validators sigma).
+
+
 
 Lemma equivocating_message_state_empty : forall msg,
   ~ equivocating_message_state msg Empty.

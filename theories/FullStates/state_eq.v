@@ -156,9 +156,7 @@ Lemma in_state_eq_next : forall msg msg' sigma',
 Proof.
   unfold in_state_eq.
   intros. destruct H as [msg'' [Hin Heq]].
-  inversion Hin;  subst; clear Hin.
-  apply no_confusion_next in H; destruct H; subst.
-  destruct H1; subst.
+  rewrite in_state_iff in Hin; destruct Hin; subst.
   - left; assumption.
   - right.  exists msg''. split; assumption.
 Qed.

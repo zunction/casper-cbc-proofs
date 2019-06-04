@@ -67,8 +67,8 @@ Definition fault_tolerance_condition (sigma : state) : Prop :=
 Inductive protocol_state : state -> Prop :=
   | protocol_state_nil : protocol_state state_empty
   | protocol_state_cons : forall c v sigma sigma',
-      protocol_state sigma ->
-      valid_estimate_condition c sigma ->
+      protocol_state sigma -> (* 1 *)
+      valid_estimate_condition c sigma ->  (* 2 *)
       In (c, v, hash_state sigma) sigma' ->
       protocol_state (state_remove (c, v, hash_state sigma) sigma')  ->
       NoDup sigma' ->
