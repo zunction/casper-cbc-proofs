@@ -20,10 +20,17 @@ theories/FullStates/protocol_states.v
 theories/FullStates/common_futures.v
 theories/FullStates/consistent_decisions_prop_protocol_states.v
 theories/sorted_lists.v
+
+theories/ListExtras.v
+theories/ListSetExtras.v
+theories/LightStates/consensus_values.v
+theories/LightStates/validators.v
 theories/LightStates/hashes.v
 theories/LightStates/protocol_states.v
 theories/LightStates/messages.v
 theories/LightStates/states.v
 theories/LightStates/hash_state.v
 theories/LightStates/fault_weights.v
+theories/LightStates/common_futures.v
+theories/LightStates/consistent_decisions_prop_protocol_states.v
 
