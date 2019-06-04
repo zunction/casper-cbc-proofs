@@ -65,8 +65,6 @@ Qed.
 (* equivocating_message_state *)
 (******************************)
 
-(* work in progress *)
-
 Inductive equivocating_message_state : message -> state -> Prop :=
   | equivocating_message_state_head: forall msg1 msg2 sigma,
       equivocating_messages msg1 msg2 ->
@@ -270,7 +268,9 @@ Proof.
       apply (IHsorted_subset _ H4 _ H0).
 Qed.
 
+(* work in progress *)
 
+(*
 Lemma equivocating_validators_fold_subset : forall vs vs' sigma sigma',
   equivocating_validators sigma vs ->
   equivocating_validators sigma' vs' ->
@@ -280,17 +280,88 @@ Lemma equivocating_validators_fold_subset : forall vs vs' sigma sigma',
    fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs')
   )%R.
 Proof.
-  Admitted.
+  intros. generalize dependent vs'.
+  induction vs; intros; simpl.
+  - apply equivocating_validators_fold_nonnegative.
+  - apply (incl_tl a) in H1.
+    assert (H2 : incl vs (a :: vs)).
+    + apply incl_tl. apply incl_refl.
+    + apply (incl_tran H2) in H1.
+      apply IHvs in H. simpl in H.
+
+  induction H; intros.
+  - simpl. apply equivocating_validators_fold_nonnegative.
+  - 
+*)
+
+Lemma incl_split {A} : forall (a:A) (ls ls' ls1 ls2 : list A),
+  ls' = ls1 ++ a :: ls2 ->
+  incl (a :: ls) ls' ->
+  incl ls (ls1 ++ ls2).
+Admitted.
+
+Lemma equivocating_validators_fold_split : forall v vs vs1 vs2,
+  vs = vs1 ++ v :: vs2 ->
+  (fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs) =
+  weight v + fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight (vs1 ++ vs2)))%R.
+Admitted.
+(* 
+Proof.
+  intros. generalize dependent vs1. generalize dependent vs2.
+  induction vs; intros; simpl.
+  - symmetry in H.
+    apply app_eq_nil in H. destruct H; subst.
+    inversion H0.
+  - 
+*)
+
+Lemma equivocating_validators_fold_subset : forall vs vs',
+  incl vs vs' ->
+  (fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs) 
+    <=
+   fold_right (fun r1 r2 : R => r1 + r2) 0 (map weight vs')
+  )%R.
+Proof.
+  intros. generalize dependent vs'.
+  induction vs; intros; simpl.
+  - apply equivocating_validators_fold_nonnegative.
+  - assert (H' := H).
+    unfold incl in H'.
+    assert (H2 := H' a (in_eq a vs)). clear H'.
+    apply (in_split) in H2.
+    destruct H2. destruct H0.
+    apply (incl_split a vs vs' x x0 H0) in H.
+    apply IHvs in H.
+    rewrite (equivocating_validators_fold_split a vs' x x0 H0).
+    apply (Rplus_le_compat_l (weight a)).
+    assumption.
+Qed.
+
+
 (*
   intros. generalize dependent vs'.
   induction vs; intros; simpl.
   - apply equivocating_validators_fold_nonnegative.
-  - apply (incl_tl a) in H.
+  - assert (H' := H). unfold incl in H'.
+    assert (H'1 := H' a (in_eq a vs)).
+    apply (incl_tl a) in H.
     assert (H1 : incl vs (a :: vs)).
     + apply incl_tl. apply incl_refl.
     + apply (incl_tran H1) in H.
+      apply IHvs in H as H2. simpl in H2.
+      apply (Rplus_le_compat_l (weight a)) in H2.
+*)     
+
+
+(*
       apply IHvs in H. simpl in H.
+  intros. generalize dependent vs.
+  induction vs'; intros; simpl.
+  -  apply incl_nil in H; subst. simpl. apply Rle_refl.
+  -
 *)
+
+
 
 
 (**********************)
