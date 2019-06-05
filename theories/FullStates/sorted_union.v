@@ -167,7 +167,7 @@ Qed.
 
 Lemma sorted_union_subset_left : forall sigma1 sigma2 sigma,
   sorted_union sigma1 sigma2 sigma ->
-  sigma in_Futures sigma1.
+  sorted_subset sigma1 sigma.
 Proof.
   intros sigma1 sigma2 sigma HUnion.
   induction HUnion
@@ -178,7 +178,7 @@ Qed.
 
 Corollary sorted_union_subset_right : forall sigma1 sigma2 sigma,
   sorted_union sigma1 sigma2 sigma ->
-  sigma in_Futures sigma2.
+  sorted_subset sigma2 sigma.
 Proof.
   intros. apply sorted_union_commutative in H.
   apply sorted_union_subset_left with sigma1; assumption.
@@ -187,7 +187,7 @@ Qed.
 
 Lemma sorted_union_subset : forall sigmas sigma,
   reduce_rel sorted_union sigmas sigma ->
-  Forall (Reachable sigma) sigmas.
+  Forall (fun sigma' => sorted_subset sigma' sigma) sigmas.
 Proof.
   intros. destruct sigmas.
   - inversion H.
@@ -196,15 +196,13 @@ Proof.
       ; try apply sorted_subset_reflexive.
       apply IHsigmas in H2.
       apply sorted_union_subset_right in H4.
-      unfold Reachable in *.
       apply (sorted_subset_transitive s fl sigma); assumption.
     + generalize dependent sigma. induction sigmas; intros; inversion H; clear H; subst; try constructor.
       * apply sorted_union_subset_left in H4. apply H4.
       * apply IHsigmas in H2.
-        apply (Forall_impl (Reachable sigma)) in H2; try assumption.
+        apply Forall_impl with (fun sigma' : state => sorted_subset sigma' fl); try assumption.
         intros.
         apply sorted_union_subset_right in H4.
-        unfold Reachable in *.
         apply (sorted_subset_transitive a0 fl sigma); assumption.
 Qed.
 

@@ -11,9 +11,8 @@ Require Import Casper.FullStates.protocol_states.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 
-Require Import Casper.FullStates.sorted_subset.
 Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.sorted_union.
+Require Import Casper.FullStates.state_union.
 
 Require Import Casper.FullStates.common_futures.
 
@@ -24,43 +23,21 @@ Definition decided (q : state -> Prop) (sigma : state) : Prop := forall sigma',
   sigma' in_Futures sigma ->
   q sigma'.
 
-(*
-Inductive decided' : (state -> Prop) -> state -> Prop :=
-  is_decided : forall (p : state -> Prop) sigma,
-    (forall sigma',
-      sigma' in_Futures sigma ->
-      p sigma'
-    ) ->
-    decided' p sigma.
-
-Lemma decided2 : forall (p : state -> Prop) sigma,
-  decided p sigma <-> decided' p sigma.
-Proof.
-  intros. split; intros.
-  - unfold decided in H. constructor. assumption.
-  - inversion H; subst. unfold decided. assumption.
-Qed.
-*)
-
 (* Forward consistency *)
 Lemma forward_consistency : forall sigma sigma' q,
-  protocol_state(sigma) ->
-  protocol_state(sigma') ->
   sigma' in_Futures sigma ->
   decided q sigma ->
   decided q sigma'.
 Proof.
   unfold decided in *. intros.
-  apply H2.
-  apply (sorted_subset_transitive _ _ _ H1 H3).
+  apply H0. apply in_Futures_trans with sigma'; assumption.
 Qed.
 
 
 (* n-party consensus safety for properties of protocol states  *)
-Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas sigma,
+Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas,
   Forall protocol_state sigmas ->
-  reduce_rel sorted_union sigmas sigma ->
-  fault_tolerance_condition sigma ->
+  fault_tolerance_condition (fold_right state_union Empty sigmas) ->
   exists sigma',
     protocol_state(sigma') /\
     forall (q : state -> Prop),
@@ -69,13 +46,14 @@ Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigm
   .
 Proof.
   intros.
-  destruct (n_party_common_futures _ _ H H0 H1) as [sigma' CF]. destruct CF.
+  destruct (n_party_common_futures _ H H0) as [sigma' [Hps' HinFutures]].
   exists sigma'.
   split; try assumption.
   intros.
-  apply Exists_exists in H4.
-  destruct H4 as [sigma0 H5]. destruct H5.
-  apply H5.
-  rewrite Forall_forall in H3.
-  apply (H3 sigma0 H4).
+  apply Exists_exists in H1.
+  destruct H1 as [sigma0 [Hin Hdecided]].
+  apply Hdecided.
+  rewrite Forall_forall in HinFutures.
+  apply HinFutures.
+  assumption.
 Qed.

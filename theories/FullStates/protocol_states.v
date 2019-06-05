@@ -126,21 +126,6 @@ Proof.
   apply fault_weight_state_incl; assumption.
 Qed.
 
-Definition list_to_state (msgs : list message) : state :=
-  fold_right add_in_sorted_fn Empty msgs.
-
-Lemma list_to_state_iff : forall msgs : list message,
-  set_eq (get_messages (list_to_state msgs)) msgs.
-Proof.
-  induction msgs; intros.
-  - simpl. split; apply incl_refl.
-  - simpl. apply set_eq_tran with (a :: (get_messages (list_to_state msgs))).
-    + apply set_eq_add_in_sorted.
-    + apply set_eq_cons. assumption.
-Qed.
-
-Definition state_union (sigma1 sigma2 : state) : state :=
-  (list_to_state (messages_union (get_messages sigma1) (get_messages sigma2))).
 
 (* 
 Lemma fault_tolerance_condition_backwards : forall msg sigma sigma',
@@ -176,14 +161,13 @@ Qed. *)
 (** Protocol states **)
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
-  | protocol_state_next : forall c v sigma sigma' sigma'',
+  | protocol_state_next : forall c v sigma sigma',
       protocol_state sigma -> (* 1 *)
       protocol_state sigma' ->
-      full_node_condition sigma sigma' ->
+      syntactic_state_inclusion sigma sigma' ->
       valid_estimate_condition c sigma ->
-      add_in_sorted (c, v, sigma) sigma' sigma'' ->
-      fault_tolerance_condition sigma'' ->
-      protocol_state sigma''
+      fault_tolerance_condition (add_in_sorted_fn (c, v, sigma) sigma') ->
+      protocol_state (add_in_sorted_fn (c, v, sigma) sigma')
   .
 
 Theorem protocol_state_sorted : forall state,
@@ -194,7 +178,8 @@ Proof.
   induction H.
   - constructor.
   - apply (add_in_sorted_sorted (c, v, sigma) sigma'); try assumption.
-  apply locally_sorted_message_justification. assumption.
+    + apply locally_sorted_message_justification. assumption.
+    + apply add_in_sorted_function. reflexivity.
 Qed.
 
 Lemma protocol_state_nodup : forall sigma,
@@ -213,14 +198,18 @@ Proof.
   Admitted.
 
 
+Definition Reachable sigma1 sigma2 :=
+  protocol_state sigma1 /\ protocol_state sigma2 /\ syntactic_state_inclusion sigma1 sigma2.
 
+Notation "sigma2 'in_Futures' sigma1" :=
+  (Reachable sigma1 sigma2)
+  (at level 20).
 
-
-
-
-
-
-
-
-
-
+Lemma in_Futures_trans : forall sigma1 sigma2 sigma3,
+  sigma1 in_Futures sigma2 ->
+  sigma2 in_Futures sigma3 ->
+  sigma1 in_Futures sigma3.
+Proof.
+  intros. destruct H as [Hps2 [Hps1 Hincl21]]. destruct H0 as [Hps3 [_ Hincl32]].
+  repeat (split; try assumption). apply incl_tran with (get_messages sigma2); assumption.
+Qed.

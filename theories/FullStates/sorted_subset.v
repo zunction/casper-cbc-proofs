@@ -19,16 +19,6 @@ Inductive sorted_subset : state -> state -> Prop :=
           sorted_subset sigma (next msg sigma')
   .
 
-(* Notation "sigma1 '=>' sigma2" :=
-  (sorted_subset sigma1 sigma2)
-  (at level 20).
- *)
-Notation "sigma2 'in_Futures' sigma1" :=
-  (sorted_subset sigma1 sigma2)
-  (at level 20).
-
-Definition Reachable (sigma' : state) := (fun sigma => sigma' in_Futures sigma).
-
 Lemma sorted_subset_syntactic_inclusion : forall sigma sigma',
   sorted_subset sigma sigma' ->
   syntactic_state_inclusion sigma sigma'.
@@ -96,7 +86,7 @@ Proof.
 Qed.
 
 Lemma sorted_subset_empty : forall sigma,
-  Empty in_Futures sigma -> sigma = Empty.
+  sorted_subset sigma Empty -> sigma = Empty.
 Proof.
   intros.
   inversion H as

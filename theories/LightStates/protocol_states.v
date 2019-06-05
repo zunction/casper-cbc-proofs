@@ -135,7 +135,6 @@ Notation "sigma2 'in_Futures' sigma1" :=
   (Reachable sigma1 sigma2)
   (at level 20).
 
-
 Lemma in_Futures_trans : forall sigma1 sigma2 sigma3,
   sigma1 in_Futures sigma2 ->
   sigma2 in_Futures sigma3 ->

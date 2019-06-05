@@ -23,6 +23,9 @@ Fixpoint get_messages (sigma : state) : list message :=
   | add (c, v, j) to sigma' => (c,v,j) :: get_messages sigma'
   end.
 
+Definition state_in (msg : message) (sigma : state) : Prop :=
+  In msg (get_messages sigma).
+
 Definition next (msg : message) (sigma : state) : state :=
   match msg with
   | (c, v, j) => add (c, v, j) to sigma

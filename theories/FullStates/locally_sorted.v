@@ -124,6 +124,18 @@ Proof.
   - assumption.
 Qed.
 
+Lemma locally_sorted_all : forall sigma,
+  locally_sorted sigma ->
+  Forall locally_sorted_msg (get_messages sigma).
+Proof.
+  intros. rewrite Forall_forall. induction H; simpl; intros msg Hin.
+  - inversion Hin.
+  - destruct Hin as [Hin | Hin] ; subst; try inversion Hin.
+    apply locally_sorted_message_justification. assumption.
+  - destruct Hin as [Heq | Hin]; subst.
+    + apply locally_sorted_message_justification. assumption.
+    + apply IHlocally_sorted2. assumption.
+Qed.
 
 Theorem add_in_sorted_sorted : forall msg sigma sigma',
   locally_sorted sigma ->

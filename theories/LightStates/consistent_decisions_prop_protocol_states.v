@@ -28,7 +28,7 @@ Lemma forward_consistency : forall sigma sigma' q,
   decided q sigma'.
 Proof.
   unfold decided in *. intros.
-  apply H2. apply in_Futures_trans with sigma'; assumption.
+  apply H0. apply in_Futures_trans with sigma'; assumption.
 Qed.
 
 
