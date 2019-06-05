@@ -157,7 +157,7 @@ Proof.
   - inversion H0; subst; clear H0; apply IHl in H3; simpl; rewrite H3; clear H3;
     (apply H in H5 || apply (predicate_function_neg _ _ _ H) in H5)
     ; rewrite H5; reflexivity.
-  - simpl in H0.  remember (fold_right rel_fn def l). apply IHl in Heqy as Hfold.
+  - simpl in H0.  remember (fold_right rel_fn def l). apply IHl in Heqb as Hfold.
     apply H in H0. subst. apply fold_cons with (fold_right rel_fn def l); assumption.
 Qed.
 
