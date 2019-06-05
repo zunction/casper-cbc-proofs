@@ -1,13 +1,19 @@
 PYTHON=python2.7
 
-all: coq_build
+results: \
+    theories/FullStates/common_futures.vo \
+    theories/FullStates/consistent_decisions_prop_protocol_states.vo \
+    theories/LightStates/common_futures.vo \
+    theories/LightStates/consistent_decisions_prop_protocol_states.vo \
+    theories/LightStates/non_triviality_decisions_prop_protocol_states.vo
 
-coq_build: Makefile.coq
+all: Makefile.coq
 	+$(MAKE) -f Makefile.coq all
 
 
-graph.dpd: coq_build
-	coqtop -Q theories Casper < dependency_graph.v
+graph.dpd: theories/dependency_graph.v
+	+$(MAKE) -f Makefile.coq theories/dependency_graph.vo
+
 
 %.dot: %.dpd
 	dpd2dot $<
@@ -28,4 +34,4 @@ _CoqProject Makefile: ;
 %: Makefile.coq
 	+$(MAKE) -f Makefile.coq $@
 
-.PHONY: all clean coq_build
+.PHONY: all clean results

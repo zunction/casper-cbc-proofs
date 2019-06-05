@@ -10,19 +10,17 @@ theories/FullStates/add_in_sorted.v
 theories/FullStates/locally_sorted.v
 theories/FullStates/in_state.v
 theories/FullStates/syntactic_state_inclusion.v
-theories/FullStates/sort.v
-theories/FullStates/state_eq.v
-theories/FullStates/state_inclusion.v
-theories/FullStates/sorted_subset.v
-theories/FullStates/syntactic_state_union.v
-theories/FullStates/sorted_union.v
 theories/FullStates/list_to_state.v
 theories/FullStates/state_union.v
 theories/FullStates/fault_weights.v
 theories/FullStates/protocol_states.v
 theories/FullStates/common_futures.v
 theories/FullStates/consistent_decisions_prop_protocol_states.v
-theories/sorted_lists.v
+
+theories/FullStates/adequacy/sort.v
+theories/FullStates/adequacy/sorted_subset.v
+theories/FullStates/adequacy/state_eq.v
+theories/FullStates/adequacy/state_inclusion.v
 
 theories/ListExtras.v
 theories/ListSetExtras.v
@@ -38,3 +36,5 @@ theories/LightStates/fault_weights.v
 theories/LightStates/common_futures.v
 theories/LightStates/consistent_decisions_prop_protocol_states.v
 theories/LightStates/non_triviality_decisions_prop_protocol_states.v
+
+theories/dependency_graph.v

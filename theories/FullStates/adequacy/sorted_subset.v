@@ -5,7 +5,9 @@ Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.syntactic_state_inclusion.
-Require Import Casper.FullStates.state_inclusion.
+Require Import Casper.FullStates.adequacy.state_inclusion.
+Require Import Casper.FullStates.adequacy.state_eq.
+Require Import Casper.FullStates.adequacy.sort.
 Require Import Casper.FullStates.add_in_sorted.
 
 Inductive sorted_subset : state -> state -> Prop :=
@@ -149,3 +151,41 @@ Proof.
   apply syntactic_inclusion_sorted_subset; try assumption.
 Qed.
 
+Lemma inclusion_state_eq : forall sigma1 sigma2,
+  state_inclusion sigma1 sigma2 ->
+  state_inclusion sigma2 sigma1 ->
+  state_eq sigma1 sigma2.
+Proof.
+  intros.
+  destruct (sort_total sigma1) as [sigma1s Hsort1].
+  destruct (sort_total sigma2) as [sigma2s Hsort2].
+  apply sort_is_sorted in Hsort1 as Hsigma1s.
+  apply sort_is_sorted in Hsort2 as Hsigma2s.
+  apply sort_state_eq in Hsort1.
+  apply sort_state_eq in Hsort2.
+  apply state_eq_inclusion in Hsort1 as Hinsigma1s.
+  apply state_eq_symmetric in Hsort1.
+  apply state_eq_inclusion in Hsort1 as Hinsigma1s'.
+
+  apply state_eq_inclusion in Hsort2 as Hinsigma2s.
+  apply state_eq_symmetric in Hsort2.
+  apply state_eq_inclusion in Hsort2 as Hinsigma2s'.
+
+  apply (state_inclusion_transitive _ _ _ H) in Hinsigma2s.
+  apply (state_inclusion_transitive _ _ _ Hinsigma1s') in Hinsigma2s.
+  apply (state_inclusion_transitive _ _ _ H0) in Hinsigma1s.
+  apply (state_inclusion_transitive _ _ _ Hinsigma2s') in Hinsigma1s.
+  clear H. clear H0. clear Hinsigma1s'. clear Hinsigma2s'.
+  
+  apply sorted_subset_inclusion in Hinsigma1s; try assumption.
+  apply sorted_subset_inclusion in Hinsigma2s; try assumption.
+
+  apply sorted_subset_syntactic_inclusion in Hinsigma1s.
+  apply sorted_subset_syntactic_inclusion in Hinsigma2s.
+
+  apply sorted_syntactic_state_inclusion_equality_predicate in Hinsigma2s
+  ; try assumption.
+  subst.
+  apply state_eq_symmetric in Hsort1.
+  apply (state_eq_transitive _ _ _ Hsort1 Hsort2).
+Qed.

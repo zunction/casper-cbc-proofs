@@ -6,7 +6,7 @@ Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.syntactic_state_inclusion.
-Require Import Casper.FullStates.sort.
+Require Import Casper.FullStates.adequacy.sort.
 
 
 (** State and message equality (as sets) **)

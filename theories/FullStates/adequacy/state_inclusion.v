@@ -6,9 +6,8 @@ Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.syntactic_state_inclusion.
-Require Import Casper.FullStates.sort.
-Require Import Casper.FullStates.state_eq.
-
+Require Import Casper.FullStates.adequacy.sort.
+Require Import Casper.FullStates.adequacy.state_eq.
 
 Definition state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
   forall msg, in_state_eq msg sigma1 -> in_state_eq msg sigma2.
