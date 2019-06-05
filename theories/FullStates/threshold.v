@@ -1,3 +1,5 @@
+Require Import List.
+
 Require Import Coq.Reals.Reals.
 
 (************************************************************)
@@ -7,5 +9,3 @@ Require Import Coq.Reals.Reals.
 Parameter t : R.
 
 Parameter threshold_nonnegative : (t >= 0)%R .
-
-(** TODO: Strictly smaller than the total validator weigths **)

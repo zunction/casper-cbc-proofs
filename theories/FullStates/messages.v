@@ -3,8 +3,8 @@ Require Import List.
 Import ListNotations.
 
 Require Import Casper.preamble.
-Require Import Casper.consensus_values.
-Require Import Casper.validators.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.states.
 
 (**************)

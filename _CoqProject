@@ -1,9 +1,9 @@
 -Q theories Casper
 theories/RealsExtras.v
 theories/preamble.v
-theories/consensus_values.v
-theories/validators.v
-theories/threshold.v
+theories/FullStates/consensus_values.v
+theories/FullStates/validators.v
+theories/FullStates/threshold.v
 theories/FullStates/states.v
 theories/FullStates/messages.v
 theories/FullStates/add_in_sorted.v
@@ -26,6 +26,7 @@ theories/ListExtras.v
 theories/ListSetExtras.v
 theories/LightStates/consensus_values.v
 theories/LightStates/validators.v
+theories/LightStates/threshold.v
 theories/LightStates/hashes.v
 theories/LightStates/protocol_states.v
 theories/LightStates/messages.v

@@ -16,7 +16,7 @@ Require Import Casper.ListSetExtras.
 
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
-Require Import Casper.threshold.
+Require Import Casper.LightStates.threshold.
 Require Import Casper.LightStates.hashes.
 
 (** Messages **)

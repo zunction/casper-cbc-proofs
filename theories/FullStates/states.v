@@ -4,10 +4,10 @@ From Casper
 Require Import preamble.
 
 From Casper
-Require Import consensus_values.
+Require Import FullStates.consensus_values.
 
 From Casper
-Require Import validators.
+Require Import FullStates.validators.
 
 
 
