@@ -114,6 +114,22 @@ Proof.
       assumption.
 Qed.
 
+Lemma locally_sorted_nodup : forall sigma,
+  locally_sorted sigma ->
+  NoDup (get_messages sigma).
+Proof.
+  intros. induction H.
+  - simpl. constructor.
+  - rewrite get_messages_next. simpl. constructor; try constructor.
+    intro. inversion H0.
+  - rewrite get_messages_next. constructor; try assumption.
+    intro. rewrite get_messages_next in H2. destruct H2; subst.
+    + apply (message_lt_irreflexive _ H0).
+    + apply (state_set_In _ msg' sigma) in H2; try assumption.
+      apply (message_lt_irreflexive msg').
+      apply (message_lt_transitive _ _ _ H2 H0).
+Qed.
+
 Lemma add_sorted : forall sigma msg, 
   locally_sorted sigma -> 
   in_state msg sigma -> 

@@ -1,10 +1,11 @@
 Require Import Coq.Classes.RelationClasses.
 Require Import List.
+Require Import Coq.Lists.ListSet.
 Import ListNotations.
 
 Require Import Casper.preamble.
-Require Import Casper.consensus_values.
-Require Import Casper.validators.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.states.
 
 (**************)
@@ -12,6 +13,9 @@ Require Import Casper.FullStates.states.
 (**************)
 
 Definition message := (C * V * state)%type.
+
+Definition validator (msg : message) : V :=
+  match msg with (_, v, _) => v end.
 
 Fixpoint get_messages (sigma : state) : list message :=
   match sigma with
@@ -91,3 +95,6 @@ Definition message_lt_total_order: TotalOrder message_lt :=
 
 Definition message_eq_dec : forall x y : message, {x = y} + {x <> y} :=
   compare_eq_dec message message_compare message_compare_strict_order.
+
+Definition messages_union : set message -> set message -> set message :=
+  set_union message_eq_dec.

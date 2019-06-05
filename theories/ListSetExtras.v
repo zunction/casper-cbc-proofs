@@ -30,6 +30,22 @@ Proof.
   intros; split; intro; destruct H; split; assumption.
 Qed.
 
+Lemma set_eq_tran {A} : forall s1 s2 s3 : set A,
+  set_eq s1 s2 ->
+  set_eq s2 s3 ->
+  set_eq s1 s3.
+Proof.
+  intros. split; apply incl_tran with s2; apply H || apply H0.
+Qed.
+
+Lemma set_eq_cons {A} : forall (a : A) (s1 s2 : set A),
+  set_eq s1 s2 ->
+  set_eq (a :: s1) (a :: s2).
+Proof.
+  intros. split; intros x Hin; destruct Hin; subst
+  ; (left; reflexivity) || (right; apply H; assumption).
+Qed.
+
 Lemma set_union_comm {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall s1 s2,
   set_eq (set_union Aeq_dec s1 s2) (set_union Aeq_dec s2 s1).
 Proof.

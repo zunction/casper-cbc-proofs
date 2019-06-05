@@ -21,7 +21,7 @@ Theorem union_protocol_2states : forall sigma1 sigma2 sigma,
   protocol_state sigma1 ->
   protocol_state sigma2 ->
   sorted_union sigma1 sigma2 sigma ->
-  fault_tolerance_condition sigma ->
+  fault_tolerance_condition ->
   protocol_state sigma.
 Proof.
   intros sig1 sig2 sig H1. generalize dependent sig. generalize dependent sig2.

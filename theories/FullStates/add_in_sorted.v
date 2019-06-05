@@ -1,4 +1,9 @@
+Require Import List.
+Require Import Coq.Lists.ListSet.
+Import ListNotations.
+
 Require Import Casper.preamble.
+Require Import Casper.ListSetExtras.
 
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
@@ -27,6 +32,30 @@ Fixpoint add_in_sorted_fn (msg: message) (sigma: state) : state :=
     | Gt => next (c, v, j) (add_in_sorted_fn msg sigma')
     end
   end.
+
+Lemma set_eq_add_in_sorted : forall msg sigma,
+  set_eq (get_messages (add_in_sorted_fn msg sigma)) (msg :: (get_messages sigma)).
+Proof.
+  induction sigma.
+  - simpl. rewrite get_messages_next. simpl. split; apply incl_refl.
+  - clear IHsigma1. simpl.
+    destruct (message_compare msg (c, v, sigma1)) eqn:Hcmp.
+    + simpl. apply (proj1 message_compare_strict_order) in Hcmp. subst.
+      split; intros x H.
+      * right. assumption.
+      * destruct H; try assumption; subst. left. reflexivity.
+    + rewrite get_messages_next. simpl. split; apply incl_refl.
+    + simpl. split; intros x Hin.
+      * destruct Hin; try (right; left; assumption).
+        apply IHsigma2 in H. destruct H; try (left; assumption).
+        right; right; assumption.
+      * { destruct Hin as [Hmsg | [H1 | H2]]
+        ; (left; assumption) || (right; apply IHsigma2)
+        .
+        - left; assumption.
+        - right; assumption.
+        }
+Qed.
 
 Lemma add_in_sorted_next : forall msg1 msg2 sigma,
   add_in_sorted_fn msg1 (next msg2 sigma) =

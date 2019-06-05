@@ -1,3 +1,5 @@
+Require Import List.
+
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.
@@ -181,5 +183,3 @@ Proof.
   - constructor.
   - constructor. assumption.
 Qed.
-
-

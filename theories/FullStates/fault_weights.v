@@ -1,16 +1,20 @@
 Require Import Coq.Reals.Reals.
 Require Import List.
+Require Import Coq.Lists.ListSet.
 Import ListNotations.
 
 Require Import Casper.preamble.
-Require Import Casper.sorted_lists.
-Require Import Casper.validators.
-Require Import Casper.consensus_values.
+Require Import Casper.ListExtras.
+Require Import Casper.ListSetExtras.
+
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.sorted_subset.
+Require Import Casper.FullStates.syntactic_state_inclusion.
 Require Import Casper.FullStates.locally_sorted.
 
 (****************************)
@@ -53,7 +57,9 @@ Proof.
 Qed.
 
 Definition equivocating_validators (sigma : state) : set V :=
-  set_map v_eq_dec validator (filter (fun msg => equivocating_message_state msg sigma) sigma).
+  set_map v_eq_dec validator
+    (filter (fun msg => equivocating_message_state msg sigma)
+      (get_messages sigma)).
 
 Lemma equivocating_validators_nodup : forall sigma,
   NoDup (equivocating_validators sigma).
@@ -62,11 +68,11 @@ Proof.
 Qed.
 
 Lemma equivocating_validators_incl : forall sigma sigma',
-  incl sigma sigma' ->
+  syntactic_state_inclusion sigma sigma' ->
   incl (equivocating_validators sigma) (equivocating_validators sigma').
 Proof.
   intros.
-  apply set_map_incl. apply incl_tran with (filter (fun msg : message => equivocating_message_state msg sigma) sigma').
+  apply set_map_incl. apply incl_tran with (filter (fun msg : message => equivocating_message_state msg sigma) (get_messages sigma')).
   - apply filter_incl; assumption.
   - apply filter_incl_fn. intro. apply equivocating_message_state_incl. assumption.
 Qed.
@@ -76,7 +82,57 @@ Definition sum_weights : set V -> R := fold_right (fun v r => (weight v + r)%R) 
 Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_validators sigma).
 
 
+Lemma sum_weights_in : forall v vs,
+  NoDup vs ->
+  In v vs ->
+  sum_weights vs = (weight v + sum_weights (set_remove v_eq_dec v vs))%R.
+Proof.
+  induction vs; intros; inversion H0; subst; clear H0.
+  - inversion H; subst; clear H. simpl. apply Rplus_eq_compat_l.
+    destruct (eq_dec_left v_eq_dec v). rewrite H. reflexivity.
+  - inversion H; subst; clear H. simpl. assert (Hav := H3). apply (in_not_in _ _ _ _ H1) in Hav.
+    destruct (v_eq_dec v a); try (exfalso; apply Hav; assumption). simpl.
+    rewrite <- Rplus_assoc. rewrite (Rplus_comm (weight v) (weight a)). rewrite Rplus_assoc. 
+    apply Rplus_eq_compat_l. apply IHvs; assumption.
+Qed.
 
+Lemma sum_weights_incl : forall vs vs',
+  NoDup vs ->
+  NoDup vs' ->
+  incl vs vs' ->
+  (sum_weights vs <= sum_weights vs')%R.
+Proof.
+  intros vs vs'. generalize dependent vs.
+  induction vs'; intros.
+  - apply incl_empty in H1; subst. apply Rle_refl.
+  - inversion H0; subst; clear H0.
+    destruct (in_dec v_eq_dec a vs).
+    + apply sum_weights_in in i. rewrite i. simpl.
+      apply Rplus_le_compat_l. apply IHvs'.
+      * apply (set_remove_nodup v_eq_dec a). assumption.
+      * assumption.
+      * intros x Hrem. apply set_remove_iff in Hrem; try assumption.
+        destruct Hrem as [Hin Hxa].
+        apply H1 in Hin. destruct Hin; try assumption.
+        exfalso; subst. apply Hxa. reflexivity.
+      * assumption.
+    + simpl. apply Rle_trans with (sum_weights vs').
+      * apply IHvs'; try assumption.
+        intros x Hin. apply H1 in Hin as Hin'. destruct Hin'; try assumption.
+        exfalso; subst. apply n. assumption.
+      * rewrite <- Rplus_0_l at 1. apply Rplus_le_compat_r. left. apply weight_positive.
+Qed.
+
+Lemma fault_weight_state_incl : forall sigma sigma',
+  syntactic_state_inclusion sigma sigma' ->
+  (fault_weight_state sigma <= fault_weight_state sigma')%R.
+Proof.
+  intros. apply sum_weights_incl; try apply equivocating_validators_nodup.
+  apply equivocating_validators_incl. assumption.
+Qed.
+
+
+(* 
 Lemma equivocating_message_state_empty : forall msg,
   ~ equivocating_message_state msg Empty.
 Proof.
@@ -467,3 +523,4 @@ Proof.
   apply (add_in_sorted_sorted_subset _ _ _ H H0) in H1.
   apply (fault_weight_state_sorted_subset sigma sigma' r1 r2); assumption.
 Qed.
+ *)

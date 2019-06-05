@@ -39,6 +39,9 @@ Proof.
   intros. inversion H. assumption.
 Qed.
 
+Definition predicate_not {A} (p : A -> Prop) : A -> Prop :=
+  fun a => ~ p a.
+
 Class PredicateFunction {A} (r : A -> Prop) (r_fn : A -> bool) : Prop :=
   predicate_function : forall a, r a <-> r_fn a = true.
 

@@ -1,10 +1,13 @@
 Require Import Coq.Reals.Reals.
+Require Import List.
+Require Import Coq.Lists.ListSet.
 Require Import Coq.Sorting.Sorted.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Structures.Orders.
 
 Require Import Casper.preamble.
+Require Import Casper.ListSetExtras.
 
 (**
   TODO: Prove that all Inductive defining functions yield total functions.
@@ -15,9 +18,9 @@ Require Import Casper.preamble.
 
 (** Parameters of the protocol **)
 
-Require Import Casper.consensus_values.
-Require Import Casper.validators.
-Require Import Casper.threshold.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.threshold.
 
 
 (** Messages and States **)
@@ -109,10 +112,37 @@ Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
 
 (** The fault tolerance condition **)
 Definition fault_tolerance_condition (sigma : state) : Prop :=
-  forall r,
-  fault_weight_state sigma r ->
-  (r <= t)%R.
+  (fault_weight_state sigma <= t)%R.
 
+
+Lemma fault_tolerance_condition_subset : forall sigma sigma',
+  syntactic_state_inclusion sigma sigma' ->
+  fault_tolerance_condition sigma' ->
+  fault_tolerance_condition sigma.
+Proof.
+  unfold fault_tolerance_condition.
+  intros.
+  apply Rle_trans with (fault_weight_state sigma'); try assumption.
+  apply fault_weight_state_incl; assumption.
+Qed.
+
+Definition list_to_state (msgs : list message) : state :=
+  fold_right add_in_sorted_fn Empty msgs.
+
+Lemma list_to_state_iff : forall msgs : list message,
+  set_eq (get_messages (list_to_state msgs)) msgs.
+Proof.
+  induction msgs; intros.
+  - simpl. split; apply incl_refl.
+  - simpl. apply set_eq_tran with (a :: (get_messages (list_to_state msgs))).
+    + apply set_eq_add_in_sorted.
+    + apply set_eq_cons. assumption.
+Qed.
+
+Definition state_union (sigma1 sigma2 : state) : state :=
+  (list_to_state (messages_union (get_messages sigma1) (get_messages sigma2))).
+
+(* 
 Lemma fault_tolerance_condition_backwards : forall msg sigma sigma',
   locally_sorted sigma ->
   locally_sorted sigma' ->
@@ -141,7 +171,7 @@ Proof.
   apply (fault_weight_state_sorted_subset _ _ _ _ H1 H3) in H4 as H5.
   apply H2 in H4.
   apply (Rle_trans _ _ _ H5 H4).
-Qed.
+Qed. *)
 
 (** Protocol states **)
 Inductive protocol_state : state -> Prop :=
@@ -167,7 +197,20 @@ Proof.
   apply locally_sorted_message_justification. assumption.
 Qed.
 
+Lemma protocol_state_nodup : forall sigma,
+  protocol_state sigma ->
+  NoDup (get_messages sigma).
+Proof.
+  intros.
+  apply locally_sorted_nodup.
+  apply protocol_state_sorted.
+  assumption.
+Qed.
 
+Lemma protocol_state_singleton : forall v,
+  exists msg, validator msg = v /\ protocol_state (next msg Empty).
+Proof.
+  Admitted.
 
 
 

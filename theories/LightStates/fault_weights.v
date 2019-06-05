@@ -107,10 +107,3 @@ Proof.
   intros. apply sum_weights_incl; try apply equivocating_validators_nodup.
   apply equivocating_validators_incl. assumption.
 Qed.
-
-Lemma fault_weight_state_add : forall msg sigma,
-  (fault_weight_state sigma <= fault_weight_state (set_add message_eq_dec msg sigma))%R.
-Proof.
-  intros.
-  apply fault_weight_state_incl. intro msg'. apply set_add_intro1.
-Qed.
