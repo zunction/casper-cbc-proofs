@@ -9,7 +9,7 @@ Require Import Casper.FullStates.in_state.
 Definition syntactic_state_union (sigma1 : state) (sigma2 : state) (sigma12 : state) : Prop :=
   forall msg, in_state msg sigma12 <-> in_state msg sigma1 \/ in_state msg sigma2 .
 
-Theorem syntactic_state_union_commutative : Commutative syntactic_state_union.
+Lemma syntactic_state_union_commutative : Commutative syntactic_state_union.
 Proof.
   unfold Commutative; intros. intro. split; intros.
   - apply H in H0. destruct H0.
@@ -20,7 +20,7 @@ Proof.
     + left; assumption.
 Qed.
 
-Theorem add_in_sorted_state_union : forall msg sigma sigma',
+Lemma add_in_sorted_state_union : forall msg sigma sigma',
   add_in_sorted msg sigma sigma' ->
   syntactic_state_union (next msg Empty) sigma sigma'.
 Proof.

@@ -11,7 +11,7 @@ Require Import Casper.FullStates.in_state.
 Definition syntactic_state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
   incl (get_messages sigma1) (get_messages sigma2).
 
-Theorem add_in_sorted_state_preservation : forall msg sigma sigma',
+Lemma add_in_sorted_state_preservation : forall msg sigma sigma',
   add_in_sorted msg sigma sigma' ->
   syntactic_state_inclusion sigma sigma'.
 Proof.
@@ -90,7 +90,7 @@ Proof.
   - exfalso. apply (message_lt_transitive _ _ _ H1) in H2. apply (message_lt_irreflexive _ H2).
 Qed.
 
-Theorem sorted_syntactic_state_inclusion_equality_predicate : forall sigma1 sigma2,
+Lemma sorted_syntactic_state_inclusion_equality_predicate : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   syntactic_state_inclusion sigma1 sigma2 ->

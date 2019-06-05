@@ -15,7 +15,7 @@ Require Import Casper.FullStates.list_to_state.
 
 (** Two party common futures **)
 
-Theorem union_protocol_2states : forall sigma1 sigma2,
+Lemma union_protocol_2states : forall sigma1 sigma2,
   protocol_state sigma1 ->
   protocol_state sigma2 ->
   fault_tolerance_condition (state_union sigma1 sigma2) ->
@@ -59,7 +59,7 @@ Proof.
     + right. assumption.
 Qed.
 
-Theorem union_protocol_nstates : forall sigmas,
+Lemma union_protocol_nstates : forall sigmas,
   Forall protocol_state sigmas ->
   fault_tolerance_condition (fold_right state_union Empty sigmas) ->
   protocol_state (fold_right state_union Empty sigmas).

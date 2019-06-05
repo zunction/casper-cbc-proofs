@@ -16,7 +16,7 @@ Inductive state_eq : state -> state -> Prop :=
       (exists sigmas, sort sigma1 sigmas /\ sort sigma2 sigmas) ->
       state_eq sigma1 sigma2.
 
-Theorem sorted_state_eq_equality_predicate : forall sigma1 sigma2,
+Lemma sorted_state_eq_equality_predicate : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   state_eq sigma1 sigma2 ->
@@ -30,7 +30,7 @@ Proof.
   reflexivity.
 Qed.
 
-Theorem state_eq_reflexive : Reflexive state_eq.
+Lemma state_eq_reflexive : Reflexive state_eq.
 Proof.
   unfold Reflexive. induction x.
   - constructor. exists Empty. split; constructor.
@@ -46,7 +46,7 @@ Proof.
     apply Sort_next with x1s x2s; assumption.
 Qed.
 
-Theorem state_eq_symmetric : Symmetric state_eq.
+Lemma state_eq_symmetric : Symmetric state_eq.
 Proof.
   unfold Symmetric.
   intros. destruct H. destruct H as [sigmas [H1 H2]].
@@ -69,7 +69,7 @@ Proof.
   intros. apply state_eq_empty. apply state_eq_symmetric. assumption.
 Qed.
 
-Theorem state_eq_transitive : Transitive state_eq.
+Lemma state_eq_transitive : Transitive state_eq.
 Proof.
   unfold Transitive.
   intros.
@@ -162,7 +162,7 @@ Proof.
 Qed.
 
 
-Theorem set_in_state_sorted : forall msg sigma,
+Lemma set_in_state_sorted : forall msg sigma,
   locally_sorted sigma ->
   locally_sorted_msg msg ->
   in_state_eq msg sigma <-> in_state msg sigma.

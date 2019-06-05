@@ -28,7 +28,7 @@ Proof.
   - apply LSorted_Singleton. assumption.
 Qed.
 
-Theorem locally_sorted_message_characterization : forall sigma,
+Lemma locally_sorted_message_characterization : forall sigma,
   locally_sorted sigma <->
   sigma = Empty
   \/
@@ -137,7 +137,7 @@ Proof.
     + apply IHlocally_sorted2. assumption.
 Qed.
 
-Theorem add_in_sorted_sorted : forall msg sigma sigma',
+Lemma add_in_sorted_sorted : forall msg sigma sigma',
   locally_sorted sigma ->
   locally_sorted_msg msg ->
   add_in_sorted msg sigma sigma' -> locally_sorted sigma'.

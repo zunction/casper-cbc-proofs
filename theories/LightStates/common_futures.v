@@ -65,7 +65,7 @@ Proof.
     + right. assumption.
 Qed.
 
-Theorem union_protocol_nstates : forall sigmas,
+Lemma union_protocol_nstates : forall sigmas,
   Forall protocol_state sigmas ->
   fault_tolerance_condition (fold_right state_union state_empty sigmas) ->
   protocol_state (fold_right state_union state_empty sigmas).

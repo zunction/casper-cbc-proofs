@@ -326,7 +326,7 @@ Proof.
   -  apply compare_eq_gt in Hxy; try apply (proj1 H); assumption.
 Qed.
 
-Theorem strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
+Lemma strict_total_order_eq_dec : forall (A : Type) (rel : A -> A -> Prop),
   StrictOrder rel ->
   TotalOrder rel ->
   forall x y : A, x = y \/ x <> y.

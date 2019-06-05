@@ -331,7 +331,7 @@ Proof.
       split; try reflexivity. repeat (split; try assumption).
 Qed.
 
-Theorem sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
+Lemma sorted_union_locally_sorted : forall sigma1 sigma2 sigma,
   sorted_union sigma1 sigma2 sigma ->
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
@@ -372,7 +372,7 @@ Proof.
 Qed.
 
 
-Theorem sorted_union_locally_sorted_iterated : forall sigma sigmas sigma',
+Lemma sorted_union_locally_sorted_iterated : forall sigma sigmas sigma',
   Forall locally_sorted (sigma :: sigmas) ->
   fold_rel sorted_union sigma sigmas sigma' ->
   locally_sorted sigma'.
@@ -439,7 +439,7 @@ Proof.
       * apply Sorted_union_Next_gt; assumption.
 Qed.
 
-Theorem sorted_union_iff_syntactic_state_union : forall sigma1 sigma2 sigma12,
+Lemma sorted_union_iff_syntactic_state_union : forall sigma1 sigma2 sigma12,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   locally_sorted sigma12 ->
@@ -451,7 +451,7 @@ Proof.
   - apply sorted_union_to_syntactic_state_union.
 Qed.
 
-Theorem sorted_union_assoc : forall sigma1 sigma2 sigma3 sigma12 sigma23 sigma123,
+Lemma sorted_union_assoc : forall sigma1 sigma2 sigma3 sigma12 sigma23 sigma123,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   locally_sorted sigma3 ->

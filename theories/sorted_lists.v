@@ -196,7 +196,7 @@ Proof.
     )  in H1; assumption.
 Qed.
 
-Theorem add_in_sorted_list_total : forall A compare x l,
+Lemma add_in_sorted_list_total : forall A compare x l,
   CompareStrictOrder compare ->
   exists l', @add_in_sorted_list A (compare_lt compare) x l l'.
 Proof.
@@ -214,7 +214,7 @@ Proof.
   inversion H; subst.
 Qed.
 
-Theorem add_in_sorted_list_in {A} {lt : relation A} : forall msg msg' sigma sigma',
+Lemma add_in_sorted_list_in {A} {lt : relation A} : forall msg msg' sigma sigma',
   @add_in_sorted_list A lt msg sigma sigma' -> 
   In msg' sigma' ->
   msg = msg' \/In msg' sigma.
@@ -271,7 +271,7 @@ Proof.
   inversion H0; subst. assumption.
 Qed.
 
-Theorem add_in_sorted_list_sorted {A} (lt : relation A) : forall msg sigma sigma',
+Lemma add_in_sorted_list_sorted {A} (lt : relation A) : forall msg sigma sigma',
     StrictOrder lt ->
     LocallySorted lt sigma ->
     @add_in_sorted_list A lt msg sigma sigma' -> 
@@ -303,7 +303,7 @@ Qed.
 (** Sorted lists as sets **)
 Definition set_eq {A} (s1 s2 : list A) := incl s1 s2 /\ incl s2 s1.
 
-Theorem set_eq_reflexive {A} : forall (s : list A), set_eq s s.
+Lemma set_eq_reflexive {A} : forall (s : list A), set_eq s s.
 Proof.
   induction s;split; intro; intro; assumption.
 Qed.
@@ -362,7 +362,7 @@ Proof.
     + assumption.
 Qed.
 
-Theorem set_equality_predicate {A}  (lt : relation A) : forall s1 s2,
+Lemma set_equality_predicate {A}  (lt : relation A) : forall s1 s2,
   StrictOrder lt ->
   LocallySorted lt s1 ->
   LocallySorted lt s2 ->

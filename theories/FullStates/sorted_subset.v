@@ -99,7 +99,7 @@ Proof.
   .
 Qed.
 
-Theorem sorted_subset_transitive : Transitive sorted_subset .
+Lemma sorted_subset_transitive : Transitive sorted_subset .
 Proof.
   intros sigma1 sigma2 sigma3. generalize dependent sigma2.  generalize dependent sigma1.
   induction sigma3; intros.

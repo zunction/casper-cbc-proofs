@@ -40,7 +40,7 @@ Proof.
     + apply add_in_sorted_function. reflexivity.
 Qed.
 
-Theorem sort_is_sorted : forall sigma sigmas,
+Lemma sort_is_sorted : forall sigma sigmas,
   sort sigma sigmas -> locally_sorted sigmas.
 Proof.
   intros.
@@ -49,7 +49,7 @@ Proof.
   apply locally_sorted_message_justification; assumption.
 Qed.
 
-Theorem sort_sorted_idem : forall sigma,
+Lemma sort_sorted_idem : forall sigma,
   locally_sorted sigma -> sort sigma sigma.
 Proof.
   intros. induction H.
@@ -59,13 +59,13 @@ Proof.
     apply add_in_Next_lt; assumption.
 Qed.
 
-Theorem sort_total : forall sigma, exists sigmas, sort sigma sigmas.
+Lemma sort_total : forall sigma, exists sigmas, sort sigma sigmas.
 Proof.
   apply relation_function_total with sort_fn.
   apply sort_function.
 Qed.
 
-Theorem sort_functional : forall sigma sigmas1 sigmas2,
+Lemma sort_functional : forall sigma sigmas1 sigmas2,
   sort sigma sigmas1 ->
   sort sigma sigmas2 ->
   sigmas1 = sigmas2.
@@ -113,7 +113,7 @@ Qed.
 Definition in_state_sorted (msg : message) (sigmas : state) : Prop :=
   exists msgs,  message_sort msg msgs /\ in_state msgs sigmas .
 
-Theorem in_sorted_state_all : forall sigma sigmas,
+Lemma in_sorted_state_all : forall sigma sigmas,
   sort sigma sigmas ->
   forall msg, in_state msg sigma -> in_state_sorted msg sigmas.
 Proof.
@@ -130,7 +130,7 @@ Proof.
       apply (add_in_sorted_state_preservation _ _ _ H1 msgs Hin).
 Qed.
 
-Theorem in_sort_state : forall sigma sigmas,
+Lemma in_sort_state : forall sigma sigmas,
   sort sigma sigmas ->
   forall msgs,
   in_state msgs sigmas ->

@@ -44,18 +44,18 @@ Proof.
 Qed.
 
 
-Theorem state_inclusion_reflexive : Reflexive state_inclusion.
+Lemma state_inclusion_reflexive : Reflexive state_inclusion.
 Proof.
   intros sigma msg H. assumption.
 Qed.
 
-Theorem state_inclusion_transitive : Transitive state_inclusion.
+Lemma state_inclusion_transitive : Transitive state_inclusion.
 Proof.
   intros sigma1 sigma2 sigma3 H12 H23 msg Hin.
   apply H12 in Hin. apply (H23 _ Hin).
 Qed.
 
-Theorem state_eq_inclusion : forall sigma1 sigma2,
+Lemma state_eq_inclusion : forall sigma1 sigma2,
   state_eq sigma1 sigma2 ->
   state_inclusion sigma1 sigma2.
 Proof.
@@ -73,7 +73,7 @@ Proof.
   apply (message_eq_transitive msg x x'); assumption.
 Qed.
 
-Theorem sorted_state_inclusion : forall sigma1 sigma2,
+Lemma sorted_state_inclusion : forall sigma1 sigma2,
   locally_sorted sigma1 ->
   locally_sorted sigma2 ->
   state_inclusion sigma1 sigma2 <-> syntactic_state_inclusion sigma1 sigma2.

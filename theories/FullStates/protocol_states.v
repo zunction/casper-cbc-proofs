@@ -53,7 +53,7 @@ Require Import Casper.FullStates.state_inclusion.
 Require Import Casper.FullStates.sorted_subset.
 
 
-Theorem inclusion_state_eq : forall sigma1 sigma2,
+Lemma inclusion_state_eq : forall sigma1 sigma2,
   state_inclusion sigma1 sigma2 ->
   state_inclusion sigma2 sigma1 ->
   state_eq sigma1 sigma2.
@@ -170,7 +170,7 @@ Inductive protocol_state : state -> Prop :=
       protocol_state (add_in_sorted_fn (c, v, sigma) sigma')
   .
 
-Theorem protocol_state_sorted : forall state,
+Lemma protocol_state_sorted : forall state,
   protocol_state state -> 
   locally_sorted state.
 Proof.
