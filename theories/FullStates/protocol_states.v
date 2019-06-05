@@ -15,9 +15,9 @@ Require Import Casper.preamble.
 
 (** Parameters of the protocol **)
 
-Require Import Casper.consensus_values.
-Require Import Casper.validators.
-Require Import Casper.threshold.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.threshold.
 
 
 (** Messages and States **)

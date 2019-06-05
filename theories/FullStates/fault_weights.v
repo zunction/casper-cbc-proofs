@@ -4,8 +4,8 @@ Import ListNotations.
 
 Require Import Casper.preamble.
 Require Import Casper.sorted_lists.
-Require Import Casper.validators.
-Require Import Casper.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.

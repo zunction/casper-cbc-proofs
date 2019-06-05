@@ -1,6 +1,7 @@
 Require Import Coq.Reals.Reals.
 Require Import List.
 Require Import Coq.Lists.ListSet.
+Import ListNotations.
 
 Require Import Casper.ListExtras.
 Require Import Casper.ListSetExtras.
@@ -16,7 +17,7 @@ Require Import Casper.ListSetExtras.
 
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
-Require Import Casper.threshold.
+Require Import Casper.LightStates.threshold.
 Require Import Casper.LightStates.hashes.
 
 (** Messages **)
@@ -75,6 +76,11 @@ Inductive protocol_state : state -> Prop :=
       fault_tolerance_condition sigma' ->
       protocol_state sigma' 
   .
+
+Lemma protocol_state_singleton : forall v,
+  exists msg, validator msg = v /\ protocol_state [msg].
+Proof.
+  Admitted.
 
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->
