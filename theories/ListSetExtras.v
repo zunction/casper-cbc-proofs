@@ -167,6 +167,13 @@ Proof.
     rewrite (IHs H0). reflexivity.
 Qed.
 
+Lemma set_remove_first {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x y s,
+  x = y -> set_remove Aeq_dec x (y::s) = s.
+Proof.
+  intros. destruct (Aeq_dec x y) eqn:Hcmp; simpl; rewrite Hcmp; try reflexivity.
+  exfalso. apply n. assumption.
+Qed.
+
 Lemma set_remove_nodup_1 {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s,
   NoDup (set_remove Aeq_dec x s) ->
   ~ In x (set_remove Aeq_dec x s) ->

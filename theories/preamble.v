@@ -338,3 +338,10 @@ Proof.
   ; try (right; intro; subst; apply (StrictOrder_Irreflexive _ H); assumption)
   .
 Qed.
+
+Lemma eq_dec_if_true {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
+  x = y -> (if eq_dec x y then t else e) = t.
+Proof.
+  intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
+  exfalso. apply n; apply H.
+Qed.

@@ -31,7 +31,7 @@ Makefile.coq: _CoqProject
 
 _CoqProject Makefile: ;
 
-%: Makefile.coq
+%.vo: %.v Makefile.coq
 	+$(MAKE) -f Makefile.coq $@
 
 .PHONY: all clean results
