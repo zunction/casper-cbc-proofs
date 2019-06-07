@@ -6,6 +6,8 @@ Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
 
+Require Import Casper.FullStates.adequacy.add_in_sorted_extras.
+
 (** (Insertion) sorting function **)
 
 Inductive sort : state -> state -> Prop :=

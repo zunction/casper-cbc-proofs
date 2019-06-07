@@ -77,11 +77,9 @@ Proof.
   intros.
   apply sorted_syntactic_state_inclusion_equality_predicate.
   - apply state_union_sorted; try assumption. 
-    apply add_in_sorted_sorted with msg2 sigma2; try assumption.
-    apply add_in_sorted_function; reflexivity.
-  - apply add_in_sorted_sorted with msg2 (state_union sigma1 sigma2); try assumption.
-    + apply state_union_sorted; assumption.
-    + apply add_in_sorted_function; reflexivity.
+    apply add_in_sorted_sorted; assumption.
+  - apply add_in_sorted_sorted; try assumption.
+    apply state_union_sorted; assumption.
   - intros msg Hin. 
     apply state_union_iff in Hin.
     apply set_eq_add_in_sorted.

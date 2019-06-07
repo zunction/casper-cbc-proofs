@@ -5,8 +5,10 @@ Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.adequacy.sort.
 
+Require Import Casper.FullStates.adequacy.sort.
+Require Import Casper.FullStates.adequacy.add_in_sorted_extras.
+Require Import Casper.FullStates.adequacy.locally_sorted_extras.
 
 (** State and message equality (as sets) **)
 

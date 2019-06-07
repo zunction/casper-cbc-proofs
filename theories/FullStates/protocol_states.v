@@ -100,10 +100,10 @@ Proof.
   induction H.
   - constructor.
   - apply (add_in_sorted_sorted (c, v, sigma) sigma'); try assumption.
-    + apply locally_sorted_message_justification. assumption.
-    + apply add_in_sorted_function. reflexivity.
+    apply locally_sorted_message_justification. assumption.
 Qed.
 
+(* 
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->
   NoDup (get_messages sigma).
@@ -113,6 +113,7 @@ Proof.
   apply protocol_state_sorted.
   assumption.
 Qed.
+ *)
 
 Lemma protocol_state_singleton : forall v,
   exists msg, validator msg = v /\ protocol_state (next msg Empty).

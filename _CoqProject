@@ -16,6 +16,8 @@ theories/FullStates/protocol_states.v
 theories/FullStates/common_futures.v
 theories/FullStates/consistent_decisions_prop_protocol_states.v
 
+theories/FullStates/adequacy/add_in_sorted_extras.v
+theories/FullStates/adequacy/locally_sorted_extras.v
 theories/FullStates/adequacy/sort.v
 theories/FullStates/adequacy/sorted_subset.v
 theories/FullStates/adequacy/state_eq.v

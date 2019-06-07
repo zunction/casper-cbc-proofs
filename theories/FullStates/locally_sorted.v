@@ -139,49 +139,18 @@ Proof.
     + apply IHlocally_sorted2. assumption.
 Qed.
 
-
-Lemma in_sorted_state : forall sigma,
-  locally_sorted sigma ->
-   forall msg,
-  in_state msg sigma ->
-  locally_sorted_msg msg.
+Lemma locally_sorted_first : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  forall msg',
+  in_state msg' sigma ->
+  message_lt msg msg'.
 Proof.
-  intros sigma H. induction H; intros.
-  - exfalso. apply (in_empty_state _ H).
-  - apply in_singleton_state in H0; subst. apply locally_sorted_message_justification. assumption.
-  - rewrite in_state_iff in H2. destruct H2; subst.
-    + apply locally_sorted_message_justification. assumption.
-    + apply IHlocally_sorted2 ; assumption.
-Qed.
-
-Lemma state_set_In : forall msg1 msg2 sigma,
-  locally_sorted (next msg2 sigma) ->
-  in_state msg1 sigma ->
-  message_lt msg2 msg1.
-Proof.
-  intros. generalize dependent msg1. generalize dependent msg2. induction sigma; intros.
-  - apply in_empty_state in H0; inversion H0.
-  - rewrite add_is_next in *. rewrite in_state_iff in H0 ; destruct H0; subst. 
-    + apply locally_sorted_next_next in H. assumption.
-    + apply IHsigma2; try assumption.
-      apply locally_sorted_remove_second in H.
-      assumption.
-Qed.
-
-Lemma locally_sorted_nodup : forall sigma,
-  locally_sorted sigma ->
-  NoDup (get_messages sigma).
-Proof.
-  intros. induction H.
-  - simpl. constructor.
-  - rewrite get_messages_next. simpl. constructor; try constructor.
-    intro. inversion H0.
-  - rewrite get_messages_next. constructor; try assumption.
-    intro. rewrite get_messages_next in H2. destruct H2; subst.
-    + apply (message_lt_irreflexive _ H0).
-    + apply (state_set_In _ msg' sigma) in H2; try assumption.
-      apply (message_lt_irreflexive msg').
-      apply (message_lt_transitive _ _ _ H2 H0).
+  intros msg sigma. generalize dependent msg. induction sigma; intros.
+  - inversion H0.
+  - rewrite add_is_next in *. apply locally_sorted_next_next in H as H1.
+    rewrite in_state_iff in H0. destruct H0; subst.
+    + assumption.
+    + apply locally_sorted_remove_second in H. apply IHsigma2; assumption.
 Qed.
 
 Lemma sorted_syntactic_state_inclusion_first_equal : forall sigma sigma' msg,
@@ -192,7 +161,7 @@ Lemma sorted_syntactic_state_inclusion_first_equal : forall sigma sigma' msg,
 Proof.
   intros.
   intros msg' Hin.
-  apply (state_set_In _ _ _ H) in Hin as Hlt.
+  apply (locally_sorted_first msg) in Hin as Hlt; try assumption.
   unfold syntactic_state_inclusion in H1. 
   assert (Hin' : In msg' (get_messages (next msg sigma))).
   { rewrite get_messages_next. right. assumption. }
@@ -216,7 +185,7 @@ Proof.
   destruct Hin.
   - left. subst. split; try reflexivity.
     apply sorted_syntactic_state_inclusion_first_equal with msg; assumption.
-  - right. apply (state_set_In _ _ _ H0) in H2 as Hlt.
+  - right. apply (locally_sorted_first msg') in H2 as Hlt; try assumption.
     split; try assumption.
     intros msg1 Hin1.
     apply H1 in Hin1 as H1in'.
@@ -224,7 +193,7 @@ Proof.
     rewrite get_messages_next in Hin1.  simpl in Hin1.
     assert (Hlt1 : message_lt msg' msg1).
     { destruct Hin1; subst; try assumption.
-      apply (state_set_In _ _ _ H) in H3.
+      apply (locally_sorted_first msg) in H3; try assumption.
       apply message_lt_transitive with msg; assumption.
     }
     destruct H1in'; try assumption; subst.

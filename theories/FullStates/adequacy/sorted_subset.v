@@ -4,10 +4,12 @@ Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.add_in_sorted.
+
+Require Import Casper.FullStates.adequacy.add_in_sorted_extras.
 Require Import Casper.FullStates.adequacy.state_inclusion.
 Require Import Casper.FullStates.adequacy.state_eq.
 Require Import Casper.FullStates.adequacy.sort.
-Require Import Casper.FullStates.add_in_sorted.
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,

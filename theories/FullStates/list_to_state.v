@@ -15,11 +15,10 @@ Lemma list_to_state_locally_sorted : forall msgs,
   locally_sorted (list_to_state msgs).
 Proof.
   induction msgs; simpl; try constructor; intros.
-  apply add_in_sorted_sorted with a (list_to_state msgs).
+  apply add_in_sorted_sorted.
   - apply IHmsgs. apply Forall_forall. intros msg Hin.
     rewrite Forall_forall in H. apply H. right. assumption.
   - apply Forall_inv with msgs. assumption.
-  - apply add_in_sorted_function. reflexivity.
 Qed.
 
 Lemma list_to_state_iff : forall msgs : list message,

@@ -33,7 +33,7 @@ Proof.
     assert (protocol_state (state_union sig1 sigma')).
     { apply IHHps2_2.
       apply fault_tolerance_condition_subset with
-        (add_in_sorted.add_in_sorted_fn (c, v, sigma) (state_union sig1 sigma'))
+        (add_in_sorted_fn (c, v, sigma) (state_union sig1 sigma'))
       ; try assumption.
       intros msg Hin. apply set_eq_add_in_sorted. right. assumption.
     }
