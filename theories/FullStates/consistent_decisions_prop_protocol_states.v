@@ -34,6 +34,11 @@ Proof.
 Qed.
 
 
+(* TODO: Maybe introduce Consistent back; what about finiteness.
+   NOTE: the Consistent predicate is unrolled.
+ *)
+
+
 (* n-party consensus safety for properties of protocol states  *)
 Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas,
   Forall protocol_state sigmas ->

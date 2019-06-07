@@ -17,11 +17,12 @@ Parameter threshold_nonnegative : (t >= 0)%R .
 (*
 (** TODO: Can we assume validators' individual weights are below the threshold **)
 Parameter validators_beyond_threshold : forall v : V, (weight v <= t)%R.
- *)
+*)
 (**
   NOTE: Because lists are finite (by definition), the assumption below
   states that there exists a finite set of validators whose weight is 
   larger than the threshold.
+
 **)
 
 Parameter byzantine_fault_tolerance :
