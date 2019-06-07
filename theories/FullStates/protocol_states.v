@@ -103,24 +103,6 @@ Proof.
     apply locally_sorted_message_justification. assumption.
 Qed.
 
-(* 
-Lemma protocol_state_nodup : forall sigma,
-  protocol_state sigma ->
-  NoDup (get_messages sigma).
-Proof.
-  intros.
-  apply locally_sorted_nodup.
-  apply protocol_state_sorted.
-  assumption.
-Qed.
- *)
-
-Lemma protocol_state_singleton : forall v,
-  exists msg, validator msg = v /\ protocol_state (next msg Empty).
-Proof.
-  Admitted.
-
-
 Definition Reachable sigma1 sigma2 :=
   protocol_state sigma1 /\ protocol_state sigma2 /\ syntactic_state_inclusion sigma1 sigma2.
 

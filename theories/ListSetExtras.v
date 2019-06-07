@@ -93,31 +93,6 @@ Proof.
       apply set_union_incl_right.
 Qed.
 
-(* 
-Lemma set_union_assoc {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall s1 s2 s3,
-  set_union Aeq_dec (set_union Aeq_dec s1 s2) s3
-  = set_union Aeq_dec s1 (set_union Aeq_dec s2 s3).
-  Admitted.
-
-
-Lemma set_union_singleton {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s,
-   set_union Aeq_dec [x] s = set_add Aeq_dec x s.
-Proof.
-  intros.
-  Admitted.
-
-
-Lemma set_add_last {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall x s,
-  ~ In x s ->
-  set_add Aeq_dec x s = s ++ [x].
-Proof.
-  induction s; intros.
-  - reflexivity.
-  - simpl. apply not_in_cons in H. destruct H. rewrite IHs; try assumption.
-    destruct (eq_dec_right Aeq_dec x a H). rewrite H1. reflexivity.
-Qed.
- *)
-
 Lemma set_union_empty_left {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall s,
   NoDup s ->
   set_eq (set_union Aeq_dec nil s) s.

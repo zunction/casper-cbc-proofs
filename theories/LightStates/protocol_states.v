@@ -77,11 +77,6 @@ Inductive protocol_state : state -> Prop :=
       protocol_state sigma'
   .
 
-Lemma protocol_state_singleton (v : V) :
-  exists msg, validator msg = v /\ protocol_state [msg].
-Proof.
-  Admitted.
-
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->
   NoDup sigma.
