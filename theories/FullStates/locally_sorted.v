@@ -2,7 +2,7 @@ Require Import List.
 
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.add_in_sorted.
+Require Import Casper.FullStates.in_state.
 
 (** (Locally) Sorted states **)
 Inductive locally_sorted : state -> Prop :=
@@ -137,61 +137,48 @@ Proof.
     + apply IHlocally_sorted2. assumption.
 Qed.
 
-Lemma add_in_sorted_sorted : forall msg sigma sigma',
+
+Lemma in_sorted_state : forall sigma,
   locally_sorted sigma ->
-  locally_sorted_msg msg ->
-  add_in_sorted msg sigma sigma' -> locally_sorted sigma'.
+   forall msg,
+  in_state msg sigma ->
+  locally_sorted_msg msg.
 Proof.
-  intros msg sigma sigma' Hsorted. 
-  generalize dependent sigma'.
-  generalize dependent msg.
-  induction Hsorted as
-  [
-  | sc sv sj LSsj
-  | sc sv sj [(sc', sv') sj'] ssigma LSsj _  LT LSs
-  ]
-  ; intros [(c, v) j] sigma' LSmsg AddA
-  ; apply locally_sorted_message_justification in LSmsg as LSj
-  ; inversion AddA as 
-    [ [(ca, va) ja] AA AEmpty AC
-    | [(ca, va) ja] sigmaA AA ANext AC
-    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA AA AB AC
-    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddB AA AB AC]
-  ; clear AddA; subst
-  ; try (rewrite add_is_next in *)
-  ; try (apply LSorted_Singleton)
-  ; try (apply LSorted_Next; try assumption; constructor)
-  ; try assumption
-  .
-  - apply add_in_empty in AddB. subst. apply LSorted_Next; try assumption; constructor.
-  - inversion AddB as 
-    [ [(cb, vb) jb] BA BEmpty BC
-    | [(cb, vb) jb] sigmaB BA BNext BC
-    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB BA BB BC
-    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' BA BB BC]
-    ; clear AddB; subst
-    ; try (apply LSorted_Next; assumption)
-    .
-    + repeat (apply LSorted_Next; try assumption).
-    + apply LSorted_Next; try assumption.
-      apply (IHLSs (c, v, j) _); try assumption.
-      apply add_in_Next_gt; assumption.
+  intros sigma H. induction H; intros.
+  - exfalso. apply (in_empty_state _ H).
+  - apply in_singleton_state in H0; subst. apply locally_sorted_message_justification. assumption.
+  - rewrite in_state_iff in H2. destruct H2; subst.
+    + apply locally_sorted_message_justification. assumption.
+    + apply IHlocally_sorted2 ; assumption.
 Qed.
 
-Lemma locally_sorted_next_message : forall msg sigma,
-  locally_sorted (next msg sigma) ->
-  add_in_sorted msg sigma (next msg sigma).
+Lemma state_set_In : forall msg1 msg2 sigma,
+  locally_sorted (next msg2 sigma) ->
+  in_state msg1 sigma ->
+  message_lt msg2 msg1.
 Proof.
-  intros.
-  apply locally_sorted_message_characterization in H.
-  destruct H as 
-    [ Hcempty
-    | [[cmsg0 [LScmsg0 Hcnext]]
-    | [cmsg1 [cmsg2 [csigma' [Hcnext [LScnext [LScmsg1 LTc]]]]]]
-    ]]; subst
-    ; try (apply no_confusion_next in Hcnext; destruct Hcnext; subst)
-    .
-  - exfalso. apply (no_confusion_next_empty _ _ Hcempty).
-  - constructor.
-  - constructor. assumption.
+  intros. generalize dependent msg1. generalize dependent msg2. induction sigma; intros.
+  - apply in_empty_state in H0; inversion H0.
+  - rewrite add_is_next in *. rewrite in_state_iff in H0 ; destruct H0; subst. 
+    + apply locally_sorted_next_next in H. assumption.
+    + apply IHsigma2; try assumption.
+      apply locally_sorted_remove_second in H.
+      assumption.
 Qed.
+
+Lemma locally_sorted_nodup : forall sigma,
+  locally_sorted sigma ->
+  NoDup (get_messages sigma).
+Proof.
+  intros. induction H.
+  - simpl. constructor.
+  - rewrite get_messages_next. simpl. constructor; try constructor.
+    intro. inversion H0.
+  - rewrite get_messages_next. constructor; try assumption.
+    intro. rewrite get_messages_next in H2. destruct H2; subst.
+    + apply (message_lt_irreflexive _ H0).
+    + apply (state_set_In _ msg' sigma) in H2; try assumption.
+      apply (message_lt_irreflexive msg').
+      apply (message_lt_transitive _ _ _ H2 H0).
+Qed.
+

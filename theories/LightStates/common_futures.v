@@ -22,7 +22,7 @@ Proof.
   induction Hps2; intros.
   - simpl. assumption.
   - clear IHHps2_1.
-    assert (protocol_state (state_union sig1 (state_remove (c, v, hash_state.hash_state sigma) sigma'))).
+    assert (protocol_state (state_union sig1 (state_remove (c, v, hash_state.hash_state j) sigma'))).
     { apply IHHps2_2.
       apply fault_tolerance_condition_subset with (state_union sig1 sigma'); try assumption.
       intro msg; intro Hin.
@@ -35,14 +35,14 @@ Proof.
      apply protocol_state_nodup in Hps1 as Hnodups1.
       assert (HnodupUs1s' := H1).
       apply (set_union_nodup message_eq_dec Hnodups1) in HnodupUs1s'.
-      destruct (in_dec message_eq_dec (c, v, hash_state.hash_state sigma) sig1).
-    + apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state.hash_state sigma) sigma'))
+      destruct (in_dec message_eq_dec (c, v, hash_state.hash_state j) sig1).
+    + apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state.hash_state j) sigma'))
       ; try assumption.
       apply set_eq_remove_union_in; assumption.
-    + apply (protocol_state_cons c v sigma); try assumption.
+    + apply (protocol_state_cons c v j); try assumption.
       * apply set_union_iff. right. assumption.
-      * apply (set_remove_nodup message_eq_dec (c, v, hash_state.hash_state sigma)) in HnodupUs1s' as Hnoduprem.
-        apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state.hash_state sigma) sigma'))
+      * apply (set_remove_nodup message_eq_dec (c, v, hash_state.hash_state j)) in HnodupUs1s' as Hnoduprem.
+        apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state.hash_state j) sigma'))
         ; try assumption.
         apply set_eq_remove_union_not_in; assumption.
 Qed.

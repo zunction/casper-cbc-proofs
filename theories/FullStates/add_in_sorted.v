@@ -7,6 +7,9 @@ Require Import Casper.ListSetExtras.
 
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
+Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.locally_sorted.
+
 
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
@@ -134,3 +137,110 @@ Proof.
   apply relation_function2_total with add_in_sorted_fn.
   apply add_in_sorted_function.
 Qed.
+
+
+Lemma add_in_sorted_message_preservation : forall msg sigma sigma',
+  add_in_sorted msg sigma sigma' ->
+  in_state msg sigma'.
+Proof.
+  intros. unfold in_state.
+  induction H; rewrite get_messages_next; simpl; try (left; reflexivity).
+  right. assumption.
+Qed.
+
+Lemma add_in_sorted_no_junk : forall msg sigma sigma',
+  add_in_sorted msg sigma sigma' ->
+  forall msg', in_state msg' sigma' -> msg' = msg \/ in_state msg' sigma.
+Proof.
+  intros msg sigma sigma' H.
+  induction H as
+  [ [(hc, hv) hj]
+  | [(hc, hv) hj] Hsigma
+  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma HLT
+  | [(hc, hv) hj] [(hc', hv') hj'] Hsigma Hsigma' HGT HAdd H_H 
+  ]; intros [(c', v') j'] HIn; rewrite in_state_iff in HIn
+  ; destruct HIn as [Hin1 | Hin2]
+  ; try (right; assumption)
+  ; try (inversion Hin1; subst; left; reflexivity)
+  .
+  - right. apply in_state_iff. right. assumption.
+  - right. apply in_state_iff. inversion Hin1; clear Hin1; subst. left. reflexivity.
+  - apply H_H in Hin2. destruct Hin2 as [HInEq | HIn'].
+    + left. assumption.
+    + right. apply in_state_iff. right. assumption.
+Qed.
+
+Lemma add_sorted : forall sigma msg, 
+  locally_sorted sigma -> 
+  in_state msg sigma -> 
+  add_in_sorted msg sigma sigma.
+Proof.
+  induction sigma; intros; repeat rewrite add_is_next in *.
+  - exfalso. apply (in_empty_state _ H0).
+  - rewrite in_state_iff in H0. destruct H0.
+    + subst. constructor.
+    + apply (state_set_In _ _ _ H) in H0 as Hlt.
+      apply locally_sorted_tail in H.
+      apply IHsigma2 in H0; try assumption.
+      constructor; assumption.
+Qed.
+
+Lemma add_in_sorted_sorted : forall msg sigma sigma',
+  locally_sorted sigma ->
+  locally_sorted_msg msg ->
+  add_in_sorted msg sigma sigma' -> locally_sorted sigma'.
+Proof.
+  intros msg sigma sigma' Hsorted. 
+  generalize dependent sigma'.
+  generalize dependent msg.
+  induction Hsorted as
+  [
+  | sc sv sj LSsj
+  | sc sv sj [(sc', sv') sj'] ssigma LSsj _  LT LSs
+  ]
+  ; intros [(c, v) j] sigma' LSmsg AddA
+  ; apply locally_sorted_message_justification in LSmsg as LSj
+  ; inversion AddA as 
+    [ [(ca, va) ja] AA AEmpty AC
+    | [(ca, va) ja] sigmaA AA ANext AC
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA LTA AA AB AC
+    | [(ca, va) ja] [(ca', va') ja'] sigmaA sigmaA' LTA AddB AA AB AC]
+  ; clear AddA; subst
+  ; try (rewrite add_is_next in *)
+  ; try (apply LSorted_Singleton)
+  ; try (apply LSorted_Next; try assumption; constructor)
+  ; try assumption
+  .
+  - apply add_in_empty in AddB. subst. apply LSorted_Next; try assumption; constructor.
+  - inversion AddB as 
+    [ [(cb, vb) jb] BA BEmpty BC
+    | [(cb, vb) jb] sigmaB BA BNext BC
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB LTB BA BB BC
+    | [(cb, vb) jb] [(cb', vb') jb'] sigmaB sigmaB' LTB AddB' BA BB BC]
+    ; clear AddB; subst
+    ; try (apply LSorted_Next; assumption)
+    .
+    + repeat (apply LSorted_Next; try assumption).
+    + apply LSorted_Next; try assumption.
+      apply (IHLSs (c, v, j) _); try assumption.
+      apply add_in_Next_gt; assumption.
+Qed.
+
+Lemma locally_sorted_next_message : forall msg sigma,
+  locally_sorted (next msg sigma) ->
+  add_in_sorted msg sigma (next msg sigma).
+Proof.
+  intros.
+  apply locally_sorted_message_characterization in H.
+  destruct H as 
+    [ Hcempty
+    | [[cmsg0 [LScmsg0 Hcnext]]
+    | [cmsg1 [cmsg2 [csigma' [Hcnext [LScnext [LScmsg1 LTc]]]]]]
+    ]]; subst
+    ; try (apply no_confusion_next in Hcnext; destruct Hcnext; subst)
+    .
+  - exfalso. apply (no_confusion_next_empty _ _ Hcempty).
+  - constructor.
+  - constructor. assumption.
+Qed.
+

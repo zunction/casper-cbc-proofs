@@ -67,14 +67,14 @@ Definition fault_tolerance_condition (sigma : state) : Prop :=
 
 Inductive protocol_state : state -> Prop :=
   | protocol_state_nil : protocol_state state_empty
-  | protocol_state_cons : forall c v sigma sigma',
-      protocol_state sigma -> (* 1 *)
-      valid_estimate_condition c sigma ->  (* 2 *)
-      In (c, v, hash_state sigma) sigma' ->
-      protocol_state (state_remove (c, v, hash_state sigma) sigma')  ->
+  | protocol_state_cons : forall c v j sigma',
+      protocol_state j -> (* 1 *)
+      valid_estimate_condition c j ->  (* 2 *)
+      In (c, v, hash_state j) sigma' ->
+      protocol_state (state_remove (c, v, hash_state j) sigma')  ->
       NoDup sigma' ->
       fault_tolerance_condition sigma' ->
-      protocol_state sigma' 
+      protocol_state sigma'
   .
 
 Lemma protocol_state_singleton (v : V) :
@@ -121,9 +121,9 @@ Proof.
   induction H; intros.
   - destruct H. apply incl_empty in H1; subst. constructor.
   - clear IHprotocol_state1.
-    apply (set_eq_remove message_eq_dec (c, v, hash_state sigma)) in H5 as Hset_eq; try assumption.
-    apply IHprotocol_state2 in Hset_eq. apply (protocol_state_cons c v sigma); try assumption.
-    + destruct H5. apply (H5 (c, v, hash_state sigma)). assumption.
+    apply (set_eq_remove message_eq_dec (c, v, hash_state j)) in H5 as Hset_eq; try assumption.
+    apply IHprotocol_state2 in Hset_eq. apply (protocol_state_cons c v j); try assumption.
+    + destruct H5. apply (H5 (c, v, hash_state j)). assumption.
     + apply (fault_tolerance_condition_set_eq _ _ H5 H4).
     + apply set_remove_nodup. assumption.
 Qed.
