@@ -30,66 +30,26 @@ Definition potentially_pivotal (v : V) : Prop :=
 Lemma exists_pivotal_message : exists v, potentially_pivotal v.
 Proof.
   destruct byzantine_fault_tolerance_interval as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
-  destruct (protocol_state_singleton v) as [msg [Heq Hps]].
   exists v.
-  subst. exists (set_remove v_eq_dec (validator msg) vs). repeat split.
+  subst. exists (set_remove v_eq_dec v vs). repeat split.
   - apply set_remove_nodup. assumption.
   - intro. apply set_remove_iff in H; try assumption. destruct H. apply H0. reflexivity.
   - assumption.
-  - rewrite (sum_weights_in (validator msg)) in Hgt; try assumption.
+  - rewrite (sum_weights_in v) in Hgt; try assumption.
     rewrite Rplus_comm in Hgt.
-    apply (Rplus_gt_compat_r (- weight (validator msg))%R) in Hgt.
+    apply (Rplus_gt_compat_r (- weight v)%R) in Hgt.
     rewrite Rplus_assoc in Hgt.
     rewrite Rplus_opp_r in Hgt.
     rewrite Rplus_0_r in Hgt.
     assumption.
 Qed.
 
-Definition non_trivial_prop (msg : message) (sigma : state) : Prop :=
-    In msg sigma.
-
-(* Definition neg_non_trivial_prop (msg : message) (sigma : state) : Prop :=
-    ~ In msg sigma \/ ~ .
- *)
-
-(* 
-Definition non_trivial_prop (sigma : state) : Prop :=
-  exists msg : message,
-    In msg sigma /\
-    exists (sigma' : state),
-      sigma' in_Futures (state_remove msg sigma) /\
-      ~ protocol_state (state_add msg sigma')
-      .
-
-
-Definition neg_non_trivial_prop (sigma : state) : Prop :=
-  forall msg : message,
-    In msg sigma ->
-    forall (sigma' : state),
-      sigma' in_Futures (state_remove msg sigma) ->
-      protocol_state (state_add msg sigma')
-      .
-
-
-Definition neg_non_trivial_prop (sigma : state) : Prop :=
-  forall msg : message,
-    In msg sigma ->
-    forall (vs : list V),
-        NoDup vs ->
-        ~In (validator msg) vs ->
-        (sum_weights vs <= t)%R ->
-        (weight (validator msg) + sum_weights vs <= t)%R
-      .
- *)
-
-
-
 Theorem non_triviality_decisions_on_properties_of_protocol_states :
   exists p, non_trivial p.
 Proof.
   destruct exists_pivotal_message as [v Hpivotal].
   destruct (estimator_total []) as [c Hc].
-  exists (non_trivial_prop (c,v,[])).
+  exists (In (c,v,[])).
   split.
   - exists [(c,v,[])].
     split.
@@ -104,6 +64,6 @@ Proof.
       simpl. apply Rge_le. apply threshold_nonnegative.
     }
     intros sigma H.
-    unfold non_trivial_prop. destruct H as [_ [_ Hincl]]. apply Hincl. left. reflexivity.
+    destruct H as [_ [_ Hincl]]. apply Hincl. left. reflexivity.
   - 
   Admitted.

@@ -1,11 +1,12 @@
 PYTHON=python2.7
 
-results: \
-    theories/FullStates/common_futures.vo \
-    theories/FullStates/consistent_decisions_prop_protocol_states.vo \
-    theories/LightStates/common_futures.vo \
-    theories/LightStates/consistent_decisions_prop_protocol_states.vo \
-    theories/LightStates/non_triviality_decisions_prop_protocol_states.vo
+results: Makefile.coq
+	+$(MAKE) -f Makefile.coq \
+	theories/FullStates/common_futures.vo \
+	theories/FullStates/consistent_decisions_prop_protocol_states.vo \
+	theories/LightStates/common_futures.vo \
+	theories/LightStates/consistent_decisions_prop_protocol_states.vo \
+	theories/LightStates/non_triviality_decisions_prop_protocol_states.vo
 
 all: Makefile.coq
 	+$(MAKE) -f Makefile.coq all
@@ -26,6 +27,8 @@ clean: Makefile.coq
 	rm -f Makefile.coq Makefile.coq.conf
 	rm -rf *.dot *.svg *.dpd
 
+Makefile : Makefile.coq
+
 Makefile.coq: _CoqProject
 	$(COQBIN)coq_makefile -f _CoqProject -o Makefile.coq
 
@@ -34,4 +37,4 @@ _CoqProject Makefile: ;
 %.vo: %.v Makefile.coq
 	+$(MAKE) -f Makefile.coq $@
 
-.PHONY: all clean results
+.PHONY: all clean results Makefile
