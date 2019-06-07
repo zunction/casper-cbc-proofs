@@ -60,3 +60,13 @@ Proof.
   apply Rlt_le in H.
   assumption.
 Qed.
+
+Lemma Rtotal_le_gt : forall x y,
+  (x <= y)%R \/ (x > y)%R.
+Proof.
+  intros.
+  destruct (Rtotal_order x y) as [Hlt | [Heq | Hgt]].
+  - left. unfold Rle. left. assumption.
+  - left. unfold Rle. right. assumption.
+  - right. assumption.
+Qed.
