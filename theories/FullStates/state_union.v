@@ -5,9 +5,9 @@ Require Import Casper.ListSetExtras.
 
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.syntactic_state_inclusion.
 Require Import Casper.FullStates.list_to_state.
 
 Definition state_union (sigma1 sigma2 : state) : state :=

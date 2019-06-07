@@ -9,7 +9,6 @@ theories/FullStates/messages.v
 theories/FullStates/add_in_sorted.v
 theories/FullStates/locally_sorted.v
 theories/FullStates/in_state.v
-theories/FullStates/syntactic_state_inclusion.v
 theories/FullStates/list_to_state.v
 theories/FullStates/state_union.v
 theories/FullStates/fault_weights.v

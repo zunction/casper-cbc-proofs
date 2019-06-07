@@ -244,3 +244,17 @@ Proof.
   - constructor. assumption.
 Qed.
 
+Lemma add_in_sorted_state_preservation : forall msg sigma sigma',
+  add_in_sorted msg sigma sigma' ->
+  syntactic_state_inclusion sigma sigma'.
+Proof.
+  intros msg sigma sigma' H. unfold syntactic_state_inclusion; unfold incl.
+  induction H; intros; try assumption. 
+  - simpl in H. inversion H.
+  - rewrite get_messages_next. simpl.  right. assumption.
+  - rewrite get_messages_next in *. simpl in H1. simpl. 
+    destruct H1.
+    + left. assumption.
+    + right. apply IHadd_in_sorted.
+      assumption. 
+Qed.

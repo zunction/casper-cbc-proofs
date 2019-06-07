@@ -10,6 +10,9 @@ Require Import Casper.FullStates.messages.
 Definition in_state (msg : message) (sigma : state) : Prop :=
   In msg (get_messages sigma).
 
+Definition syntactic_state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
+  incl (get_messages sigma1) (get_messages sigma2).
+
 Lemma in_empty_state : forall msg,
   ~ in_state msg Empty.
 Proof.

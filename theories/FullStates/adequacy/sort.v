@@ -5,7 +5,6 @@ Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.syntactic_state_inclusion.
 
 (** (Insertion) sorting function **)
 

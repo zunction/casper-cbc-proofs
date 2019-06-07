@@ -37,16 +37,14 @@ Parameter estimator : state -> C -> Prop.
 
 Parameter estimator_total : forall s : state, exists c : C, estimator s c.
 
+(** State membership **)
+Require Import Casper.FullStates.in_state.
 
 (** Canonical representation of states **)
 
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 
-
-(** State equality **)
-Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.syntactic_state_inclusion.
 
 (*******************************)
 (** Protocol state conditions **) 
