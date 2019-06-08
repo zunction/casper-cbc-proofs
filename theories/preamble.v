@@ -345,3 +345,11 @@ Proof.
   intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
   exfalso. apply n; apply H.
 Qed.
+
+
+Lemma eq_dec_if_false {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
+  x <> y -> (if eq_dec x y then t else e) = e.
+Proof.
+  intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
+  exfalso. apply H; assumption.
+Qed.

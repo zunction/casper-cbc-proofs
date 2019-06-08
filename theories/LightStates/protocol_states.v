@@ -1,3 +1,4 @@
+Require Import Coq.Bool.Bool.
 Require Import Coq.Reals.Reals.
 Require Import List.
 Require Import Coq.Lists.ListSet.
@@ -5,13 +6,13 @@ Import ListNotations.
 
 Require Import Casper.ListExtras.
 Require Import Casper.ListSetExtras.
+Require Import Casper.preamble.
+
 (**
   TODO: Prove that all Inductive defining functions yield total functions.
   This is important, as if the functions are not total we might have empty
   hypothesis.
 **)
-
-
 
 (** Parameters of the protocol **)
 
@@ -62,6 +63,17 @@ Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
 Definition fault_tolerance_condition (sigma : state) : Prop :=
   (fault_weight_state sigma <= t)%R.
 
+Lemma fault_tolerance_condition_singleton : forall msg,
+  fault_tolerance_condition [msg].
+Proof.
+  intros [(c, v) j].
+  unfold fault_tolerance_condition.
+  unfold fault_weight_state.
+  unfold equivocating_validators.
+  simpl. unfold equivocating_messages. 
+  rewrite eq_dec_if_true; try reflexivity. simpl.
+  apply Rge_le. apply threshold_nonnegative.
+Qed.
 
 (** TODO? Define protocol messages; also for the full version? **)
 
@@ -76,6 +88,47 @@ Inductive protocol_state : state -> Prop :=
       fault_tolerance_condition sigma' ->
       protocol_state sigma'
   .
+
+Lemma protocol_state_singleton : forall c v j,
+  protocol_state j ->
+  valid_estimate_condition c j ->
+  protocol_state [(c, v, hash_state j)].
+Proof.
+  intros.
+  apply protocol_state_cons with c v j; try assumption.
+  - left. reflexivity.
+  - simpl. rewrite eq_dec_if_true; constructor.
+  - constructor; try constructor. apply in_nil.
+  - apply fault_tolerance_condition_singleton.
+Qed.
+
+Lemma exist_equivocating_messages : forall nv vs,
+  ~ In nv vs ->
+  exists j1, exists j2, protocol_state j1 /\ protocol_state j2 /\
+    (forall v,
+      In v vs  ->
+      exists c1, exists c2,
+        valid_estimate_condition c1 j1 /\ valid_estimate_condition c2 j2 /\
+        equivocating_messages (c1, v, hash_state j1) (c2, v, hash_state j2) = true
+    )
+  .
+Proof.
+  destruct (estimator_total []) as [c Hc].
+  intros.
+  destruct (estimator_total [(c, nv, [])]) as [c' Hc'].
+  exists []. exists [(c, nv,[])]. repeat split; try constructor.
+  intros.
+  - apply (protocol_state_singleton c nv []) in Hc; try constructor. assumption.
+  - intros. exists c. exists c'. repeat split; try assumption.
+    unfold equivocating_messages. rewrite eq_dec_if_false.
+    + rewrite eq_dec_if_true; try reflexivity.
+      apply andb_true_iff. split.
+      * simpl. rewrite eq_dec_if_false; simpl; try reflexivity.
+        intro. apply hash_injective in H1. inversion H1; subst. apply H. apply H0.
+      * simpl. reflexivity.
+    + intro. inversion H1.
+Qed.
+
 
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->

@@ -8,7 +8,16 @@ Definition message : Type := C * V * justification.
 Definition validator (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
+Definition consensus_value (msg : message) : C :=
+  match msg with (c, _, _) => c end.
+
+Definition justify (msg : message) : justification :=
+  match msg with (_, _, j) => j end.
+
 Parameter Hash : message -> hash.
+
+Parameter hash_injective : forall x y,
+  Hash x = Hash y <-> x = y.
 
 Lemma message_eq_dec : forall (msg1 msg2 : message), {msg1 = msg2} + {msg1 <> msg2}.
 Proof.
