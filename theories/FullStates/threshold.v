@@ -16,10 +16,10 @@ Parameter t : R.
 
 Parameter threshold_nonnegative : (t >= 0)%R .
 
-Parameter byzantine_fault_tolerance :
+Parameter sufficient_validators_condition :
   exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
 
-Lemma byzantine_fault_tolerance_interval_ind : forall vss,
+Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
   (sum_weights vss > t)%R ->
   exists (vs : list V),
@@ -44,7 +44,7 @@ Proof.
       exists vs. repeat (split;try assumption). apply incl_tl. assumption.
 Qed.
 
-Lemma byzantine_fault_tolerance_interval :
+Lemma sufficient_validators_pivotal :
   exists (vs : list V),
     NoDup vs /\
     (sum_weights vs > t)%R /\
@@ -52,8 +52,8 @@ Lemma byzantine_fault_tolerance_interval :
       In v vs /\
       (sum_weights (set_remove v_eq_dec v vs) <= t)%R.
 Proof.
-  destruct byzantine_fault_tolerance as [vs [Hvs Hweight]].
-  apply (byzantine_fault_tolerance_interval_ind vs Hvs) in  Hweight.
+  destruct sufficient_validators_condition as [vs [Hvs Hweight]].
+  apply (sufficient_validators_pivotal_ind vs Hvs) in  Hweight.
   destruct Hweight as [vs' [Hnd [Hincl H]]].
   exists vs'. repeat (split; try assumption).
 Qed.

@@ -7,6 +7,9 @@ results: theories/FullStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
     theories/LightStates/non_triviality_decisions_prop_protocol_states.vo
 
+theories/ListExtras.vo : \
+    theories/preamble.vo
+
 theories/FullStates/states.vo : \
     theories/preamble.vo \
     theories/FullStates/consensus_values.vo \
@@ -70,8 +73,8 @@ theories/FullStates/consistent_decisions_prop_protocol_states.vo: \
     theories/FullStates/state_union.vo \
     theories/FullStates/common_futures.vo
 
-
 theories/LightStates/messages.vo: \
+    theories/preamble.vo \
     theories/LightStates/consensus_values.vo \
     theories/LightStates/validators.vo \
     theories/LightStates/hashes.vo
@@ -80,6 +83,8 @@ theories/LightStates/states.vo: \
     theories/LightStates/messages.vo
 
 theories/LightStates/hash_state.vo : \
+    theories/preamble.vo \
+    theories/ListExtras.vo \
     theories/LightStates/hashes.vo \
     theories/LightStates/messages.vo \
     theories/LightStates/states.vo
@@ -132,6 +137,7 @@ theories/LightStates/non_triviality_decisions_prop_protocol_states.vo: \
     theories/LightStates/validators.vo \
     theories/LightStates/threshold.vo \
     theories/LightStates/states.vo \
+    theories/LightStates/hash_state.vo \
     theories/LightStates/fault_weights.vo \
     theories/LightStates/protocol_states.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo

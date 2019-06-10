@@ -105,12 +105,12 @@ Qed.
 Lemma exist_equivocating_messages : forall nv vs,
   ~ In nv vs ->
   exists j1, exists j2, protocol_state j1 /\ protocol_state j2 /\
-    (forall v,
-      In v vs  ->
-      exists c1, exists c2,
-        valid_estimate_condition c1 j1 /\ valid_estimate_condition c2 j2 /\
-        equivocating_messages (c1, v, hash_state j1) (c2, v, hash_state j2) = true
-    )
+    exists c1, exists c2,
+      valid_estimate_condition c1 j1 /\ valid_estimate_condition c2 j2 /\
+      (forall v,
+        In v vs  ->
+          equivocating_messages (c1, v, hash_state j1) (c2, v, hash_state j2) = true
+      )
   .
 Proof.
   destruct (estimator_total []) as [c Hc].
@@ -119,8 +119,8 @@ Proof.
   exists []. exists [(c, nv,[])]. repeat split; try constructor.
   intros.
   - apply (protocol_state_singleton c nv []) in Hc; try constructor. assumption.
-  - intros. exists c. exists c'. repeat split; try assumption.
-    unfold equivocating_messages. rewrite eq_dec_if_false.
+  - exists c. exists c'. repeat split; try assumption.
+    intros. unfold equivocating_messages. rewrite eq_dec_if_false.
     + rewrite eq_dec_if_true; try reflexivity.
       apply andb_true_iff. split.
       * simpl. rewrite eq_dec_if_false; simpl; try reflexivity.
@@ -129,6 +129,38 @@ Proof.
     + intro. inversion H1.
 Qed.
 
+Lemma binary_justification_nodup : forall (vs : list V) (c1 c2 : C) (j1 j2 : state),
+  j1 <> j2 ->
+  NoDup vs ->
+  NoDup (flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs).
+Proof.
+  intros.
+  induction vs.
+  - simpl. constructor.
+  - simpl. constructor.
+    + intro. destruct H1.
+      * apply H. inversion H1; subst; clear H1.
+  Admitted.
+
+Lemma binary_justification_protocol_state : forall vs c1 j1 c2 j2,
+  protocol_state j1 ->
+  protocol_state j2 ->
+  j1 <> j2 ->
+  valid_estimate_condition c1 j1 ->
+  valid_estimate_condition c2 j2 ->
+  NoDup vs ->
+  fault_tolerance_condition (flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs) ->
+  protocol_state (flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs)
+  .
+Proof.
+  intros.
+  induction vs.
+  - simpl. constructor.
+  - apply NoDup_cons_iff in H4. destruct H4 as [Hanin Hnodup].
+    simpl. apply protocol_state_cons with c1 a j1; try assumption.
+    + left; reflexivity.
+  Admitted.
+    
 
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->

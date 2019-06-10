@@ -76,6 +76,9 @@ Proof.
   - right. apply (predicate_function2_neg _ _ _ _ H). assumption.
 Qed.
 
+Class Injective {A B} (f : A -> B) : Prop :=
+  injective : forall x y, f x = f y <-> x = y.
+
 Class RelationFunction {A B} (r : A -> B -> Prop) (r_fn : A -> B) : Prop :=
   relation_function : forall a b, r a b <-> r_fn a = b.
 

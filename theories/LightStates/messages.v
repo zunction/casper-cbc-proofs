@@ -1,3 +1,5 @@
+Require Import Casper.preamble.
+
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
@@ -16,8 +18,7 @@ Definition justify (msg : message) : justification :=
 
 Parameter Hash : message -> hash.
 
-Parameter hash_injective : forall x y,
-  Hash x = Hash y <-> x = y.
+Parameter hash_injective : Injective Hash.
 
 Lemma message_eq_dec : forall (msg1 msg2 : message), {msg1 = msg2} + {msg1 <> msg2}.
 Proof.

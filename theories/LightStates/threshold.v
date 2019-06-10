@@ -28,10 +28,11 @@ Parameter validators_beyond_threshold : forall v : V, (weight v <= t)%R.
 
 **)
 
-Parameter byzantine_fault_tolerance :
-  exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
+Parameter sufficient_validators_condition :
+  exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R /\
+    exists v : V, ~ In v vs.
 
-Lemma byzantine_fault_tolerance_interval_ind : forall vss,
+Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
   (sum_weights vss > t)%R ->
   exists (vs : list V),
@@ -56,16 +57,19 @@ Proof.
       exists vs. repeat (split;try assumption). apply incl_tl. assumption.
 Qed.
 
-Lemma byzantine_fault_tolerance_interval :
+Lemma sufficient_validators_pivotal :
   exists (vs : list V),
     NoDup vs /\
     (sum_weights vs > t)%R /\
-    exists v,
+    (exists v,
       In v vs /\
-      (sum_weights (set_remove v_eq_dec v vs) <= t)%R.
+      (sum_weights (set_remove v_eq_dec v vs) <= t)%R) /\
+    (exists v', ~ In v' vs).
 Proof.
-  destruct byzantine_fault_tolerance as [vs [Hvs Hweight]].
-  apply (byzantine_fault_tolerance_interval_ind vs Hvs) in  Hweight.
-  destruct Hweight as [vs' [Hnd [Hincl H]]].
+  destruct sufficient_validators_condition as [vs [Hvs [Hweight Hv']]].
+  apply (sufficient_validators_pivotal_ind vs Hvs) in  Hweight.
+  destruct Hweight as [vs' [Hnd [Hincl [Hweight Hv]]]].
   exists vs'. repeat (split; try assumption).
+  destruct Hv' as [v' Hnin]. exists v'.
+  intro. apply Hnin. apply Hincl. assumption.
 Qed.

@@ -31,7 +31,7 @@ Definition potentially_pivotal (v : V) : Prop :=
 
 Lemma exists_pivotal_message : exists v, potentially_pivotal v.
 Proof.
-  destruct byzantine_fault_tolerance_interval as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
+  destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
   exists v.
   subst. exists (set_remove v_eq_dec v vs). repeat split.
   - apply set_remove_nodup. assumption.

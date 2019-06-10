@@ -1,5 +1,7 @@
 Require Import List.
 
+Require Import Casper.preamble.
+
 Lemma incl_empty : forall A (l : list A),
   incl l nil -> l = nil.
 Proof.
@@ -55,6 +57,14 @@ Proof.
   intros. intro; subst. apply H0. assumption.
 Qed.
 
+Lemma map_injective : forall A B (f : A -> B),
+  Injective f -> Injective (map f).
+Proof.
+  intros. intros xs ys. generalize dependent ys.
+  induction xs; intros; destruct ys; split; intros; try reflexivity; try discriminate.
+  - simpl in H0. inversion H0 . apply H in H2; subst. apply IHxs in H3; subst. reflexivity.
+  - rewrite H0. reflexivity.
+Qed.
 
 (**
 
