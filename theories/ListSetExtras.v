@@ -2,6 +2,8 @@ Require Import Coq.Lists.ListSet.
 Require Import List.
 Import ListNotations.
 
+Require Import Casper.preamble.
+
 
 Lemma eq_dec_left {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall v,
   exists n, Aeq_dec v v = left n.
@@ -45,6 +47,43 @@ Proof.
   intros. split; intros x Hin; destruct Hin; subst
   ; (left; reflexivity) || (right; apply H; assumption).
 Qed.
+
+
+Fixpoint  set_eq_fn_rec {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (s1 s2 : list A) : bool :=
+  match s1 with
+  | [] =>
+    match s2 with 
+    | [] => true
+    | _ => false
+    end
+  | h :: t => if in_dec Aeq_dec h s2 then set_eq_fn_rec Aeq_dec t (set_remove Aeq_dec h s2) else false
+  end.
+
+Definition set_eq_fn {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (s1 s2 : list A) : bool :=
+  set_eq_fn_rec Aeq_dec (nodup Aeq_dec s1) (nodup Aeq_dec s2).
+
+Lemma set_eq_fn_rec_iff {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall s1 s2,
+  NoDup s1 ->
+  NoDup s2 ->
+  set_eq s1 s2 <-> set_eq_fn_rec Aeq_dec s1 s2 = true.
+Proof.
+  intros; split; intros.
+  - admit.
+  - induction s1; simpl in H1; destruct s2; try discriminate.
+    + split; apply incl_refl.
+    + destruct (in_dec Aeq_dec a (a0 :: s2)); try discriminate.
+  Admitted.
+
+Lemma set_eq_functional {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) :
+  PredicateFunction2 set_eq (set_eq_fn Aeq_dec).
+Proof.
+  intros s1 s2.
+  Admitted.
+
+Lemma set_eq_dec {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall (s1 s2 : set A),
+  {set_eq s1 s2} + {~ set_eq s1 s2}.
+Proof.
+  Admitted.
 
 Lemma set_union_comm {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall s1 s2,
   set_eq (set_union Aeq_dec s1 s2) (set_union Aeq_dec s2 s1).
@@ -120,6 +159,19 @@ Proof.
   - apply set_add_intro1. apply IHs. assumption.
 Qed.
 
+Lemma set_map_exists  {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall y s,
+  In y (set_map Aeq_dec f s) ->
+  exists x, In x s /\ f x = y.
+Proof.
+  intros.
+  induction s; simpl in H.
+  - inversion H.
+  - apply set_add_iff in H. destruct H as [Heq | Hin]; subst.
+    + exists a. split; try reflexivity. left; reflexivity.
+    + apply IHs in Hin. destruct Hin as [x [Hin Heq]]; subst.
+      exists x. split; try reflexivity. right; assumption.
+Qed.
+
 Lemma set_map_incl {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall s s',
   incl s s' ->
   incl (set_map Aeq_dec f s) (set_map Aeq_dec f s').
@@ -129,6 +181,23 @@ Proof.
   - simpl in H0. apply set_add_elim in H0. destruct H0.
     + subst. apply set_map_in. apply H. left. reflexivity.
     + apply IHs; try assumption. intros x; intros. apply H. right. assumption.
+Qed.
+
+Lemma set_map_eq {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall s s',
+  set_eq s s' ->
+  set_eq (set_map Aeq_dec f s) (set_map Aeq_dec f s').
+Proof.
+  intros. split; destruct H; apply set_map_incl; assumption.
+Qed.
+
+Lemma set_map_injective {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : 
+  Injective f ->
+  forall s s',
+    set_eq (set_map Aeq_dec f s) (set_map Aeq_dec f s') -> set_eq s s'.
+Proof.
+  intros. split; intros x Hin;
+    apply (set_map_in Aeq_dec f) in Hin; apply H0 in Hin; apply set_map_exists in Hin
+    ; destruct Hin as [x' [Hin Heq]]; apply H in Heq; subst; assumption.
 Qed.
 
 Lemma set_remove_not_in {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s,
