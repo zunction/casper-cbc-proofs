@@ -17,9 +17,9 @@ Require Import Casper.FullStates.protocol_states.
 Require Import Casper.FullStates.consistent_decisions_prop_protocol_states.
 
 Definition non_trivial (p : state -> Prop) :=
-  (exists sigma1, protocol_state sigma1 /\ decided p sigma1)
+  (exists sigma1, protocol_state sigma1 /\ decided_state p sigma1)
   /\
-  (exists sigma2, protocol_state sigma2 /\ decided (predicate_not p) sigma2).
+  (exists sigma2, protocol_state sigma2 /\ decided_state (predicate_not p) sigma2).
 
 Definition potentially_pivotal (v : V) : Prop :=
     exists (vs : list V),
