@@ -18,15 +18,15 @@ Require Import Casper.FullStates.common_futures.
 
 (* Decided properties of protocol states *)
 
-Definition decided_state (q : state -> Prop) (sigma : state) : Prop := forall sigma',
+Definition decided_state (p : state -> Prop) (sigma : state) : Prop := forall sigma',
   sigma' in_Futures sigma ->
-  q sigma'.
+  p sigma'.
 
 (* Forward consistency *)
-Lemma forward_consistency : forall sigma sigma' q,
+Lemma forward_consistency : forall sigma sigma' p,
   sigma' in_Futures sigma ->
-  decided_state q sigma ->
-  decided_state q sigma'.
+  decided_state p sigma ->
+  decided_state p sigma'.
 Proof.
   unfold decided_state in *. intros.
   apply H0. apply in_Futures_trans with sigma'; assumption.
