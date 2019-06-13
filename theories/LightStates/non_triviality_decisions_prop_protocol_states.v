@@ -52,16 +52,16 @@ Theorem non_triviality_decisions_on_properties_of_protocol_states :
   exists p, non_trivial p.
 Proof.
   destruct exists_pivotal_validator as [v [vs [Hnodup [Hvnin [Hlte [Hgt [v' Hv'nin]]]]]]].
-  destruct (estimator_total []) as [c Hc].
-  exists (In (c,v,[])).
-  split.
-  - exists [(c,v,[])].
-    split; try (apply (protocol_state_singleton c v) in Hc; try assumption; constructor).
-    intros sigma H.
-    destruct H as [_ [_ Hincl]]. apply Hincl. left. reflexivity.
-  - apply exist_equivocating_messages in Hv'nin as Heqv.
+  apply exist_equivocating_messages in Hv'nin as Heqv.
     destruct Heqv as [j1 [j2 [Hj1ps [Hj2ps [c1 [c2 [Hval1 [Hval2 Heqv]]]]]]]].
-    exists ((c1, v, hash_state j1) :: flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs).
+  exists (In (c1,v,hash_state j1)).
+  split.
+  - exists [(c1,v, hash_state j1)].
+    split. 
+    + apply (protocol_state_singleton c1 v) in Hval1; try assumption.
+    + intros sigma H.
+      destruct H as [_ [_ Hincl]]. apply Hincl. left. reflexivity.
+  - exists ((c2, v, hash_state j2) :: flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs).
     split.
     + induction vs.
       * simpl. apply protocol_state_singleton; try assumption.

@@ -160,7 +160,7 @@ Proof.
     simpl. apply protocol_state_cons with c1 a j1; try assumption.
     + left; reflexivity.
   Admitted.
-    
+
 
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->
