@@ -10,6 +10,9 @@ results: theories/FullStates/common_futures.vo \
 theories/ListExtras.vo : \
     theories/preamble.vo
 
+theories/ListSetExtras.vo : \
+    theories/preamble.vo
+
 theories/FullStates/states.vo : \
     theories/preamble.vo \
     theories/FullStates/consensus_values.vo \

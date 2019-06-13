@@ -16,20 +16,19 @@ Require Import Casper.FullStates.state_union.
 
 Require Import Casper.FullStates.common_futures.
 
-
 (* Decided properties of protocol states *)
 
-Definition decided (q : state -> Prop) (sigma : state) : Prop := forall sigma',
+Definition decided_state (p : state -> Prop) (sigma : state) : Prop := forall sigma',
   sigma' in_Futures sigma ->
-  q sigma'.
+  p sigma'.
 
 (* Forward consistency *)
-Lemma forward_consistency : forall sigma sigma' q,
+Lemma forward_consistency : forall sigma sigma' p,
   sigma' in_Futures sigma ->
-  decided q sigma ->
-  decided q sigma'.
+  decided_state p sigma ->
+  decided_state p sigma'.
 Proof.
-  unfold decided in *. intros.
+  unfold decided_state in *. intros.
   apply H0. apply in_Futures_trans with sigma'; assumption.
 Qed.
 
@@ -38,16 +37,37 @@ Qed.
    NOTE: the Consistent predicate is unrolled.
  *)
 
+(* Decisions on properties of protocol states for a state *)
+Definition decisions_state (sigma : state) (p : state -> Prop) : Prop :=
+  decided_state p sigma.
+
+(* Decisions on properties of protocol states for a finite union of states *)
+Definition decisions_states (sigmas : list state) (p : state -> Prop) : Prop :=
+  Exists (decided_state p) sigmas.
+
+(* Consistency of decisions on properties of protocol states for a state *)
+Definition consistent_decisions_state (sigma : state) : Prop :=
+  exists sigma',
+    protocol_state(sigma') /\
+    forall (p : state -> Prop),
+      decisions_state sigma p ->
+      p sigma'
+  .
+
+(* Consistency of decisions on properties of protocol states for a finite union of states *)
+Definition consistent_decisions_states (sigmas : list state) : Prop :=
+  exists sigma',
+    protocol_state(sigma') /\
+    forall (p : state -> Prop),
+      decisions_states sigmas p ->
+      p sigma'
+  .
 
 (* n-party consensus safety for properties of protocol states  *)
 Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigmas,
   Forall protocol_state sigmas ->
   fault_tolerance_condition (fold_right state_union Empty sigmas) ->
-  exists sigma',
-    protocol_state(sigma') /\
-    forall (q : state -> Prop),
-      Exists (decided q) sigmas ->
-      q sigma'
+  consistent_decisions_states(sigmas)
   .
 Proof.
   intros.
