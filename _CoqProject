@@ -24,12 +24,14 @@ theories/FullStates/adequacy/sorted_subset.v
 theories/FullStates/adequacy/state_eq.v
 theories/FullStates/adequacy/state_inclusion.v
 
+theories/sorted_lists.v
 theories/ListExtras.v
 theories/ListSetExtras.v
 theories/LightStates/consensus_values.v
 theories/LightStates/validators.v
 theories/LightStates/threshold.v
 theories/LightStates/hashes.v
+theories/LightStates/justifications.v
 theories/LightStates/protocol_states.v
 theories/LightStates/messages.v
 theories/LightStates/states.v

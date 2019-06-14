@@ -27,6 +27,11 @@ Qed.
 Definition set_eq {A} (s1 s2 : set A) : Prop :=
   incl s1 s2 /\ incl s2 s1.
 
+Lemma set_eq_refl {A} : forall (s : list A), set_eq s s.
+Proof.
+  induction s;split; intro; intro; assumption.
+Qed.
+
 Lemma set_eq_comm {A} : forall s1 s2 : set A,
   set_eq s1 s2 <-> set_eq s2 s1.
 Proof.

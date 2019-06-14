@@ -1,7 +1,5 @@
-Require Import Coq.Lists.ListSet.
-Require Import List.
+Require Import Casper.preamble.
 
-Require Import Casper.ListSetExtras.
 
 (*******************)
 (** Hash universe **)
@@ -9,12 +7,21 @@ Require Import Casper.ListSetExtras.
 
 Parameter hash : Set .
 
-Parameter hash_eq_dec : forall (h1 h2 : hash), {h1 = h2} + {h1 <> h2}.
+Parameter hash_compare : hash -> hash -> comparison.
 
-Definition justification := set hash.
+(** hash totally ordered **)
 
-Definition justification_in := set_mem hash_eq_dec.
+Parameter hash_compare_strict_order : CompareStrictOrder hash_compare.
 
-Definition justification_eq := @set_eq hash.
+Definition hash_lt := compare_lt hash_compare.
 
-Definition justification_eq_dec := set_eq_dec hash_eq_dec.
+Definition hash_lt_strict_order :=   compare_lt_strict_order hash hash_compare hash_compare_strict_order.
+
+Lemma hash_compare_refl : forall h, hash_compare h h = Eq.
+Proof.
+  apply compare_eq_refl . 
+  apply (proj1 hash_compare_strict_order).
+Qed.
+
+Definition hash_eq_dec : forall x y : hash, {x = y} + {x <> y} :=
+  compare_eq_dec hash hash_compare hash_compare_strict_order.

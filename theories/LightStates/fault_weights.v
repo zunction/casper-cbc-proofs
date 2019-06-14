@@ -8,6 +8,7 @@ Require Import Casper.ListSetExtras.
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
+Require Import Casper.LightStates.justifications.
 Require Import Casper.LightStates.messages.
 Require Import Casper.LightStates.states.
 
