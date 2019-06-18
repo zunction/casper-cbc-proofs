@@ -122,8 +122,8 @@ Proof.
   - apply fault_tolerance_condition_singleton.
 Qed.
 
-Lemma exist_equivocating_messages : forall nv vs,
-  ~ In nv vs ->
+Lemma exist_equivocating_messages : forall vs,
+  vs <> nil ->
   exists j1, exists j2, protocol_state j1 /\ protocol_state j2 /\ ~ set_eq j1 j2 /\
     exists c1, exists c2,
       valid_estimate_condition c1 j1 /\ valid_estimate_condition c2 j2 /\
@@ -135,21 +135,23 @@ Lemma exist_equivocating_messages : forall nv vs,
 Proof.
   destruct (estimator_total []) as [c Hc].
   intros.
-  destruct (estimator_total [(c, nv, [])]) as [c' Hc'].
-  exists []. exists [(c, nv,[])]. repeat split; try constructor.
-  intros.
-  - apply (protocol_state_singleton c nv []) in Hc; try constructor. assumption.
-  - intro. destruct H0. apply incl_empty in H1. inversion H1.
-  - exists c. exists c'. repeat split; try assumption.
+  destruct vs; try (exfalso; apply H; reflexivity); clear H. 
+  destruct (estimator_total [(c, v, [])]) as [c' Hc'].
+  destruct (estimator_total [(c', v, hash_state [(c, v, [])])]) as [c'' Hc''].
+  exists []. exists [(c', v, hash_state [(c, v, [])])]. repeat split; try constructor.
+  - apply (protocol_state_singleton c' v [(c, v, [])]) in Hc'; try constructor; try assumption.
+    apply (protocol_state_singleton c v []) in Hc; try constructor; assumption.
+  - intro. destruct H. apply incl_empty in H0. inversion H0.
+  - exists c. exists c''. repeat split; try assumption.
     intros. unfold equivocating_messages. rewrite eq_dec_if_false.
     + rewrite eq_dec_if_true; try reflexivity.
       apply andb_true_iff. split.
       * unfold hash_state. simpl. unfold justification_add. simpl.
         unfold justification_in. unfold inb.
         rewrite eq_dec_if_false; simpl; try reflexivity.
-        intro. apply hash_injective in H1. inversion H1; subst. apply H. apply H0.
+        intro. apply hash_injective in H0. inversion H0; subst.
       * simpl. reflexivity.
-    + intro. inversion H1.
+    + intro. inversion H0.
 Qed.
 
 Lemma binary_justification_nodup : forall (vs : list V) (c1 c2 : C) (j1 j2 : state),

@@ -25,13 +25,12 @@ Definition potentially_pivotal (v : V) : Prop :=
       NoDup vs /\
       ~In v vs /\
       (sum_weights vs <= t)%R /\
-      (sum_weights vs > t - weight v)%R /\
-      exists v', ~ In v' (v :: vs)
+      (sum_weights vs > t - weight v)%R
       .
 
 Lemma exists_pivotal_validator : exists v, potentially_pivotal v.
 Proof.
-  destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [[v [Hin Hlte]] Hv']]]].
+  destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
   exists v.
   subst. exists (set_remove v_eq_dec v vs). repeat split.
   - apply set_remove_nodup. assumption.
@@ -44,17 +43,15 @@ Proof.
     rewrite Rplus_opp_r in Hgt.
     rewrite Rplus_0_r in Hgt.
     assumption.
-  - destruct Hv' as [v' Hnin]. exists v'. intro. apply Hnin.
-    destruct H; subst; try assumption.
-    apply set_remove_1 in H. assumption.
 Qed.
 
 Theorem non_triviality_decisions_on_properties_of_protocol_states :
   exists p, non_trivial p.
 Proof.
-  destruct exists_pivotal_validator as [v [vs [Hnodup [Hvnin [Hlte [Hgt [v' Hv'nin]]]]]]].
-  apply exist_equivocating_messages in Hv'nin as Heqv.
-    destruct Heqv as [j1 [j2 [Hj1ps [Hj2ps [Hneq12 [c1 [c2 [Hval1 [Hval2 Heqv]]]]]]]]].
+  destruct exists_pivotal_validator as [v [vs [Hnodup [Hvnin [Hlte Hgt]]]]].
+  destruct (exist_equivocating_messages (v :: vs))
+    as [j1 [j2 [Hj1ps [Hj2ps [Hneq12 [c1 [c2 [Hval1 [Hval2 Heqv]]]]]]]]]
+  ; try (intro H; inversion H).
   exists (In (c1,v,hash_state j1)).
   split.
   - exists [(c1,v, hash_state j1)].
