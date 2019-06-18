@@ -124,7 +124,7 @@ Qed.
 
 Lemma exist_equivocating_messages : forall nv vs,
   ~ In nv vs ->
-  exists j1, exists j2, protocol_state j1 /\ protocol_state j2 /\
+  exists j1, exists j2, protocol_state j1 /\ protocol_state j2 /\ ~ set_eq j1 j2 /\
     exists c1, exists c2,
       valid_estimate_condition c1 j1 /\ valid_estimate_condition c2 j2 /\
       (forall v,
@@ -139,6 +139,7 @@ Proof.
   exists []. exists [(c, nv,[])]. repeat split; try constructor.
   intros.
   - apply (protocol_state_singleton c nv []) in Hc; try constructor. assumption.
+  - intro. destruct H0. apply incl_empty in H1. inversion H1.
   - exists c. exists c'. repeat split; try assumption.
     intros. unfold equivocating_messages. rewrite eq_dec_if_false.
     + rewrite eq_dec_if_true; try reflexivity.

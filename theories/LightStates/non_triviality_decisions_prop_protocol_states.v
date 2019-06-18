@@ -4,6 +4,7 @@ Import ListNotations.
 Require Import Coq.Lists.ListSet.
 
 Require Import Casper.preamble.
+Require Import Casper.ListSetExtras.
 
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.messages.
@@ -53,7 +54,7 @@ Theorem non_triviality_decisions_on_properties_of_protocol_states :
 Proof.
   destruct exists_pivotal_validator as [v [vs [Hnodup [Hvnin [Hlte [Hgt [v' Hv'nin]]]]]]].
   apply exist_equivocating_messages in Hv'nin as Heqv.
-    destruct Heqv as [j1 [j2 [Hj1ps [Hj2ps [c1 [c2 [Hval1 [Hval2 Heqv]]]]]]]].
+    destruct Heqv as [j1 [j2 [Hj1ps [Hj2ps [Hneq12 [c1 [c2 [Hval1 [Hval2 Heqv]]]]]]]]].
   exists (In (c1,v,hash_state j1)).
   split.
   - exists [(c1,v, hash_state j1)].
@@ -63,11 +64,56 @@ Proof.
       destruct H as [_ [_ Hincl]]. apply Hincl. left. reflexivity.
   - exists ((c2, v, hash_state j2) :: flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs).
     split.
-    + induction vs.
-      * simpl. apply protocol_state_singleton; try assumption.
-      * simpl.
-        { apply protocol_state_cons with c1 a j1; try assumption.
-          - right; left; reflexivity.
-          - admit.
-          -
+    + apply protocol_state_cons with c2 v j2; try assumption.
+      * left; reflexivity.
+      * simpl. rewrite eq_dec_if_true; try reflexivity.
+        apply binary_justification_protocol_state; try assumption.
+        unfold fault_tolerance_condition.
+        apply Rle_trans with (sum_weights (set_map v_eq_dec validator (flat_map (fun v0 : V => [(c1, v0, hash_state j1); (c2, v0, hash_state j2)]) vs)))
+        ; try apply fault_weight_max.
+        apply Rle_trans with (sum_weights vs); try assumption.
+        apply sum_weights_incl; try assumption; try apply set_map_nodup.
+        intros x Hin.
+        apply set_map_exists in Hin.
+        destruct Hin as [[(mc, mv) mj] [Hin Hveq]]. simpl in Hveq. subst.
+        apply in_flat_map in Hin.
+        destruct Hin as [mv [Hinv Hinm]].
+        destruct Hinm as [Hinm | [Hinm | Hinm]]
+        ; inversion Hinm; subst; assumption.
+      * constructor; try (apply binary_justification_nodup; assumption).
+        rewrite in_flat_map. intro.
+        destruct H as [v'' [Hinv Hinm]].
+        apply Hvnin.
+        destruct Hinm as [Hinm | [Hinm | Hinm]]
+        ; inversion Hinm; subst; assumption.
+      * unfold fault_tolerance_condition.
+        unfold fault_weight_state.
+        apply Rle_trans with (sum_weights vs); try assumption.
+        apply sum_weights_incl; try assumption; try apply set_map_nodup.
+        unfold equivocating_validators.
+        intros v0 Hinv0.
+        apply set_map_exists in Hinv0.
+        destruct Hinv0 as [[(c0, v0') j0] [Hin Heq]].
+        simpl in Heq; subst.
+        apply filter_In in Hin.
+        destruct Hin as [Hin Hequiv].
+        destruct Hin as [Heq | Hin]
+        ; try (
+          apply in_flat_map in Hin
+          ; destruct Hin as [v0' [Hinv0 [Hin | [Hin | Hin]]]]
+          ; inversion Hin; subst; clear Hin; assumption
+        ).
+        inversion Heq; subst; clear Heq. simpl in Hequiv.
+        unfold equivocating_messages in Hequiv.
+        rewrite eq_dec_if_true in Hequiv; try reflexivity.
+        simpl in Hequiv.
+        apply existsb_exists in Hequiv.
+        destruct Hequiv as [[(mc, mv) mj] [Hin Hequiv]].
+        apply in_flat_map in Hin.
+        unfold equivocating_messages in Hequiv.
+        destruct ( message_eq_dec (c0, v0, hash_state j2) (mc, mv, mj))
+        ; try discriminate.
+        destruct (v_eq_dec v0 mv); try discriminate; subst.
+        destruct Hin as [v0' [Hinv0 [Hin | [Hin | Hin]]]]
+          ; inversion Hin; subst; clear Hin; assumption.
   Admitted.

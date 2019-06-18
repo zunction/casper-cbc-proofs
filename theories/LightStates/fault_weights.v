@@ -108,3 +108,14 @@ Proof.
   intros. apply sum_weights_incl; try apply equivocating_validators_nodup.
   apply equivocating_validators_incl. assumption.
 Qed.
+
+Lemma fault_weight_max : forall sigma,
+  (fault_weight_state sigma <= sum_weights (set_map v_eq_dec validator sigma))%R.
+Proof.
+  intros.
+  apply sum_weights_incl; try apply set_map_nodup.
+  unfold equivocating_validators.
+  apply set_map_incl.
+  intros x Hin.
+  apply filter_In in Hin. destruct Hin; assumption.
+Qed.
