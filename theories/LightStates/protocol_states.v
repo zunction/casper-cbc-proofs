@@ -237,6 +237,16 @@ Proof.
   - assumption.
 Qed.
 
+Lemma protocol_state_fault_tolerance : forall sigma,
+  protocol_state sigma ->
+  fault_tolerance_condition sigma.
+Proof.
+  intros. inversion H.
+  - unfold fault_tolerance_condition. unfold fault_weight_state. simpl.
+    apply Rge_le. apply threshold_nonnegative.
+  - assumption.
+Qed.
+
 Lemma set_eq_protocol_state : forall sigma,
   protocol_state sigma ->
   forall sigma',

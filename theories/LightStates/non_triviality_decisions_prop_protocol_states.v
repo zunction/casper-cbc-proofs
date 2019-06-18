@@ -116,4 +116,12 @@ Proof.
         destruct (v_eq_dec v0 mv); try discriminate; subst.
         destruct Hin as [v0' [Hinv0 [Hin | [Hin | Hin]]]]
           ; inversion Hin; subst; clear Hin; assumption.
+    + intros sigma Hincl. intro Hin.
+      destruct Hincl as [Hps [Hpssigma Hinc]].
+      apply protocol_state_fault_tolerance in Hpssigma.
+      apply (fault_tolerance_condition_subset ((c1, v, hash_state j1) :: ((c2, v, hash_state j2) :: flat_map (fun v : V => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs))) in Hpssigma.
+      * unfold fault_tolerance_condition in Hpssigma. unfold fault_weight_state in Hpssigma.
+        apply (Rplus_gt_compat_r (weight v)) in Hgt. unfold Rminus in Hgt.
+        rewrite Rplus_assoc in Hgt. rewrite Rplus_opp_l in Hgt. rewrite Rplus_0_r in Hgt. apply Rgt_lt in Hgt.
+        apply (Rle_lt_trans _ _ _ Hpssigma) in Hgt.
   Admitted.
