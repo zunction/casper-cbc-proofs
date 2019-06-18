@@ -121,7 +121,35 @@ Proof.
       apply protocol_state_fault_tolerance in Hpssigma.
       apply (fault_tolerance_condition_subset ((c1, v, hash_state j1) :: ((c2, v, hash_state j2) :: flat_map (fun v : V => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs))) in Hpssigma.
       * unfold fault_tolerance_condition in Hpssigma. unfold fault_weight_state in Hpssigma.
+        assert (Heq : ((c1, v, hash_state j1)
+             :: (c2, v, hash_state j2)
+                :: flat_map (fun v : V => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs)
+               = flat_map (fun v : V => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) (v :: vs))
+        ; try reflexivity.
+        rewrite Heq in Hpssigma.
         apply (Rplus_gt_compat_r (weight v)) in Hgt. unfold Rminus in Hgt.
         rewrite Rplus_assoc in Hgt. rewrite Rplus_opp_l in Hgt. rewrite Rplus_0_r in Hgt. apply Rgt_lt in Hgt.
         apply (Rle_lt_trans _ _ _ Hpssigma) in Hgt.
-  Admitted.
+        { apply (Rle_lt_trans (sum_weights (v :: vs))) in Hgt.
+          - rewrite Rplus_comm in Hgt. simpl in Hgt. apply Rlt_irrefl with (weight v + sum_weights vs)%R.
+            assumption.
+          - apply sum_weights_incl.
+            + constructor; assumption.
+            + apply set_map_nodup.
+            + intros v0 Hin0. unfold equivocating_validators.
+              apply set_map_exists. exists (c1, v0, hash_state j1).
+              split; try reflexivity.
+              apply filter_In.
+              split.
+              * apply in_flat_map.
+                exists v0. split; try assumption.
+                left; reflexivity.
+              * apply existsb_exists. exists (c2, v0, hash_state j2).
+                split; try (apply Heqv; assumption).
+                apply in_flat_map.
+                exists v0. split; try assumption. right; left; reflexivity.
+      }
+    * intros msg Hinm. 
+      destruct Hinm as [Heq | Hinm]; subst; try assumption.
+      apply Hinc. assumption.
+Qed.

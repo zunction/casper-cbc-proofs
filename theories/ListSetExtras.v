@@ -231,16 +231,22 @@ Proof.
 Qed.
 
 Lemma set_map_exists  {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall y s,
-  In y (set_map Aeq_dec f s) ->
+  In y (set_map Aeq_dec f s) <->
   exists x, In x s /\ f x = y.
 Proof.
   intros.
-  induction s; simpl in H.
+  induction s; split; intros; simpl in H.
   - inversion H.
+  - destruct H as [_ [F _]]. inversion F.
   - apply set_add_iff in H. destruct H as [Heq | Hin]; subst.
     + exists a. split; try reflexivity. left; reflexivity.
     + apply IHs in Hin. destruct Hin as [x [Hin Heq]]; subst.
       exists x. split; try reflexivity. right; assumption.
+  - destruct H as [x [[Heq | Hin] Heqf]]; subst; simpl; apply set_add_iff
+    ; try (left; reflexivity) .
+    right. apply IHs. exists x. split.
+    + assumption.
+    + reflexivity.
 Qed.
 
 Lemma set_map_incl {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall s s',
