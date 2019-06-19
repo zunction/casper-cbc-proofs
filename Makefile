@@ -6,6 +6,7 @@ results: theories/FullStates/common_futures.vo \
     theories/FullStates/non_triviality_decisions_prop_protocol_states.vo \
     theories/LightStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
+    theories/LightStates/consistent_decisions_prop_consensus_values.vo \
     theories/LightStates/non_triviality_decisions_prop_protocol_states.vo
 
 theories/ListExtras.vo : \
