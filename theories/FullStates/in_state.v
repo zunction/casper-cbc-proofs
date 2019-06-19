@@ -25,6 +25,22 @@ Proof.
   intros. apply in_dec. apply message_eq_dec.
 Qed.
 
+Lemma in_state_dec_if_true {A} : forall msg sigma (T E : A),
+  in_state msg sigma ->
+  (if in_state_dec msg sigma then T else E) = T.
+Proof.
+  intros. destruct (in_state_dec msg sigma); try reflexivity.
+  exfalso. apply n. apply H.
+Qed.
+
+Lemma in_state_dec_if_false {A} : forall msg sigma (T E : A),
+  ~ in_state msg sigma ->
+  (if in_state_dec msg sigma then T else E) = E.
+Proof.
+  intros. destruct (in_state_dec msg sigma); try reflexivity.
+  exfalso. apply H. apply i.
+Qed.
+
 Definition in_state_fn  (msg : message) (sigma : state) : bool :=
   match in_state_dec msg sigma with
   | left _ => true
