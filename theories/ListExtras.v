@@ -1,4 +1,5 @@
 Require Import List.
+Import ListNotations.
 
 Require Import Casper.preamble.
 
@@ -55,6 +56,26 @@ Lemma in_not_in : forall A (x y : A) l,
   x <> y.
 Proof.
   intros. intro; subst. apply H0. assumption.
+Qed.
+
+Fixpoint inb {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (x : A) (xs : list A) :=
+  match xs with 
+  | [] => false
+  | h::t => if Aeq_dec x h then true else inb Aeq_dec x t
+  end.
+
+Lemma in_function {A}  (Aeq_dec : forall x y:A, {x = y} + {x <> y}) :
+  PredicateFunction2 (@In A) (inb Aeq_dec).
+Proof.
+  intros x xs. induction xs; split; intros.
+  - inversion H.
+  - inversion H.
+  - simpl. destruct H as [Heq | Hin].
+    + subst. apply eq_dec_if_true. reflexivity.
+    + apply IHxs  in Hin. rewrite Hin. destruct (Aeq_dec x a); reflexivity.
+  - simpl in H. destruct (Aeq_dec x a).
+    + subst. left. reflexivity.
+    + right. apply IHxs. assumption.
 Qed.
 
 Lemma map_injective : forall A B (f : A -> B),

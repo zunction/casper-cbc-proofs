@@ -29,8 +29,7 @@ Parameter validators_beyond_threshold : forall v : V, (weight v <= t)%R.
 **)
 
 Parameter sufficient_validators_condition :
-  exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R /\
-    exists v : V, ~ In v vs.
+  exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
 
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -63,13 +62,10 @@ Lemma sufficient_validators_pivotal :
     (sum_weights vs > t)%R /\
     (exists v,
       In v vs /\
-      (sum_weights (set_remove v_eq_dec v vs) <= t)%R) /\
-    (exists v', ~ In v' vs).
+      (sum_weights (set_remove v_eq_dec v vs) <= t)%R).
 Proof.
-  destruct sufficient_validators_condition as [vs [Hvs [Hweight Hv']]].
+  destruct sufficient_validators_condition as [vs [Hvs Hweight]].
   apply (sufficient_validators_pivotal_ind vs Hvs) in  Hweight.
   destruct Hweight as [vs' [Hnd [Hincl [Hweight Hv]]]].
   exists vs'. repeat (split; try assumption).
-  destruct Hv' as [v' Hnin]. exists v'.
-  intro. apply Hnin. apply Hincl. assumption.
 Qed.

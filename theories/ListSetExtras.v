@@ -3,6 +3,7 @@ Require Import List.
 Import ListNotations.
 
 Require Import Casper.preamble.
+Require Import Casper.ListExtras.
 
 
 Lemma eq_dec_left {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall v,
@@ -25,6 +26,11 @@ Qed.
 
 Definition set_eq {A} (s1 s2 : set A) : Prop :=
   incl s1 s2 /\ incl s2 s1.
+
+Lemma set_eq_refl {A} : forall (s : list A), set_eq s s.
+Proof.
+  induction s;split; intro; intro; assumption.
+Qed.
 
 Lemma set_eq_comm {A} : forall s1 s2 : set A,
   set_eq s1 s2 <-> set_eq s2 s1.
@@ -49,7 +55,7 @@ Proof.
 Qed.
 
 
-Fixpoint  set_eq_fn_rec {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (s1 s2 : list A) : bool :=
+Fixpoint set_eq_fn_rec {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (s1 s2 : list A) : bool :=
   match s1 with
   | [] =>
     match s2 with 
@@ -68,22 +74,87 @@ Lemma set_eq_fn_rec_iff {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : foral
   set_eq s1 s2 <-> set_eq_fn_rec Aeq_dec s1 s2 = true.
 Proof.
   intros; split; intros.
-  - admit.
-  - induction s1; simpl in H1; destruct s2; try discriminate.
+  - generalize dependent s2. induction s1; intros; destruct s2; destruct H1.
+    + reflexivity.
+    + apply incl_empty in  H2. inversion H2.
+    + apply incl_empty in  H1. inversion H1.
+    + apply NoDup_cons_iff in H. destruct H.
+      apply NoDup_cons_iff in H0. destruct H0.
+      simpl. destruct (Aeq_dec a0 a); subst.
+      * rewrite eq_dec_if_true; try reflexivity.
+        apply IHs1; try assumption.
+        { split; intros x Hin.
+          - destruct (H1 x); try (right; assumption); try assumption; subst.
+            exfalso. apply H; assumption.
+          - destruct (H2 x); try (right; assumption); try assumption; subst.
+            exfalso. apply H0; assumption.
+        }
+      * { destruct (in_dec Aeq_dec a s2).
+          - rewrite eq_dec_if_false.
+            + apply IHs1; try assumption.
+              * apply NoDup_cons_iff.
+                { split.
+                  - intro. apply set_remove_iff in H5; try assumption.
+                    apply H0. destruct H5; assumption.
+                  - apply set_remove_nodup. assumption.
+                }
+              * { split; intros x Hin.
+                  - destruct (Aeq_dec x a0); subst; try (left; reflexivity).
+                    right. apply set_remove_iff; try assumption.
+                    split.
+                    + destruct (H1 x); try assumption; try (right; assumption); subst.
+                      exfalso. apply n0; reflexivity.
+                    + intro; subst. apply H; assumption.
+                  - destruct Hin; subst.
+                    + destruct (H2 x); try assumption; try (left; reflexivity); subst.
+                      exfalso; apply n; reflexivity.
+                    + apply set_remove_iff in H5; try assumption. destruct H5.
+                      destruct (H2 x); try assumption; try (right; assumption); subst.
+                      exfalso; apply H6; reflexivity.
+                }
+            + intro; subst; apply n; reflexivity.
+          - exfalso. apply n0. destruct (H1 a); try assumption; try (left; reflexivity); subst.
+            exfalso; apply n; reflexivity.
+        }
+  - generalize dependent s2. induction s1; intros; simpl in H1; destruct s2; try discriminate.
     + split; apply incl_refl.
     + destruct (in_dec Aeq_dec a (a0 :: s2)); try discriminate.
-  Admitted.
+      apply IHs1 in H1; destruct H1
+      ; try (split; intros x Hin; destruct Hin as [Heq | Hin]; subst; try assumption).
+      * apply H1 in Hin. apply set_remove_iff in Hin; try assumption. destruct Hin; assumption.
+      * destruct (Aeq_dec x a); subst; try (left; reflexivity).
+        right. apply H2. apply set_remove_iff; try assumption. split; try assumption.
+        left; reflexivity.
+      * destruct (Aeq_dec x a); subst; try (left; reflexivity).
+        right. apply H2. apply set_remove_iff; try assumption. split; try assumption.
+        right; assumption.
+      * apply NoDup_cons_iff in H. destruct H; assumption.
+      * apply set_remove_nodup. assumption.
+Qed.
 
 Lemma set_eq_functional {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) :
   PredicateFunction2 set_eq (set_eq_fn Aeq_dec).
 Proof.
-  intros s1 s2.
-  Admitted.
+  intros s1 s2. split; intros.
+  - unfold set_eq_fn. apply set_eq_fn_rec_iff; try apply NoDup_nodup.
+    destruct H as [H12 H21]. split; intros x Hin; apply nodup_In; apply nodup_In in Hin
+    ; apply H12 || apply H21
+    ; assumption.
+  - apply set_eq_fn_rec_iff in H; try apply NoDup_nodup.
+    destruct H as [H12 H21].
+    split; intros x Hin; rewrite <- (nodup_In Aeq_dec); rewrite <- (nodup_In Aeq_dec) in Hin
+    ; apply H12 || apply H21
+    ; assumption.
+Qed.
 
 Lemma set_eq_dec {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall (s1 s2 : set A),
   {set_eq s1 s2} + {~ set_eq s1 s2}.
 Proof.
-  Admitted.
+  intros.
+  destruct (set_eq_fn Aeq_dec s1 s2) eqn:Heq.
+  - left. apply (set_eq_functional Aeq_dec). assumption.
+  - right. intro. apply (set_eq_functional Aeq_dec) in H. rewrite Heq in H. discriminate H.
+Qed.
 
 Lemma set_union_comm {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall s1 s2,
   set_eq (set_union Aeq_dec s1 s2) (set_union Aeq_dec s2 s1).
@@ -160,16 +231,22 @@ Proof.
 Qed.
 
 Lemma set_map_exists  {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall y s,
-  In y (set_map Aeq_dec f s) ->
+  In y (set_map Aeq_dec f s) <->
   exists x, In x s /\ f x = y.
 Proof.
   intros.
-  induction s; simpl in H.
+  induction s; split; intros; simpl in H.
   - inversion H.
+  - destruct H as [_ [F _]]. inversion F.
   - apply set_add_iff in H. destruct H as [Heq | Hin]; subst.
     + exists a. split; try reflexivity. left; reflexivity.
     + apply IHs in Hin. destruct Hin as [x [Hin Heq]]; subst.
       exists x. split; try reflexivity. right; assumption.
+  - destruct H as [x [[Heq | Hin] Heqf]]; subst; simpl; apply set_add_iff
+    ; try (left; reflexivity) .
+    right. apply IHs. exists x. split.
+    + assumption.
+    + reflexivity.
 Qed.
 
 Lemma set_map_incl {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall s s',

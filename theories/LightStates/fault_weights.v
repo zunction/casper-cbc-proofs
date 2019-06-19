@@ -8,6 +8,7 @@ Require Import Casper.ListSetExtras.
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
+Require Import Casper.LightStates.justifications.
 Require Import Casper.LightStates.messages.
 Require Import Casper.LightStates.states.
 
@@ -106,4 +107,15 @@ Lemma fault_weight_state_incl : forall sigma sigma',
 Proof.
   intros. apply sum_weights_incl; try apply equivocating_validators_nodup.
   apply equivocating_validators_incl. assumption.
+Qed.
+
+Lemma fault_weight_max : forall sigma,
+  (fault_weight_state sigma <= sum_weights (set_map v_eq_dec validator sigma))%R.
+Proof.
+  intros.
+  apply sum_weights_incl; try apply set_map_nodup.
+  unfold equivocating_validators.
+  apply set_map_incl.
+  intros x Hin.
+  apply filter_In in Hin. destruct Hin; assumption.
 Qed.
