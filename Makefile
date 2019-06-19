@@ -2,6 +2,7 @@ PYTHON=python2.7
 
 results: theories/FullStates/common_futures.vo \
     theories/FullStates/consistent_decisions_prop_protocol_states.vo \
+    theories/FullStates/consistent_decisions_prop_consensus_values.vo \
     theories/FullStates/non_triviality_decisions_prop_protocol_states.vo \
     theories/LightStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
