@@ -54,7 +54,8 @@ Definition consistent_decisions_state (sigma : state) : Prop :=
       p sigma'
   .
 
-(* Consistency of decisions on properties of protocol states for a finite union of states *)
+(* Consistency of decisions on properties of protocol states for a finite set of states *)
+
 Definition consistent_decisions_states (sigmas : list state) : Prop :=
   exists sigma',
     protocol_state(sigma') /\
