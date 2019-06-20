@@ -29,14 +29,17 @@ Definition H (p : C -> Prop) : state -> Prop :=
 Definition decided_consensus_value (p : C -> Prop) (sigma : state) : Prop := 
   decided_state (H p) sigma.
 
+(* 
 (* Decisions on properties of consensus values for a state *)
 Definition decisions_consensus_value_state (sigma : state) (p : C -> Prop) : Prop :=
   decided_state (H p) sigma.
+*)
 
 (* Decisions on properties of consensus values for a finite set of states *)
 Definition decisions_consensus_value_states (sigmas : list state) (p : C -> Prop) : Prop :=
   Exists (decided_state (H p)) sigmas.
 
+(* 
 (* Consistency of decisions on properties of consensus values for a state *)
 Definition consistent_decisions_value_state (sigma : state) : Prop :=
   exists c,
@@ -44,6 +47,7 @@ Definition consistent_decisions_value_state (sigma : state) : Prop :=
       decisions_consensus_value_state sigma p ->
       p c
   .
+*)
 
 (* Consistency of decisions on properties of consensus values for a finite set of states *)
 

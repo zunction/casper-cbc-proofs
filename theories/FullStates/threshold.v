@@ -1,5 +1,6 @@
 Require Import Coq.Reals.Reals.
 Require Import List.
+Import ListNotations.
 Require Import Coq.Lists.ListSet.
 
 Require Import Casper.preamble.
@@ -18,6 +19,9 @@ Parameter threshold_nonnegative : (t >= 0)%R .
 
 Parameter sufficient_validators_condition :
   exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
+
+Parameter validator_below_threshold_condition :
+  exists (v : V), (weight v <= t)%R.
 
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -57,3 +61,29 @@ Proof.
   destruct Hweight as [vs' [Hnd [Hincl H]]].
   exists vs'. repeat (split; try assumption).
 Qed.
+
+Lemma sufficient_validators_pivotal_non_empty :
+  exists (vs : list V),
+    NoDup vs /\
+    (sum_weights vs > t)%R /\
+    exists v,
+      In v vs /\
+      (sum_weights (set_remove v_eq_dec v vs) <= t)%R /\
+      set_remove v_eq_dec v vs <> nil.
+Proof.
+  destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [v [Hin Hlt]]]]].
+  destruct vs.
+  - inversion Hin.
+  - destruct vs.
+    + destruct Hin as [Heq | Hin]; try inversion Hin; subst.
+      destruct validator_below_threshold_condition as [v0 Hlt0].
+      assert (Hneq : v0 <> v).
+      {
+        intro; subst. simpl in Hgt. rewrite Rplus_0_r in Hgt.
+        apply Rgt_lt in Hgt.
+        apply (Rlt_le_trans t) in Hlt0; try assumption.
+        apply (Rlt_asym _ _ Hlt0).
+        admit.
+      }
+      exists [v0; v].
+  Admitted.
