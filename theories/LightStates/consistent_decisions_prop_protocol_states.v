@@ -16,7 +16,6 @@ Require Import Casper.LightStates.common_futures.
 
 
 (* Decided properties of protocol states *)
-
 Definition decided_state (p : state -> Prop) (sigma : state) : Prop := forall sigma',
   sigma' in_Futures sigma ->
   p sigma'.
@@ -27,28 +26,15 @@ Lemma forward_consistency : forall sigma sigma' p,
   decided_state p sigma ->
   decided_state p sigma'.
 Proof.
-  unfold decided_state in *. intros.
-  apply H0. apply in_Futures_trans with sigma'; assumption.
+  unfold decided_state in *. intros sigma sigma' p Hin Hp sigma0' Hsigma0'.
+  apply Hp. apply in_Futures_trans with sigma'; assumption.
 Qed.
 
-(* Decisions on properties of protocol states for a state *)
-Definition decisions_state (sigma : state) (p : state -> Prop) : Prop :=
-  decided_state p sigma.
-
-(* Decisions on properties of protocol states for a finite union of states *)
+(* Decisions on properties of protocol states for a finite set of states *)
 Definition decisions_states (sigmas : list state) (p : state -> Prop) : Prop :=
   Exists (decided_state p) sigmas.
 
-(* Consistency of decisions on properties of protocol states for a state *)
-Definition consistent_decisions_state (sigma : state) : Prop :=
-  exists sigma',
-    protocol_state(sigma') /\
-    forall (p : state -> Prop),
-      decisions_state sigma p ->
-      p sigma'
-  .
-
-(* Consistency of decisions on properties of protocol states for a finite union of states *)
+(* Consistency of decisions on properties of protocol states for a finite set of states *)
 Definition consistent_decisions_states (sigmas : list state) : Prop :=
   exists sigma',
     protocol_state(sigma') /\
@@ -64,13 +50,13 @@ Theorem n_party_consensus_safety_for_properties_of_protocol_states : forall sigm
   consistent_decisions_states(sigmas)
   .
 Proof.
-  intros.
-  destruct (n_party_common_futures _ H H0) as [sigma' [Hps' HinFutures]].
+  intros sigmas Hp Hf.
+  destruct (n_party_common_futures _ Hp Hf) as [sigma' [Hps' HinFutures]].
   exists sigma'.
   split; try assumption.
-  intros.
-  apply Exists_exists in H1.
-  destruct H1 as [sigma0 [Hin Hdecided]].
+  intros p HPp.
+  apply Exists_exists in HPp.
+  destruct HPp as [sigma0 [Hin Hdecided]].
   apply Hdecided.
   rewrite Forall_forall in HinFutures.
   apply HinFutures.
