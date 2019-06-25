@@ -14,11 +14,14 @@ Require Import Casper.FullStates.states.
 
 Definition message := (C * V * state)%type.
 
+Definition estimate (msg : message) : C :=
+  match msg with (c, _ , _) => c end.
+
 Definition sender (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
-Definition estimate (msg : message) : C :=
-  match msg with (c, _ , _) => c end.
+Definition justification (msg : message) : state :=
+  match msg with (_, _ , sigma) => sigma end.
 
 Fixpoint get_messages (sigma : state) : list message :=
   match sigma with
