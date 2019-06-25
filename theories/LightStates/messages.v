@@ -8,7 +8,7 @@ Require Import Casper.LightStates.justifications.
 
 Definition message : Type := C * V * justification.
 
-Definition validator (msg : message) : V :=
+Definition sender (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
 Definition consensus_value (msg : message) : C :=

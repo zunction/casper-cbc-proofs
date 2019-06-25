@@ -66,7 +66,7 @@ Proof.
       * simpl. rewrite eq_dec_if_true; try reflexivity.
         apply binary_justification_protocol_state; try assumption.
         unfold fault_tolerance_condition.
-        apply Rle_trans with (sum_weights (set_map v_eq_dec validator (flat_map (fun v0 : V => [(c1, v0, hash_state j1); (c2, v0, hash_state j2)]) vs)))
+        apply Rle_trans with (sum_weights (set_map v_eq_dec sender (flat_map (fun v0 : V => [(c1, v0, hash_state j1); (c2, v0, hash_state j2)]) vs)))
         ; try apply fault_weight_max.
         apply Rle_trans with (sum_weights vs); try assumption.
         apply sum_weights_incl; try assumption; try apply set_map_nodup.
@@ -87,7 +87,7 @@ Proof.
         unfold fault_weight_state.
         apply Rle_trans with (sum_weights vs); try assumption.
         apply sum_weights_incl; try assumption; try apply set_map_nodup.
-        unfold equivocating_validators.
+        unfold equivocating_senders.
         intros v0 Hinv0.
         apply set_map_exists in Hinv0.
         destruct Hinv0 as [[(c0, v0') j0] [Hin Heq]].
@@ -133,7 +133,7 @@ Proof.
           - apply sum_weights_incl.
             + constructor; assumption.
             + apply set_map_nodup.
-            + intros v0 Hin0. unfold equivocating_validators.
+            + intros v0 Hin0. unfold equivocating_senders.
               apply set_map_exists. exists (c1, v0, hash_state j1).
               split; try reflexivity.
               apply filter_In.

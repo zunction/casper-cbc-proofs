@@ -37,18 +37,18 @@ Proof.
   apply H. assumption.
 Qed.
 
-Definition equivocating_validators (sigma : state) : set V :=
-  set_map v_eq_dec validator (filter (fun msg => equivocating_message_state msg sigma) sigma).
+Definition equivocating_senders (sigma : state) : set V :=
+  set_map v_eq_dec sender (filter (fun msg => equivocating_message_state msg sigma) sigma).
 
-Lemma equivocating_validators_nodup : forall sigma,
-  NoDup (equivocating_validators sigma).
+Lemma equivocating_senders_nodup : forall sigma,
+  NoDup (equivocating_senders sigma).
 Proof.
   intros. apply set_map_nodup.
 Qed.
 
-Lemma equivocating_validators_incl : forall sigma sigma',
+Lemma equivocating_senders_incl : forall sigma sigma',
   incl sigma sigma' ->
-  incl (equivocating_validators sigma) (equivocating_validators sigma').
+  incl (equivocating_senders sigma) (equivocating_senders sigma').
 Proof.
   intros.
   apply set_map_incl. apply incl_tran with (filter (fun msg : message => equivocating_message_state msg sigma) sigma').
@@ -58,7 +58,7 @@ Qed.
 
 Definition sum_weights : set V -> R := fold_right (fun v r => (weight v + r)%R) 0%R.
 
-Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_validators sigma).
+Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_senders sigma).
 
 Lemma sum_weights_in : forall v vs,
   NoDup vs ->
@@ -105,16 +105,16 @@ Lemma fault_weight_state_incl : forall sigma sigma',
   incl sigma sigma' ->
   (fault_weight_state sigma <= fault_weight_state sigma')%R.
 Proof.
-  intros. apply sum_weights_incl; try apply equivocating_validators_nodup.
-  apply equivocating_validators_incl. assumption.
+  intros. apply sum_weights_incl; try apply equivocating_senders_nodup.
+  apply equivocating_senders_incl. assumption.
 Qed.
 
 Lemma fault_weight_max : forall sigma,
-  (fault_weight_state sigma <= sum_weights (set_map v_eq_dec validator sigma))%R.
+  (fault_weight_state sigma <= sum_weights (set_map v_eq_dec sender sigma))%R.
 Proof.
   intros.
   apply sum_weights_incl; try apply set_map_nodup.
-  unfold equivocating_validators.
+  unfold equivocating_senders.
   apply set_map_incl.
   intros x Hin.
   apply filter_In in Hin. destruct Hin; assumption.

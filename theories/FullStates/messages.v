@@ -14,7 +14,7 @@ Require Import Casper.FullStates.states.
 
 Definition message := (C * V * state)%type.
 
-Definition validator (msg : message) : V :=
+Definition sender (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
 Fixpoint get_messages (sigma : state) : list message :=

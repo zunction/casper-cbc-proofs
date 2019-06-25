@@ -61,7 +61,7 @@ Proof.
       * apply incl_refl.
       * simpl. 
         unfold fault_tolerance_condition.
-        unfold fault_weight_state. unfold equivocating_validators. simpl.
+        unfold fault_weight_state. unfold equivocating_senders. simpl.
         unfold equivocating_message_state. simpl.
         unfold equivocating_messages. rewrite eq_dec_if_true; try reflexivity.
         simpl.
