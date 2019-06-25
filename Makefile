@@ -4,6 +4,7 @@ results: theories/FullStates/common_futures.vo \
     theories/FullStates/consistent_decisions_prop_protocol_states.vo \
     theories/FullStates/consistent_decisions_prop_consensus_values.vo \
     theories/FullStates/non_triviality_decisions_prop_protocol_states.vo \
+    theories/FullStates/latest_honest_estimate_driven_estimator.vo \
     theories/LightStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
     theories/LightStates/consistent_decisions_prop_consensus_values.vo \
@@ -13,6 +14,7 @@ theories/ListExtras.vo : \
     theories/preamble.vo
 
 theories/ListSetExtras.vo : \
+    theories/ListExtras.vo \
     theories/preamble.vo
 
 theories/sorted_lists.vo : \
@@ -61,6 +63,7 @@ theories/FullStates/protocol_states.vo : \
     theories/FullStates/in_state.vo \
     theories/FullStates/locally_sorted.vo \
     theories/FullStates/add_in_sorted.vo \
+    theories/FullStates/list_to_state.vo \
     theories/FullStates/fault_weights.vo
 
 theories/FullStates/common_futures.vo : \

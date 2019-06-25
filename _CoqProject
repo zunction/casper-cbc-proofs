@@ -17,6 +17,7 @@ theories/FullStates/common_futures.v
 theories/FullStates/consistent_decisions_prop_protocol_states.v
 theories/FullStates/consistent_decisions_prop_consensus_values.v
 theories/FullStates/non_triviality_decisions_prop_protocol_states.v
+theories/FullStates/latest_honest_estimate_driven_estimator.v
 
 theories/FullStates/adequacy/add_in_sorted_extras.v
 theories/FullStates/adequacy/locally_sorted_extras.v
