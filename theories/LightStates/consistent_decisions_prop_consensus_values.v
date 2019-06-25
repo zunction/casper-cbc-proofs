@@ -18,7 +18,7 @@ Require Import Casper.LightStates.consistent_decisions_prop_protocol_states.
 
 
 (* Corresponding property of protocol states for a property of consensus values *)
-Definition H (p : C -> Prop) : state -> Prop :=
+Definition H_lift (p : C -> Prop) : state -> Prop :=
   fun sigma => forall c : C,
                 estimator sigma c ->
                 p c
@@ -26,63 +26,54 @@ Definition H (p : C -> Prop) : state -> Prop :=
 
 (* Decided on properties of consensus values *)
 Definition decided_consensus_value (p : C -> Prop) (sigma : state) : Prop := 
-  decided_state (H p) sigma.
-
-(* Decisions on properties of consensus values for a state *)
-Definition decisions_consensus_value_state (sigma : state) (p : C -> Prop) : Prop :=
-  decided_state (H p) sigma.
+  decided_state (H_lift p) sigma.
 
 (* Decisions on properties of consensus values for a finite set of states *)
 Definition decisions_consensus_value_states (sigmas : list state) (p : C -> Prop) : Prop :=
-  Exists (decided_state (H p)) sigmas.
+  Exists (decided_state (H_lift p)) sigmas.
 
-(* Consistency of decisions on properties of consensus values for a state *)
-Definition consistent_decisions_value_state (sigma : state) : Prop :=
-  exists c,
-    forall (p : C -> Prop),
-      decisions_consensus_value_state sigma p ->
-      p c
-  .
 
-(* Consistency of decisions on properties of consensus values for a finite set of states *)
-
-Definition consistent_decisions_consensus_states (sigmas : list state) : Prop :=
+(* Consistency of decisions on properties of consensus values 
+   for a finite set of states *)
+Definition consistent_decisions_consensus_value_states (sigmas : list state) : Prop :=
   exists c,
     forall (p : C -> Prop),
       decisions_consensus_value_states sigmas p ->
       p c
   .
 
-Definition consistent_decisions_states_H (sigmas : list state) : Prop :=
+(* Consistency of decisions on properties of protocol states lifted from
+   properties on consensus values for a finite set of states *)
+Definition consistent_decisions_states_H_lift (sigmas : list state) : Prop :=
   exists sigma',
     forall (q : C -> Prop),
-      decisions_states sigmas (H q) ->
-      (H q) sigma'
+      decisions_states sigmas (H_lift q) ->
+      (H_lift q) sigma'
   .
 
-Lemma consistent_decisions_states_H_subset : forall sigmas,
+Lemma consistent_decisions_states_H_lift_subset : forall sigmas,
   consistent_decisions_states sigmas ->
-  consistent_decisions_states_H sigmas
+  consistent_decisions_states_H_lift sigmas
   .
 Proof.
-  intros.
-  unfold consistent_decisions_states in H0.
-  destruct H0 as [sigma' [HPsigma' HCsigma']].
-  unfold consistent_decisions_states_H.
+  intros sigmas Hsigmas.
+  unfold consistent_decisions_states in Hsigmas.
+  destruct Hsigmas as [sigma' [HPsigma' HCsigma']].
+  unfold consistent_decisions_states_H_lift.
   exists sigma'.
-  intros. apply HCsigma'. apply H0.
+  intros q H. apply HCsigma'. apply H.
 Qed.
 
 
-Lemma consistent_decisions_states_H_backwards : forall sigmas,
-  consistent_decisions_states_H sigmas ->
-  consistent_decisions_consensus_states sigmas
+Lemma consistent_decisions_states_H_lift_backwards : forall sigmas,
+  consistent_decisions_states_H_lift sigmas ->
+  consistent_decisions_consensus_value_states sigmas
   .
 Proof.
-  intros.
-  unfold consistent_decisions_states_H in H0.
-  destruct H0 as [sigma' HCsigma'].
-  unfold consistent_decisions_consensus_states.
+  intros sigmas Hsigmas.
+  unfold consistent_decisions_states_H_lift in Hsigmas.
+  destruct Hsigmas as [sigma' HCsigma'].
+  unfold consistent_decisions_consensus_value_states.
   destruct (estimator_total sigma') as [c Hc].
   exists c.
   intros.
@@ -93,16 +84,16 @@ Qed.
 Theorem n_party_consensus_safety_for_properties_of_the_consensus : forall sigmas,
   Forall protocol_state sigmas ->
   fault_tolerance_condition (fold_right state_union state_empty sigmas) ->
-  consistent_decisions_consensus_states(sigmas)
+  consistent_decisions_consensus_value_states(sigmas)
   .
 Proof.
-  intros.
-  destruct (n_party_consensus_safety_for_properties_of_protocol_states _ H0 H1) as [sigma' [HPsigma' HCsigma']].
-  destruct (consistent_decisions_states_H_subset sigmas) as [Hsigma HCHsigma].
+  intros sigmas Hp Hf.
+  destruct (n_party_consensus_safety_for_properties_of_protocol_states _ Hp Hf) as [sigma' [HPsigma' HCsigma']].
+  destruct (consistent_decisions_states_H_lift_subset sigmas) as [Hsigma HCHsigma].
     { unfold consistent_decisions_states. exists sigma'. split; try assumption. }
-  destruct (consistent_decisions_states_H_backwards sigmas) as [Hsigma' HCHsigma'].
-    { unfold consistent_decisions_states_H. exists Hsigma. assumption. }
-  unfold consistent_decisions_consensus_states.
+  destruct (consistent_decisions_states_H_lift_backwards sigmas) as [Hsigma' HCHsigma'].
+    { unfold consistent_decisions_states_H_lift. exists Hsigma. assumption. }
+  unfold consistent_decisions_consensus_value_states.
   exists Hsigma'. assumption.
 Qed.
 
