@@ -17,6 +17,9 @@ Definition message := (C * V * state)%type.
 Definition sender (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
+Definition estimate (msg : message) : C :=
+  match msg with (c, _ , _) => c end.
+
 Fixpoint get_messages (sigma : state) : list message :=
   match sigma with
   | Empty => []

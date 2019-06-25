@@ -8,7 +8,7 @@ Require Import Casper.sorted_lists.
 
 Require Import Casper.LightStates.hashes.
 
-Definition justification := list hash.
+Definition justification_type := list hash.
 
 Definition justification_add := add_in_sorted_list_fn hash_compare.
 
@@ -20,7 +20,7 @@ Definition justification_add_tail := add_in_sorted_list_tail hash_compare hash_c
 
 Definition justification_add_sorted := add_in_sorted_list_sorted hash_compare hash_compare_strict_order.
 
-Definition justification_add_all : list hash -> justification := fold_right justification_add nil.
+Definition justification_add_all : list hash -> justification_type := fold_right justification_add nil.
 
 Lemma justification_sorted : forall j : list hash,
   LocallySorted hash_lt (justification_add_all j).

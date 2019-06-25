@@ -6,15 +6,15 @@ Require Import Casper.LightStates.hashes.
 Require Import Casper.LightStates.justifications.
 
 
-Definition message : Type := C * V * justification.
+Definition message : Type := C * V * justification_type.
+
+Definition estimate (msg : message) : C :=
+  match msg with (c, _, _) => c end.
 
 Definition sender (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
-Definition consensus_value (msg : message) : C :=
-  match msg with (c, _, _) => c end.
-
-Definition justify (msg : message) : justification :=
+Definition justification (msg : message) : justification_type :=
   match msg with (_, _, j) => j end.
 
 Parameter Hash : message -> hash.

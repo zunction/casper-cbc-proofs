@@ -9,7 +9,7 @@ Require Import Casper.LightStates.messages.
 Require Import Casper.LightStates.states.
 Require Import Casper.LightStates.justifications.
 
-Definition hash_state (sigma : state) : justification :=
+Definition hash_state (sigma : state) : justification_type :=
   justification_add_all (map Hash sigma).
 
 Lemma hash_state_sorted : forall sigma,
