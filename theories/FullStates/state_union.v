@@ -6,6 +6,7 @@ Require Import Casper.ListSetExtras.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.list_to_state.
@@ -34,9 +35,9 @@ Proof.
 Qed.
 
 Lemma state_union_iff : forall msg sigma1 sigma2,
-  state_in msg (state_union sigma1 sigma2) <-> state_in msg sigma1 \/ state_in msg sigma2.
+  in_state msg (state_union sigma1 sigma2) <-> in_state msg sigma1 \/ in_state msg sigma2.
 Proof.
-  intros; unfold state_union; unfold state_in; split; intros.
+  intros; unfold state_union; unfold in_state; split; intros.
   - apply state_union_messages in H. unfold messages_union in H. rewrite set_union_iff in H. assumption.
   - apply state_union_messages. unfold messages_union. rewrite set_union_iff. assumption.
 Qed.
