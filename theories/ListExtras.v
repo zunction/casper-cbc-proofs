@@ -10,6 +10,18 @@ Proof.
   exfalso. destruct (H a). left. reflexivity.
 Qed.
 
+Lemma incl_singleton {A} : forall (l : list A) (a : A),
+  incl l [a] ->
+  forall b, In b l -> b = a.
+Proof.
+  intros. induction l; inversion H0; subst.
+  - clear H0. destruct (H b); try (left; reflexivity); subst; try reflexivity.
+    inversion H0.
+  - apply IHl; try assumption.
+    apply incl_tran with (a0 :: l); try assumption.
+    apply incl_tl. apply incl_refl.
+Qed.
+
 Lemma filter_in : forall A (f : A -> bool) x s,
   In x s ->
   f x = true ->

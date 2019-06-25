@@ -21,7 +21,7 @@ Definition sender (msg : message) : V :=
   match msg with (_, v, _) => v end.
 
 Definition justification (msg : message) : state :=
-  match msg with (_, _ , sigma) => sigma end.
+  match msg with (_, _, sigma) => sigma end.
 
 Fixpoint get_messages (sigma : state) : list message :=
   match sigma with

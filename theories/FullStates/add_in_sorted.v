@@ -47,6 +47,21 @@ Proof.
         }
 Qed.
 
+Lemma in_state_add_in_sorted_iff : forall msg msg' sigma',
+  in_state msg (add_in_sorted_fn msg' sigma') <->
+  msg = msg' \/ in_state msg sigma'.
+Proof.
+  intros.
+  destruct (set_eq_add_in_sorted msg' sigma') as [Hincl1 Hincl2].
+  split; intros.
+  - apply Hincl1 in H. destruct H.
+    + subst. left. reflexivity.
+    + right. assumption.
+  - apply Hincl2. destruct H; subst.
+    + left. reflexivity.
+    + right. assumption.
+Qed.
+
 Lemma add_in_sorted_next : forall msg1 msg2 sigma,
   add_in_sorted_fn msg1 (next msg2 sigma) =
     match message_compare msg1 msg2 with

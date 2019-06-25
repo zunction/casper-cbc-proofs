@@ -156,6 +156,38 @@ Proof.
   - right. intro. apply (set_eq_functional Aeq_dec) in H. rewrite Heq in H. discriminate H.
 Qed.
 
+Lemma set_eq_singleton_iff {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) :
+  forall (s1 : list A) (a : A),
+  NoDup s1 ->
+  set_eq s1 [a] <-> s1 = [a].
+Proof.
+  intros; split; intros.
+  { destruct H0 as [Hincl1a Hincla1]. destruct s1.
+    - exfalso. destruct (Hincla1 a). left. reflexivity.
+    - destruct (incl_singleton _ a Hincl1a a0); try (left; reflexivity) .
+      destruct s1; try reflexivity.
+      destruct (incl_singleton _ a0 Hincl1a a); try (right; left; reflexivity) .
+      exfalso. inversion H; subst; clear H. apply H2. left. reflexivity.
+  }
+  subst. apply set_eq_refl.
+Qed.
+
+Lemma set_eq_singleton {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) :
+  forall (s1 : list A) (a : A),
+  NoDup s1 ->
+  set_eq s1 [a] -> s1 = [a].
+Proof.
+  intros. apply set_eq_singleton_iff; assumption.
+Qed.
+
+Lemma set_eq_singleton_rev {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) :
+  forall (s1 : list A) (a : A),
+  NoDup s1 ->
+  s1 = [a] -> set_eq s1 [a].
+Proof.
+  intros. apply set_eq_singleton_iff; assumption.
+Qed.
+
 Lemma set_union_comm {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})  : forall s1 s2,
   set_eq (set_union Aeq_dec s1 s2) (set_union Aeq_dec s2 s1).
 Proof.
@@ -265,6 +297,15 @@ Lemma set_map_eq {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A)
   set_eq (set_map Aeq_dec f s) (set_map Aeq_dec f s').
 Proof.
   intros. split; destruct H; apply set_map_incl; assumption.
+Qed.
+
+Lemma set_map_singleton {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall s a,
+  set_map Aeq_dec f s = [a] ->
+  forall b, In b s -> f b = a.
+Proof.
+  intros. apply (set_map_in Aeq_dec f) in H0. rewrite H in H0. inversion H0.
+  - subst. reflexivity.
+  - exfalso. inversion H1.
 Qed.
 
 Lemma set_map_injective {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : 
