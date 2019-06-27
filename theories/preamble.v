@@ -356,3 +356,15 @@ Proof.
   intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
   exfalso. apply H; assumption.
 Qed.
+
+Definition in_fn {A:Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) (a:A) (l:list A) : bool :=
+  match in_dec eq_dec a l with
+  | left _ => true
+  | right _ => false
+  end.
+
+Definition is_nil_fn {A:Type} (l:list A) : bool :=
+  match l with
+    | nil => true
+    | _ => false
+  end.

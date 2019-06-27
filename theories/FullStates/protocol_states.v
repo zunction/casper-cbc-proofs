@@ -12,13 +12,6 @@ Require Import Casper.preamble.
 Require Import Casper.ListExtras.
 Require Import Casper.ListSetExtras.
 
-(**
-  TODO: Prove that all Inductive defining functions yield total functions.
-  This is important, as if the functions are not total we might have empty
-  hypothesis.
-**)
-
-
 (** Parameters of the protocol **)
 
 Require Import Casper.FullStates.consensus_values.

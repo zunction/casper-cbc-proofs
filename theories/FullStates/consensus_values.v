@@ -35,3 +35,9 @@ Definition c_lt_total_order: TotalOrder c_lt :=
 
 Definition c_eq_dec : forall x y : C, {x = y} + {x <> y} :=
   compare_eq_dec C c_compare c_compare_strict_order.
+
+Definition c_eq_fn  (x y : C) : bool :=
+  match c_eq_dec x y with
+  | left _ => true
+  | right _ => false
+  end.
