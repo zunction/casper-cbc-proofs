@@ -20,8 +20,16 @@ Require Import Casper.FullStates.fault_weights.
 
 
 (** Observed validators in a state **)
+(** note: since a state is finite then there is a finite
+    set of observed validators **)
+Definition observed (sigma:state) : list V :=
+  set_map v_eq_dec sender (get_messages sigma)
+  .
+
+(* Observed as predicate
 Definition observed (sigma:state) (v:V) : Prop :=
   exists msg, in_state msg sigma /\ sender msg = v.
+*)
 
 (** Later messages for a message in a state **)
 Definition later (msg:message) (sigma:state) : list message :=
@@ -66,7 +74,7 @@ Definition latest_message_driven (estimator : state -> C -> Prop) : Prop :=
 (** -------------------- **)
 (** Latest estimates from senders in a state **)
 (** note: there can be duplicates in the result **)
-Definition le (sigma:state) : V -> set C :=
+Definition le (sigma:state) : V -> list C :=
   fun v => set_map c_eq_dec estimate (lm sigma v)
   .
 

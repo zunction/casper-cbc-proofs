@@ -5,10 +5,11 @@ results: theories/FullStates/common_futures.vo \
     theories/FullStates/consistent_decisions_prop_consensus_values.vo \
     theories/FullStates/non_triviality_decisions_prop_protocol_states.vo \
     theories/FullStates/latest_honest_estimate_driven_estimator.vo \
+    theories/FullStates/binary_consensus_protocol.vo \
     theories/LightStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
     theories/LightStates/consistent_decisions_prop_consensus_values.vo \
-    theories/LightStates/non_triviality_decisions_prop_protocol_states.vo
+    theories/LightStates/non_triviality_decisions_prop_protocol_states.vo 
 
 theories/ListExtras.vo : \
     theories/preamble.vo
