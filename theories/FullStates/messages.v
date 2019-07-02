@@ -8,6 +8,19 @@ Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.states.
 
+
+Module Type Messages 
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PStates : States PCons PVal)
+        .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+
 (**************)
 (** Messages **)
 (**************)
@@ -104,3 +117,5 @@ Definition message_eq_dec : forall x y : message, {x = y} + {x <> y} :=
 
 Definition messages_union : set message -> set message -> set message :=
   set_union message_eq_dec.
+
+End Messages.

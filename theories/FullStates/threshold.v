@@ -6,8 +6,34 @@ Require Import Coq.Lists.ListSet.
 Require Import Casper.preamble.
 Require Import Casper.RealsExtras.
 
+Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.messages.
+Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.fault_weights.
+
+
+Module Type Threshold
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              (PStates : States PCons PVal)
+              (PMessages : Messages PCons PVal PStates)
+              (PIn_State : In_State PCons PVal PStates PMessages)
+              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
+              (PFault_Weights : Fault_Weights PCons PVal PStates PMessages PIn_State PLocally_Sorted)
+        .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+Import PMessages.
+Import PIn_State.
+Import PLocally_Sorted.
+Import PFault_Weights.
 
 (************************************************************)
 (** Fault tolerance threshold (a non-negative real number) **)
@@ -15,13 +41,17 @@ Require Import Casper.FullStates.fault_weights.
 
 Parameter t : R.
 
-Parameter threshold_nonnegative : (t >= 0)%R .
+Axiom threshold_nonnegative : (t >= 0)%R .
 
-Parameter sufficient_validators_condition :
+Axiom sufficient_validators_condition :
   exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
 
-Parameter validator_below_threshold_condition :
+Axiom validator_below_threshold_condition :
   exists (v : V), (weight v <= t)%R.
+
+(****************)
+(** Properties **)
+(****************)
 
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -87,3 +117,5 @@ Proof.
       }
       exists [v0; v].
   Admitted.
+
+End Threshold.

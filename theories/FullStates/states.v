@@ -1,16 +1,20 @@
 Require Import Coq.Classes.RelationClasses.
 
-From Casper
-Require Import preamble.
+Require Import Casper.preamble.
 
-From Casper
-Require Import FullStates.consensus_values.
-
-From Casper
-Require Import FullStates.validators.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 
 
+Module Type States 
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              .
 
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
 (************)
 (** States **)
 (************)
@@ -122,3 +126,5 @@ Definition state_lt_total_order: TotalOrder state_lt :=
 
 Definition state_eq_dec : forall x y : state, {x = y} + {x <> y} :=
   compare_eq_dec state state_compare state_compare_strict_order.
+
+End States.

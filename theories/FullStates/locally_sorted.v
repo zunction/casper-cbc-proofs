@@ -2,9 +2,27 @@ Require Import List.
 
 Require Import Casper.ListExtras.
 
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.in_state.
+
+Module Type Locally_Sorted
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              (PStates : States PCons PVal)
+              (PMessages : Messages PCons PVal PStates)
+              (PIn_State : In_State PCons PVal PStates PMessages)
+               .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+Import PMessages.
+Import PIn_State.
 
 (** (Locally) Sorted states **)
 Inductive locally_sorted : state -> Prop :=
@@ -240,3 +258,4 @@ Proof.
     reflexivity.
 Qed.
 
+End Locally_Sorted.

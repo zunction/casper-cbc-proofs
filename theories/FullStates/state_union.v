@@ -3,13 +3,36 @@ Require Import Coq.Lists.ListSet.
 
 Require Import Casper.ListSetExtras.
 
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.list_to_state.
+
+Module Type State_Union
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              (PStates : States PCons PVal)
+              (PMessages : Messages PCons PVal PStates)
+              (PIn_State : In_State PCons PVal PStates PMessages)
+              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
+              (PAdd_In_Sorted : Add_In_Sorted PCons PVal PStates PMessages PIn_State PLocally_Sorted) 
+              (PLists_To_State : List_To_State PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted)
+              .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+Import PMessages.
+Import PIn_State.
+Import PLocally_Sorted.
+Import PAdd_In_Sorted.
+Import PLists_To_State.
 
 Definition state_union (sigma1 sigma2 : state) : state :=
   (list_to_state (messages_union (get_messages sigma1) (get_messages sigma2))).
@@ -100,3 +123,5 @@ Proof.
       * right. apply set_eq_add_in_sorted. 
       right; assumption.
 Qed.
+
+End State_Union.

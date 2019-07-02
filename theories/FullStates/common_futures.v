@@ -3,15 +3,48 @@ Require Import List.
 
 Require Import Casper.preamble.
 
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.protocol_states.
-
-Require Import Casper.FullStates.add_in_sorted.
+Require Import Casper.FullStates.in_state.
 Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.state_union.
+Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.list_to_state.
+Require Import Casper.FullStates.threshold.
+Require Import Casper.FullStates.fault_weights.
+Require Import Casper.FullStates.protocol_states.
+Require Import Casper.FullStates.state_union.
 
+Module Type Common_Futures
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              (PStates : States PCons PVal)
+              (PMessages : Messages PCons PVal PStates)
+              (PIn_State : In_State PCons PVal PStates PMessages)
+              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
+              (PAdd_In_Sorted : Add_In_Sorted PCons PVal PStates PMessages PIn_State PLocally_Sorted) 
+              (PLists_To_State : List_To_State PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted)
+              (PFault_Weights : Fault_Weights PCons PVal PStates PMessages PIn_State PLocally_Sorted)
+              (PThreshold : Threshold PCons PVal PStates PMessages PIn_State PLocally_Sorted PFault_Weights)
+              (PProtocol_States : Protocol_States PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted PLists_To_State PFault_Weights PThreshold)
+              (PState_Union : State_Union PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted PLists_To_State)
+              .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+Import PMessages.
+Import PIn_State.
+Import PLocally_Sorted.
+Import PAdd_In_Sorted.
+Import PLists_To_State.
+Import PFault_Weights.
+Import PThreshold.
+Import PProtocol_States.
+Import PState_Union.
 
 (** Two party common futures **)
 
@@ -89,3 +122,5 @@ Proof.
   constructor; try assumption. split; try assumption.
   apply state_union_incl_iterated. assumption.
 Qed.
+
+End Common_Futures.

@@ -4,20 +4,38 @@ Require Import Coq.Lists.ListSet.
 Import ListNotations.
 
 Require Import Casper.preamble.
-(** Parameters of the protocol **)
 
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.threshold.
-
-
-(** Messages and States **)
-
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
 Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.locally_sorted.
+Require Import Casper.FullStates.threshold.
 Require Import Casper.FullStates.fault_weights.
 
+
+Module Type Latest_Honest_Estimate
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              (PStates : States PCons PVal)
+              (PMessages : Messages PCons PVal PStates)
+              (PIn_State : In_State PCons PVal PStates PMessages)
+              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
+              (PFault_Weights : Fault_Weights PCons PVal PStates PMessages PIn_State PLocally_Sorted)
+              (PThreshold : Threshold PCons PVal PStates PMessages PIn_State PLocally_Sorted PFault_Weights)
+              .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+Import PMessages.
+Import PIn_State.
+Import PLocally_Sorted.
+Import PFault_Weights.
+Import PThreshold.
 
 (** Observed validators in a state **)
 (** note: since a state is finite then there is a finite
@@ -117,7 +135,7 @@ Definition latest_honest_estimate_driven (estimator : state -> C -> Prop) : Prop
 
 (** -------------------- **)
 
-
+End Latest_Honest_Estimate.
 
 
 

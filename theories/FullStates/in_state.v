@@ -2,8 +2,25 @@ Require Import List.
 
 Require Import Casper.preamble.
 
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.states.
 Require Import Casper.FullStates.messages.
+
+
+Module Type In_State
+              (PCons : Consensus_Values) 
+              (PVal : Validators)
+              (PStates : States PCons PVal)
+              (PMessages : Messages PCons PVal PStates)
+              .
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)
+Import PCons.
+Import PVal.
+Import PStates.
+Import PMessages.
 
 
 (** Syntactic membership predicate **)
@@ -71,3 +88,5 @@ Proof.
   destruct H; subst; try reflexivity.
   exfalso. apply (in_empty_state _ H).
 Qed.
+
+End In_State.
