@@ -11,10 +11,6 @@ Import ListNotations.
 Require Import Casper.preamble.
 
 Require Import Casper.FullStates.consensus_values.
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.protocol_states.
-
 Require Import Casper.FullStates.latest_honest_estimate_driven_estimator.
 
 
@@ -76,16 +72,8 @@ Proof.
   exists one. reflexivity.
 Qed.
 
-Lemma c_compare_refl : forall c, c_compare c c = Eq.
-
-
 End BinC.
 
-(** Concrete parameters **)
-Inductive C : Set := 
-  | zero:C 
-  | one:C
-  .
 
 (*
 Definition score (c:C) (sigma:state) : R :=
