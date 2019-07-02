@@ -5,12 +5,10 @@ theories/FullStates/consensus_values.v
 theories/FullStates/validators.v
 theories/FullStates/threshold.v
 theories/FullStates/states.v
+theories/FullStates/estimator.v
 theories/FullStates/messages.v
-theories/FullStates/add_in_sorted.v
 theories/FullStates/locally_sorted.v
 theories/FullStates/in_state.v
-theories/FullStates/list_to_state.v
-theories/FullStates/state_union.v
 theories/FullStates/fault_weights.v
 theories/FullStates/protocol_states.v
 theories/FullStates/common_futures.v

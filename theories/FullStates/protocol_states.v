@@ -12,51 +12,33 @@ Require Import Casper.preamble.
 Require Import Casper.ListExtras.
 Require Import Casper.ListSetExtras.
 
-(** Parameters of the protocol **)
-
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.add_in_sorted.
-Require Import Casper.FullStates.list_to_state.
-Require Import Casper.FullStates.threshold.
+Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.fault_weights.
+Require Import Casper.FullStates.threshold.
 
-Module Type Protocol_States
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              (PStates : States PCons PVal)
-              (PMessages : Messages PCons PVal PStates)
-              (PIn_State : In_State PCons PVal PStates PMessages)
-              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
-              (PAdd_In_Sorted : Add_In_Sorted PCons PVal PStates PMessages PIn_State PLocally_Sorted) 
-              (PLists_To_State : List_To_State PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted)
-              (PFault_Weights : Fault_Weights PCons PVal PStates PMessages PIn_State PLocally_Sorted)
-              (PThreshold : Threshold PCons PVal PStates PMessages PIn_State PLocally_Sorted PFault_Weights)
-              .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
+(*********************)
+(** Protocol states **)
+(*********************)
+
+Module Protocol_States
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PThreshold : Threshold PVal PVal_Weights)
+        (PEstimator : Estimator PCons PVal)
+        .
+
 Import PCons.
 Import PVal.
-Import PStates.
-Import PMessages.
-Import PIn_State.
-Import PLocally_Sorted.
-Import PAdd_In_Sorted.
-Import PLists_To_State.
-Import PFault_Weights.
+Import PVal_Weights.
 Import PThreshold.
-(***************)
-(** Estimator **)
-(***************)
+Import PEstimator.
 
-Parameter estimator : state -> C -> Prop.
-
-Axiom estimator_total : forall s : state, exists c : C, estimator s c.
+Module PThreshold_Properties := Threshold_Properties PCons PVal PVal_Weights PEstimator PThreshold.
+Export PThreshold_Properties.
 
 
 (*******************************)
@@ -104,7 +86,7 @@ Qed.
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
   | protocol_state_next : forall c v sigma sigma',
-      protocol_state sigma -> (* 1 *)
+      protocol_state sigma -> 
       protocol_state sigma' ->
       full_node_condition sigma sigma' ->
       valid_estimate_condition c sigma ->

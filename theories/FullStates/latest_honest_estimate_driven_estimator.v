@@ -7,35 +7,31 @@ Require Import Casper.preamble.
 
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.threshold.
+Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.fault_weights.
+Require Import Casper.FullStates.threshold.
 
 
-Module Type Latest_Honest_Estimate
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              (PStates : States PCons PVal)
-              (PMessages : Messages PCons PVal PStates)
-              (PIn_State : In_State PCons PVal PStates PMessages)
-              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
-              (PFault_Weights : Fault_Weights PCons PVal PStates PMessages PIn_State PLocally_Sorted)
-              (PThreshold : Threshold PCons PVal PStates PMessages PIn_State PLocally_Sorted PFault_Weights)
-              .
+Module Latest_Honest_Estimate
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PThreshold : Threshold PVal PVal_Weights)
+        (PEstimator : Estimator PCons PVal)
+        .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
 Import PCons.
 Import PVal.
-Import PStates.
-Import PMessages.
-Import PIn_State.
-Import PLocally_Sorted.
-Import PFault_Weights.
+Import PVal_Weights.
 Import PThreshold.
+Import PEstimator.
+
+Module PThreshold_Properties := Threshold_Properties PCons PVal PVal_Weights PEstimator PThreshold.
+Export PThreshold_Properties.
+
+Module PConsensus_Values_Properties := Consensus_Values_Properties PCons.
+Import PConsensus_Values_Properties.
+
 
 (** Observed validators in a state **)
 (** note: since a state is finite then there is a finite

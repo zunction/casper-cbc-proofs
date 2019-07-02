@@ -12,19 +12,17 @@ Require Import Casper.FullStates.add_in_sorted.
 Require Import Casper.FullStates.locally_sorted.
 Require Import Casper.FullStates.list_to_state.
 
-Module Type State_Union
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              (PStates : States PCons PVal)
-              (PMessages : Messages PCons PVal PStates)
-              (PIn_State : In_State PCons PVal PStates PMessages)
-              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
-              (PAdd_In_Sorted : Add_In_Sorted PCons PVal PStates PMessages PIn_State PLocally_Sorted) 
-              (PLists_To_State : List_To_State PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted)
-              .
+Module State_Union
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PStates : States PCons PVal)
+        (PMessages : Messages PCons PVal PStates)
+        (PIn_State : In_State PCons PVal PStates PMessages)
+        (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
+        (PAdd_In_Sorted : Add_In_Sorted PCons PVal PStates PMessages PIn_State PLocally_Sorted) 
+        (PLists_To_State : List_To_State PCons PVal PStates PMessages PIn_State PLocally_Sorted  PAdd_In_Sorted)
+        .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
 Import PCons.
 Import PVal.
 Import PStates.

@@ -1,28 +1,28 @@
 Require Import List.
+Require Import Coq.Lists.ListSet.
+Import ListNotations.
 
+Require Import Casper.preamble.
 Require Import Casper.ListExtras.
+Require Import Casper.ListSetExtras.
 
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
+Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.in_state.
 
-Module Type Locally_Sorted
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              (PStates : States PCons PVal)
-              (PMessages : Messages PCons PVal PStates)
-              (PIn_State : In_State PCons PVal PStates PMessages)
-               .
+Module Locally_Sorted
+        (PCons : Consensus_Values)
+        (PVal : Validators)
+        (PEstimator : Estimator PCons PVal)
+        .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
 Import PCons.
 Import PVal.
-Import PStates.
-Import PMessages.
-Import PIn_State.
+Import PEstimator.
+
+Module PIn_State := In_State PCons PVal PEstimator.
+Export PIn_State.
 
 (** (Locally) Sorted states **)
 Inductive locally_sorted : state -> Prop :=
@@ -258,4 +258,263 @@ Proof.
     reflexivity.
 Qed.
 
+
+(*****************)
+(* Add_in_sorted *)
+(*****************)
+
+Fixpoint add_in_sorted_fn (msg: message) (sigma: state) : state :=
+  match msg, sigma with
+  | _, Empty => next msg Empty
+  | msg, add (c, v, j) to sigma' =>
+    match message_compare msg (c, v, j) with
+    | Eq => sigma
+    | Lt => next msg sigma
+    | Gt => next (c, v, j) (add_in_sorted_fn msg sigma')
+    end
+  end.
+
+Lemma set_eq_add_in_sorted : forall msg sigma,
+  set_eq (get_messages (add_in_sorted_fn msg sigma)) (msg :: (get_messages sigma)).
+Proof.
+  induction sigma.
+  - simpl. rewrite get_messages_next. simpl. split; apply incl_refl.
+  - clear IHsigma1. simpl.
+    destruct (message_compare msg (c, v, sigma1)) eqn:Hcmp.
+    + simpl. apply (proj1 message_compare_strict_order) in Hcmp. subst.
+      split; intros x H.
+      * right. assumption.
+      * destruct H; try assumption; subst. left. reflexivity.
+    + rewrite get_messages_next. simpl. split; apply incl_refl.
+    + simpl. split; intros x Hin.
+      * destruct Hin; try (right; left; assumption).
+        apply IHsigma2 in H. destruct H; try (left; assumption).
+        right; right; assumption.
+      * { destruct Hin as [Hmsg | [H1 | H2]]
+        ; (left; assumption) || (right; apply IHsigma2)
+        .
+        - left; assumption.
+        - right; assumption.
+        }
+Qed.
+
+Lemma in_state_add_in_sorted_iff : forall msg msg' sigma',
+  in_state msg (add_in_sorted_fn msg' sigma') <->
+  msg = msg' \/ in_state msg sigma'.
+Proof.
+  intros.
+  destruct (set_eq_add_in_sorted msg' sigma') as [Hincl1 Hincl2].
+  split; intros.
+  - apply Hincl1 in H. destruct H.
+    + subst. left. reflexivity.
+    + right. assumption.
+  - apply Hincl2. destruct H; subst.
+    + left. reflexivity.
+    + right. assumption.
+Qed.
+
+Lemma add_in_sorted_next : forall msg1 msg2 sigma,
+  add_in_sorted_fn msg1 (next msg2 sigma) =
+    match message_compare msg1 msg2 with
+    | Eq => next msg2 sigma
+    | Lt => next msg1 (next msg2 sigma)
+    | Gt => next msg2 (add_in_sorted_fn msg1 sigma)
+    end.
+Proof.
+  intros msg1 [(c, v) j] sigma. reflexivity.
+Qed.
+
+Lemma add_in_sorted_non_empty : forall msg sigma,
+  add_in_sorted_fn msg sigma <> Empty.
+Proof.
+  intros. intro Hadd.
+  destruct sigma; inversion Hadd.
+  - apply (no_confusion_next_empty _ _ H0).
+  - destruct (message_compare msg (c, v, sigma1)); inversion H0.
+    apply (no_confusion_next_empty _ _ H0).
+Qed.
+
+
+Lemma add_in_sorted_inv1 : forall msg msg' sigma,
+  add_in_sorted_fn msg sigma = next msg' Empty -> msg = msg'.
+Proof.
+  intros [(c, v) j] msg' sigma AddA.
+  destruct sigma.
+  - simpl in AddA. rewrite add_is_next in AddA. apply no_confusion_next in AddA.
+    destruct AddA. assumption.
+  - simpl in AddA. destruct (message_compare (c, v, j) (c0, v0, sigma1)) eqn:Hcmp
+    ; rewrite add_is_next in AddA; apply no_confusion_next in AddA; destruct AddA; subst;
+    try reflexivity.
+    + apply (proj1 message_compare_strict_order) in Hcmp; inversion Hcmp; subst; clear Hcmp.
+      reflexivity.
+    + exfalso. apply (add_in_sorted_non_empty _ _ H0).
+Qed.
+
+Lemma add_in_sorted_sorted : forall msg sigma,
+  locally_sorted sigma ->
+  locally_sorted_msg msg ->
+  locally_sorted (add_in_sorted_fn msg sigma).
+Proof.
+  intros msg sigma. generalize dependent msg.
+  induction sigma; intros.
+  - simpl. assumption.
+  - clear IHsigma1; rename sigma1 into j; rename sigma2 into sigma; rename IHsigma2 into IHsigma.
+    simpl. destruct msg as [(mc, mv) mj].
+    apply locally_sorted_message_justification in H0 as Hmj.
+    repeat rewrite add_is_next in *.
+    apply locally_sorted_tail in H as Hsigma.
+    apply locally_sorted_head in H as Hcvj. apply locally_sorted_message_justification in Hcvj as Hj.
+    apply (IHsigma _ Hsigma) in H0 as HLSadd.
+    destruct (message_compare (mc, mv, mj) (c, v, j)) eqn:Hcmp.
+    + assumption.
+    + constructor; assumption.
+    + apply message_compare_asymmetric in Hcmp.
+      apply locally_sorted_message_characterization in HLSadd as Hadd.
+      destruct Hadd as [Hadd | [Hadd | Hadd]].
+      * exfalso. apply (add_in_sorted_non_empty _ _ Hadd).
+      * destruct Hadd as [msg' [Hmsg' Hadd]]. rewrite Hadd.
+        apply add_in_sorted_inv1 in Hadd; subst.
+        constructor; assumption.
+      * destruct Hadd as [msg1 [msg2 [sigma' [Hadd [HLS' [H1 Hlt12]]]]]].
+        rewrite Hadd in *. constructor; try assumption.
+        assert (Forall (message_lt (c, v, j)) (get_messages (add_in_sorted_fn (mc, mv, mj) sigma))).
+        { apply Forall_forall. intros. apply set_eq_add_in_sorted in H2.
+          destruct H2 as [Heq | Hin]; subst; try assumption.
+          apply locally_sorted_first with sigma; assumption.
+        }
+        rewrite Hadd in H2. rewrite get_messages_next in H2. apply Forall_inv in H2. assumption.
+Qed.
+
+
+(*****************)
+(* List_to_state *)
+(*****************)
+
+Definition list_to_state (msgs : list message) : state :=
+  fold_right add_in_sorted_fn Empty msgs.
+
+Lemma list_to_state_locally_sorted : forall msgs,
+  Forall locally_sorted_msg msgs ->
+  locally_sorted (list_to_state msgs).
+Proof.
+  induction msgs; simpl; try constructor; intros.
+  apply add_in_sorted_sorted.
+  - apply IHmsgs. apply Forall_forall. intros msg Hin.
+    rewrite Forall_forall in H. apply H. right. assumption.
+  - apply Forall_inv with msgs. assumption.
+Qed.
+
+Lemma list_to_state_iff : forall msgs : list message,
+  set_eq (get_messages (list_to_state msgs)) msgs.
+Proof.
+  induction msgs; intros.
+  - simpl. split; apply incl_refl.
+  - simpl. apply set_eq_tran with (a :: (get_messages (list_to_state msgs))).
+    + apply set_eq_add_in_sorted.
+    + apply set_eq_cons. assumption.
+Qed.
+
+Lemma list_to_state_sorted : forall sigma,
+  locally_sorted sigma ->
+  list_to_state (get_messages sigma) = sigma.
+Proof.
+  intros. induction H; try reflexivity.
+  rewrite get_messages_next. simpl. rewrite IHlocally_sorted2.
+  rewrite add_in_sorted_next. rewrite H0. reflexivity.
+Qed.
+
+
+(*****************)
+(** State Union **)
+(*****************)
+
+Definition state_union (sigma1 sigma2 : state) : state :=
+  (list_to_state (messages_union (get_messages sigma1) (get_messages sigma2))).
+
+Lemma state_union_messages : forall sigma1 sigma2,
+  set_eq (get_messages (state_union sigma1 sigma2)) (messages_union (get_messages sigma1) (get_messages sigma2)).
+Proof.
+  intros.
+  apply list_to_state_iff.
+Qed.
+
+
+Lemma state_union_incl_right : forall sigma1 sigma2,
+  syntactic_state_inclusion sigma2 (state_union sigma1 sigma2).
+Proof.
+  intros. intros msg Hin. apply state_union_messages. apply set_union_incl_right. assumption.
+Qed.
+
+Lemma state_union_incl_left : forall sigma1 sigma2,
+  syntactic_state_inclusion sigma1 (state_union sigma1 sigma2).
+Proof.
+  intros. intros msg Hin. apply state_union_messages. apply set_union_incl_left. assumption.
+Qed.
+
+Lemma state_union_iff : forall msg sigma1 sigma2,
+  in_state msg (state_union sigma1 sigma2) <-> in_state msg sigma1 \/ in_state msg sigma2.
+Proof.
+  intros; unfold state_union; unfold in_state; split; intros.
+  - apply state_union_messages in H. unfold messages_union in H. rewrite set_union_iff in H. assumption.
+  - apply state_union_messages. unfold messages_union. rewrite set_union_iff. assumption.
+Qed.
+
+Lemma state_union_incl_iterated : forall sigmas sigma,
+  In sigma sigmas ->
+  syntactic_state_inclusion sigma (fold_right state_union Empty sigmas).
+Proof.
+  induction sigmas; intros.
+  - inversion H.
+  - simpl. destruct H.
+    + subst. apply state_union_incl_left.
+    + apply IHsigmas in H. apply incl_tran with (get_messages (fold_right state_union Empty sigmas)); try assumption.
+      apply state_union_incl_right.
+Qed.
+
+Lemma state_union_sorted : forall sigma1 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  locally_sorted (state_union sigma1 sigma2).
+Proof.
+  intros.
+  apply locally_sorted_all in H as Hall1. rewrite Forall_forall in Hall1.
+  apply locally_sorted_all in H0 as Hall2. rewrite Forall_forall in Hall2.
+  apply list_to_state_locally_sorted. apply Forall_forall. intros msg Hin.
+  unfold messages_union in Hin.
+  rewrite set_union_iff in Hin. destruct Hin.
+  - apply Hall1. assumption.
+  - apply Hall2. assumption.
+Qed.
+
+Lemma state_union_add_in_sorted : forall sigma1 msg2 sigma2,
+  locally_sorted sigma1 ->
+  locally_sorted sigma2 ->
+  locally_sorted_msg msg2 ->
+  state_union sigma1 (add_in_sorted_fn msg2 sigma2) = add_in_sorted_fn msg2 (state_union sigma1 sigma2).
+Proof.
+  intros.
+  apply sorted_syntactic_state_inclusion_equality_predicate.
+  - apply state_union_sorted; try assumption. 
+    apply add_in_sorted_sorted; assumption.
+  - apply add_in_sorted_sorted; try assumption.
+    apply state_union_sorted; assumption.
+  - intros msg Hin. 
+    apply state_union_iff in Hin.
+    apply set_eq_add_in_sorted.
+    destruct Hin as [Hin | Hin].
+    + right. apply state_union_iff. left; assumption.
+    + apply set_eq_add_in_sorted in Hin. destruct Hin as [Heq | Hin]; subst.
+      * left; reflexivity.
+      * right.  apply state_union_iff. right; assumption.
+  - intros msg Hin.
+    apply set_eq_add_in_sorted in Hin.
+    apply state_union_iff.
+    destruct Hin as [Heq | Hin]; subst.
+    + right. apply set_eq_add_in_sorted. left; reflexivity.
+    + apply state_union_iff in Hin.
+      destruct Hin.
+      * left; assumption.
+      * right. apply set_eq_add_in_sorted. 
+      right; assumption.
+Qed.
 End Locally_Sorted.

@@ -6,20 +6,19 @@ Import ListNotations.
 Require Import Casper.preamble.
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.estimator.
 
-
-Module Type Messages 
-        (PCons : Consensus_Values) 
+Module Messages 
+        (PCons : Consensus_Values)
         (PVal : Validators)
-        (PStates : States PCons PVal)
+        (PEstimator : Estimator PCons PVal)
         .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
 Import PCons.
 Import PVal.
-Import PStates.
+Import PEstimator.
+
+(*Import PStates.*)
 
 (**************)
 (** Messages **)

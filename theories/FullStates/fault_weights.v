@@ -9,29 +9,27 @@ Require Import Casper.ListSetExtras.
 
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.locally_sorted.
 
 
-Module Type Fault_Weights
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              (PStates : States PCons PVal)
-              (PMessages : Messages PCons PVal PStates)
-              (PIn_State : In_State PCons PVal PStates PMessages)
-              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
-              .
+Module Fault_Weights
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal)
+        .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
 Import PCons.
 Import PVal.
-Import PStates.
-Import PMessages.
-Import PIn_State.
-Import PLocally_Sorted.
+Import PVal_Weights.
+Import PEstimator.
+
+Module PLocally_Sorted := Locally_Sorted PCons PVal PEstimator.
+Export PLocally_Sorted.
+
+Module PValidators_Properties := Validators_Properties PVal.
+Export PValidators_Properties.
 
 (****************************)
 (** Fault Weight of States **)

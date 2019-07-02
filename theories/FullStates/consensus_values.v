@@ -3,12 +3,11 @@ Require Import Coq.Classes.RelationClasses.
 
 Require Import Casper.preamble.
 
-
-Module Type Consensus_Values.
-
 (***************************************)
 (** Non-empty set of consensus values **)
 (***************************************)
+
+Module Type Consensus_Values.
 
 Parameter C : Set .
 
@@ -16,14 +15,23 @@ Parameter C : Set .
 Parameter c_compare : C -> C -> comparison.
 
 (** C totally ordered **)
-Parameter c_compare_strict_order : CompareStrictOrder c_compare.
+Axiom c_compare_strict_order : CompareStrictOrder c_compare.
 
 Axiom c_non_empty : exists c : C, True.
 
+End Consensus_Values.
 
-(****************)
-(** Properties **)
-(****************)
+
+(************************************)
+(** Properties of consensus values **)
+(************************************)
+
+Module Consensus_Values_Properties 
+        (PCons : Consensus_Values) 
+
+(* import the Module parameters in order to have access to 
+   its parameters without having to use the DotNotation. *)            .
+Import PCons.
 
 Lemma c_compare_refl : forall c, c_compare c c = Eq.
 Proof.
@@ -48,4 +56,4 @@ Definition c_eq_fn  (x y : C) : bool :=
   | right _ => false
   end.
 
-End Consensus_Values.
+End Consensus_Values_Properties.

@@ -49,9 +49,7 @@ theories/FullStates/state_union.vo : \
     theories/FullStates/states.vo \
     theories/FullStates/messages.vo \
     theories/FullStates/in_state.vo \
-    theories/FullStates/add_in_sorted.vo \
     theories/FullStates/locally_sorted.vo \
-    theories/FullStates/list_to_state.vo
 
 theories/FullStates/protocol_states.vo : \
     theories/preamble.vo \
@@ -63,8 +61,6 @@ theories/FullStates/protocol_states.vo : \
     theories/FullStates/messages.vo \
     theories/FullStates/in_state.vo \
     theories/FullStates/locally_sorted.vo \
-    theories/FullStates/add_in_sorted.vo \
-    theories/FullStates/list_to_state.vo \
     theories/FullStates/fault_weights.vo
 
 theories/FullStates/common_futures.vo : \
@@ -72,18 +68,14 @@ theories/FullStates/common_futures.vo : \
     theories/FullStates/states.vo \
     theories/FullStates/messages.vo \
     theories/FullStates/protocol_states.vo \
-    theories/FullStates/add_in_sorted.vo \
     theories/FullStates/locally_sorted.vo \
-    theories/FullStates/state_union.vo \
-    theories/FullStates/list_to_state.vo
-
+    
 theories/FullStates/consistent_decisions_prop_protocol_states.vo: \
     theories/preamble.vo \
     theories/FullStates/messages.vo \
     theories/FullStates/states.vo \
     theories/FullStates/protocol_states.vo \
     theories/FullStates/locally_sorted.vo \
-    theories/FullStates/state_union.vo \
     theories/FullStates/common_futures.vo
 
 theories/LightStates/hashes.vo: \

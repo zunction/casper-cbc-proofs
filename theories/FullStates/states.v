@@ -6,15 +6,14 @@ Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
 
 
-Module Type States 
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              .
+Module States 
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        .
 
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
 Import PCons.
 Import PVal.
+
 (************)
 (** States **)
 (************)

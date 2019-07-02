@@ -8,50 +8,60 @@ Require Import Casper.RealsExtras.
 
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.locally_sorted.
+Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.fault_weights.
 
-
-Module Type Threshold
-              (PCons : Consensus_Values) 
-              (PVal : Validators)
-              (PStates : States PCons PVal)
-              (PMessages : Messages PCons PVal PStates)
-              (PIn_State : In_State PCons PVal PStates PMessages)
-              (PLocally_Sorted : Locally_Sorted PCons PVal PStates PMessages PIn_State)
-              (PFault_Weights : Fault_Weights PCons PVal PStates PMessages PIn_State PLocally_Sorted)
-        .
-
-(* import the Module parameters in order to have access to 
-   its parameters without having to use the DotNotation. *)
-Import PCons.
-Import PVal.
-Import PStates.
-Import PMessages.
-Import PIn_State.
-Import PLocally_Sorted.
-Import PFault_Weights.
 
 (************************************************************)
 (** Fault tolerance threshold (a non-negative real number) **)
 (************************************************************)
 
+Module Type Threshold
+              (PVal : Validators)
+              (PVal_Weights : Validators_Weights PVal)
+              .
+
+Import PVal.
+Import PVal_Weights.
+
 Parameter t : R.
 
 Axiom threshold_nonnegative : (t >= 0)%R .
 
+(* fold_right (fun v r => (weight v + r)%R) 0%R.
+   is sum_weights.
+*)
 Axiom sufficient_validators_condition :
-  exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
+  exists (vs : list V), 
+    NoDup vs /\ 
+    ((fold_right (fun v r => (weight v + r)%R) 0%R) vs > t)%R
+  .
+    (*(sum_weights vs > t)%R. *)
 
 Axiom validator_below_threshold_condition :
   exists (v : V), (weight v <= t)%R.
 
-(****************)
-(** Properties **)
-(****************)
+End Threshold.
+
+(*****************************)
+(** Properties of Threshold **)
+(*****************************)
+Module Threshold_Properties
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal)
+        (PThreshold : Threshold PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PEstimator.
+Import PThreshold.
+
+Module PFault_Weights := Fault_Weights PCons PVal PVal_Weights PEstimator.
+Export PFault_Weights.
 
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -118,4 +128,4 @@ Proof.
       exists [v0; v].
   Admitted.
 
-End Threshold.
+End Threshold_Properties.
