@@ -1,3 +1,4 @@
+Require Import Coq.Bool.Bool.
 Require Import Coq.Reals.Reals.
 Require Import List.
 Import ListNotations.
@@ -81,6 +82,58 @@ Proof.
       split; try (apply extend_protocol_state; assumption).
       intros sigma' H'. destruct H' as [_ [Hps' Hincl]].
       intro.
+      apply protocol_state_fault_tolerance in Hps' as Hft'.
+      unfold fault_tolerance_condition in Hft'.
+      assert (Hnft' : (fault_weight_state sigma' > t)%R).
+      { apply Rlt_le_trans with (fault_weight_state (add (c, v, Empty) to (add (c0, v, sigma0) to Empty))).
+        - unfold fault_weight_state. unfold equivocating_senders. simpl.
+          assert ( Hequiv : equivocating_message_state (c, v, Empty)
+                    (add (c, v, Empty)to (add (c0, v, sigma0)to Empty)) = true).
+          { apply existsb_exists. exists (c0, v, sigma0). 
+            split.
+            - right. left. reflexivity.
+            - unfold equivocating_messages. rewrite eq_dec_if_false.
+              + rewrite eq_dec_if_true; try reflexivity.
+                apply andb_true_iff. split.
+                * subst. simpl. apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  intro. rewrite add_is_next in H0. apply in_singleton_state in H0.
+                  apply Hv'. inversion H0. reflexivity.
+                * apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  apply in_empty_state.
+              + intro. subst. inversion H0; subst; clear H0.
+          }
+          rewrite Hequiv.
+          assert ( Hequiv0 : equivocating_message_state (c0, v, sigma0)
+                    (add (c, v, Empty)to (add (c0, v, sigma0)to Empty)) = true).
+          { apply existsb_exists. exists (c, v, Empty). 
+            split.
+            - left. reflexivity.
+            - unfold equivocating_messages. rewrite eq_dec_if_false.
+              + rewrite eq_dec_if_true; try reflexivity.
+                apply andb_true_iff. split.
+                * apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  apply in_empty_state.
+                * subst. simpl. apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  intro. rewrite add_is_next in H0. apply in_singleton_state in H0.
+                  apply Hv'. inversion H0. reflexivity.
+              + intro. subst. inversion H0; subst; clear H0.
+          }
+          rewrite Hequiv0. simpl. rewrite eq_dec_if_true; try reflexivity.
+          simpl. simpl in Hgt. unfold Rminus in Hgt.
+          apply (Rplus_gt_compat_r (weight v)) in Hgt. rewrite Rplus_assoc in Hgt.
+          rewrite Rplus_0_r. rewrite Rplus_0_l in Hgt. rewrite Rplus_opp_l in Hgt. rewrite Rplus_0_r in Hgt.
+          apply Rgt_lt. assumption.
+        - apply fault_weight_state_incl. unfold syntactic_state_inclusion. simpl.
+          intros x Hin. destruct Hin as [Hin | [Hin | Hcontra]]; try inversion Hcontra; subst
+          ; try assumption.
+          apply Hincl. apply in_state_add_in_sorted_iff. left. reflexivity.
+      }
+      unfold Rgt in Hnft'. apply (Rlt_irrefl t).
+      apply Rlt_le_trans with (fault_weight_state sigma'); assumption.
   Admitted.
 
 End Non_triviality_Properties_Protocol_States.
