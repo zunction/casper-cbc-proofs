@@ -27,8 +27,8 @@ Module Protocol_States
         (PCons : Consensus_Values) 
         (PVal : Validators)
         (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
         (PThreshold : Threshold PVal PVal_Weights)
-        (PEstimator : Estimator PCons PVal)
         .
 
 Import PCons.

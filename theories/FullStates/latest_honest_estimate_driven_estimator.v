@@ -11,6 +11,9 @@ Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.fault_weights.
 Require Import Casper.FullStates.threshold.
 
+(** Denisa: I don't think this module can be used as it is, 
+    but parts of it are needed in order to instantiate a module 
+**)
 
 Module Latest_Honest_Estimate
         (PCons : Consensus_Values) 
@@ -28,9 +31,6 @@ Import PEstimator.
 
 Module PThreshold_Properties := Threshold_Properties PCons PVal PVal_Weights PEstimator PThreshold.
 Export PThreshold_Properties.
-
-Module PConsensus_Values_Properties := Consensus_Values_Properties PCons.
-Import PConsensus_Values_Properties.
 
 
 (** Observed validators in a state **)

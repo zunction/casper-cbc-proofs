@@ -9,20 +9,18 @@ Require Import Casper.ListSetExtras.
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.estimator.
-Require Import Casper.FullStates.in_state.
 
 Module Locally_Sorted
         (PCons : Consensus_Values)
         (PVal : Validators)
-        (PEstimator : Estimator PCons PVal)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
         .
 
 Import PCons.
 Import PVal.
-Import PEstimator.
-
-Module PIn_State := In_State PCons PVal PEstimator.
-Export PIn_State.
+Import PVal_Weights.
+Export PEstimator.
 
 (** (Locally) Sorted states **)
 Inductive locally_sorted : state -> Prop :=
