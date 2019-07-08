@@ -94,6 +94,18 @@ Inductive protocol_state : state -> Prop :=
       protocol_state (add_in_sorted_fn (c, v, sigma) sigma')
   .
 
+
+Lemma protocol_state_fault_tolerance : forall sigma,
+  protocol_state sigma ->
+  fault_tolerance_condition sigma.
+Proof.
+  intros.
+  inversion H.
+  - unfold fault_tolerance_condition. unfold fault_weight_state.
+    simpl. apply Rge_le. apply threshold_nonnegative.
+  - assumption.
+Qed.
+
 Lemma protocol_state_sorted : forall state,
   protocol_state state -> 
   locally_sorted state.
@@ -135,6 +147,23 @@ Proof.
     + destruct H4 as [msg [Hin Hj]].
       exists msg. split; try assumption.
       apply in_state_add_in_sorted_iff. right. assumption.
+Qed.
+
+Lemma extend_protocol_state : forall sigma,
+  protocol_state sigma ->
+  forall c,
+  valid_estimate_condition c sigma ->
+  forall v,
+  protocol_state (add_in_sorted_fn (c, v, sigma) sigma).
+Proof.
+  intros sigma Hps c Hc v.
+  constructor; try assumption; try apply incl_refl.
+  unfold fault_tolerance_condition.
+  apply fault_tolerance_condition_subset with (add (c,v,sigma) to sigma).
+  - unfold syntactic_state_inclusion. apply set_eq_add_in_sorted.
+  - unfold fault_tolerance_condition. unfold fault_weight_state.
+    rewrite equivocating_senders_extend.
+    apply protocol_state_fault_tolerance in Hps. assumption.
 Qed.
 
 Lemma protocol_state_unequivocating :

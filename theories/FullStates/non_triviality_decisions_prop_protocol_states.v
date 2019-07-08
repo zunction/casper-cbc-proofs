@@ -39,6 +39,9 @@ Definition potentially_pivotal (v : V) : Prop :=
       (sum_weights vs > t - weight v)%R
       .
 
+Definition at_least_two_validators : Prop :=
+  forall v1 : V, exists v2 : V, v1 <> v2.
+
 Lemma exists_pivotal_message : exists v, potentially_pivotal v.
 Proof.
   destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
@@ -57,28 +60,27 @@ Proof.
 Qed.
 
 Theorem non_triviality_decisions_on_properties_of_protocol_states :
+  at_least_two_validators ->
   exists p, non_trivial p.
 Proof.
+  intro H2v.
   destruct exists_pivotal_message as [v Hpivotal].
   destruct (estimator_total Empty) as [c Hc].
   exists (in_state (c,v,Empty)).
   split.
-  - exists (next (c,v,Empty) Empty).
-    split.
-    + assert (add_in_sorted_fn (c, v, Empty) Empty = (next (c, v, Empty) Empty)).
-      { simpl. reflexivity. }
-      rewrite <- H. constructor; try assumption; try apply protocol_state_empty.
-      * apply incl_refl.
-      * simpl. 
-        unfold fault_tolerance_condition.
-        unfold fault_weight_state. unfold equivocating_senders. simpl.
-        unfold equivocating_message_state. simpl.
-        unfold equivocating_messages. rewrite eq_dec_if_true; try reflexivity.
-        simpl.
-        apply Rge_le.
-        apply threshold_nonnegative.
-    + intros sigma H. destruct H as [HLS1 [HLS2 H]]. apply H. simpl. left. reflexivity.
-  - 
+  - exists (next (c,v,Empty) Empty); split; try apply protocol_state_singleton; try assumption.
+    intros sigma H. destruct H as [HLS1 [HLS2 H]]. apply H. simpl. left. reflexivity.
+  - destruct Hpivotal as [vs [Hnodup [Hnin [Hlt Hgt]]]].
+    destruct vs.
+    + destruct (H2v v) as [v' Hv'].
+      remember (add_in_sorted_fn (c, v', Empty) Empty) as sigma0.
+      assert (Hps0 : protocol_state sigma0).
+      { subst. apply protocol_state_singleton. assumption. }
+      destruct (estimator_total sigma0) as [c0 Hc0].
+      exists (add_in_sorted_fn (c0, v, sigma0) sigma0).
+      split; try (apply extend_protocol_state; assumption).
+      intros sigma' H'. destruct H' as [_ [Hps' Hincl]].
+      intro.
   Admitted.
 
 End Non_triviality_Properties_Protocol_States.

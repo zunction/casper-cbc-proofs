@@ -1,3 +1,4 @@
+Require Import Coq.Bool.Bool.
 Require Import List.
 Import ListNotations.
 
@@ -62,6 +63,23 @@ Proof.
       * assumption.
 Qed.
 
+Lemma filter_eq_fn {A} : forall (f : A -> bool) (g : A -> bool) s,
+  (forall a, In a s -> f a = true <-> g a = true) ->
+  filter f s = filter g s.
+Proof.
+  induction s; intros; try reflexivity. simpl.
+  assert (IHs' : forall a : A, In a s -> f a = true <-> g a = true).
+  { intros. apply H. right. assumption. }
+  apply IHs in IHs'. clear IHs.
+  destruct (f a) eqn:Hf.
+  - apply H in Hf as Hg; try (left; reflexivity). rewrite Hg. rewrite IHs'. reflexivity.
+  - assert (Hg : g a = false).
+    {  destruct (g a) eqn:Hg; try reflexivity. apply H in Hg; try (left; reflexivity).
+      rewrite <- Hg. assumption.
+    }
+    rewrite Hg. assumption.
+Qed.
+
 Lemma in_not_in : forall A (x y : A) l,
   In x l ->
   ~ In y l ->
@@ -97,6 +115,20 @@ Proof.
   induction xs; intros; destruct ys; split; intros; try reflexivity; try discriminate.
   - simpl in H0. inversion H0 . apply H in H2; subst. apply IHxs in H3; subst. reflexivity.
   - rewrite H0. reflexivity.
+Qed.
+
+
+Lemma existsb_forall {A} (f : A -> bool):
+  forall l, existsb f l = false <-> forall x, In x l -> f x = false.
+Proof.
+  induction l; split; intros.
+  - inversion H0. 
+  - reflexivity.
+  - inversion H. apply orb_false_iff in  H2. destruct H2 as [Hfa Hex]. rewrite Hfa.
+    rewrite Hex. simpl. destruct H0 as [Heq | Hin]; subst; try assumption.
+    apply IHl; try assumption.
+  - simpl. rewrite H; try (left; reflexivity). rewrite IHl; try reflexivity.
+    intros. apply H. right. assumption.
 Qed.
 
 (**

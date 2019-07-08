@@ -1,3 +1,4 @@
+Require Import Coq.Bool.Bool.
 Require Import Coq.Reals.Reals.
 Require Import List.
 Require Import Coq.Lists.ListSet.
@@ -51,10 +52,38 @@ Definition equivocating_messages (msg1 msg2 : message) : bool :=
     end
   end.
 
+Lemma equivocating_messages_comm : forall msg1 msg2,
+  equivocating_messages msg1 msg2 = equivocating_messages msg2 msg1.
+Proof.
+  intros [(c1, v1) sigma1] [(c2, v2) sigma2].
+  unfold equivocating_messages.
+  destruct (message_eq_dec (c1, v1, sigma1) (c2, v2, sigma2))
+  ; try (rewrite eq_dec_if_true; try reflexivity; symmetry; assumption).
+  rewrite (eq_dec_if_false message_eq_dec)
+  ; try (intro; apply n; symmetry; assumption).
+  destruct (v_eq_dec v1 v2)
+  ; try (rewrite eq_dec_if_false; try reflexivity; intro; apply n0; symmetry; assumption).
+  subst.
+  rewrite eq_dec_if_true; try reflexivity.
+  rewrite andb_comm. reflexivity.
+Qed.
+
+Lemma non_equivocating_messages_extend : forall msg sigma1 c v,
+  In msg (get_messages sigma1) ->
+  equivocating_messages msg (c, v, sigma1) = false.
+Proof.
+  intros [(c0, v0) sigma']; intros.
+  unfold equivocating_messages.
+  destruct (message_eq_dec (c0, v0, sigma') (c, v, sigma1)); try reflexivity.
+  destruct (v_eq_dec v0 v); try reflexivity.
+  assert (Hin : in_state_fn (c0, v0, sigma') sigma1 = true).
+  { unfold in_state_fn. rewrite in_state_dec_if_true; try reflexivity. assumption. }
+  rewrite Hin. simpl. reflexivity.
+Qed.
+
 (******************************)
 (* equivocating_message_state *)
 (******************************)
-
 
 Definition equivocating_message_state (msg : message) (sigma : state) : bool :=
   existsb (equivocating_messages msg) (get_messages sigma).
@@ -68,6 +97,20 @@ Proof.
   intros. rewrite existsb_exists in *. destruct H0 as [x [Hin Heq]]. exists x.
   split; try assumption.
   apply H. assumption.
+Qed.
+
+Lemma non_equivocating_extend : forall sigma sigma' c v,
+  syntactic_state_inclusion sigma sigma' ->
+  equivocating_message_state (c, v, sigma') sigma = false.
+Proof.
+  unfold equivocating_message_state.
+  induction sigma; intros.
+  - reflexivity.
+  - simpl. rewrite IHsigma2.
+    + rewrite equivocating_messages_comm.
+      rewrite non_equivocating_messages_extend; try reflexivity.
+      apply H. left. reflexivity.
+    + intros x Hin. apply H. right. assumption.
 Qed.
 
 Definition equivocating_senders (sigma : state) : set V :=
@@ -89,6 +132,36 @@ Proof.
   apply set_map_incl. apply incl_tran with (filter (fun msg : message => equivocating_message_state msg sigma) (get_messages sigma')).
   - apply filter_incl; assumption.
   - apply filter_incl_fn. intro. apply equivocating_message_state_incl. assumption.
+Qed.
+
+Lemma equivocating_senders_extend : forall sigma c v,
+  equivocating_senders (add (c, v, sigma) to sigma) = equivocating_senders sigma.
+Proof.
+  unfold equivocating_senders. intros.
+  assert (Heq :
+    (filter (fun msg : message => equivocating_message_state msg (add (c, v, sigma)to sigma))
+      (get_messages (add (c, v, sigma)to sigma))) = 
+    (filter (fun msg : message => equivocating_message_state msg sigma)
+      (get_messages sigma))); try (rewrite Heq; reflexivity).
+    simpl.
+  assert
+    (Hequiv : equivocating_message_state (c, v, sigma) (add (c, v, sigma)to sigma) = false)
+  ; try rewrite Hequiv.
+  { apply existsb_forall. intros. rewrite equivocating_messages_comm.
+    destruct H as [Heq | Hin].
+    - subst. unfold equivocating_messages.
+      rewrite eq_dec_if_true; reflexivity.
+    - apply non_equivocating_messages_extend. assumption.
+  }
+  apply filter_eq_fn. intros. unfold equivocating_message_state. split; intros
+  ; apply existsb_exists in H0; apply existsb_exists
+  ; destruct H0 as [msg [Hin Hmsg]]; exists msg; split; try assumption.
+  - simpl in Hin.
+    destruct Hin as [Heq | Hin]; try assumption.
+    exfalso. subst.
+    apply (non_equivocating_messages_extend _ _ c v) in H.
+    rewrite Hmsg in H. inversion H.
+  - right. assumption.
 Qed.
 
 Definition sum_weights : set V -> R := fold_right (fun v r => (weight v + r)%R) 0%R.
