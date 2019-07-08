@@ -79,7 +79,7 @@ Qed.
 
 End BinaryCV.
 
-
+(*
 (** The Friendly Binary Consensus Protocol - Estimator **)
 
 Module BinaryEstimator 
@@ -111,7 +111,7 @@ Definition estimator : state -> C -> Prop :=
 End BinaryEstimator.
 
 
-
+*)
 
 
 
