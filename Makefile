@@ -4,7 +4,6 @@ results: theories/FullStates/common_futures.vo \
     theories/FullStates/consistent_decisions_prop_protocol_states.vo \
     theories/FullStates/consistent_decisions_prop_consensus_values.vo \
     theories/FullStates/non_triviality_decisions_prop_protocol_states.vo \
-    theories/FullStates/latest_honest_estimate_driven_estimator.vo \
     theories/FullStates/binary_consensus_protocol.vo \
     theories/LightStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
@@ -40,16 +39,7 @@ theories/FullStates/fault_weights.vo : \
     theories/FullStates/consensus_values.vo \
     theories/FullStates/validators.vo \
     theories/FullStates/states.vo \
-    theories/FullStates/messages.vo \
-    theories/FullStates/in_state.vo \
     theories/FullStates/locally_sorted.vo
-
-theories/FullStates/state_union.vo : \
-    theories/ListSetExtras.vo \
-    theories/FullStates/states.vo \
-    theories/FullStates/messages.vo \
-    theories/FullStates/in_state.vo \
-    theories/FullStates/locally_sorted.vo \
 
 theories/FullStates/protocol_states.vo : \
     theories/preamble.vo \
@@ -58,21 +48,17 @@ theories/FullStates/protocol_states.vo : \
     theories/FullStates/validators.vo \
     theories/FullStates/threshold.vo \
     theories/FullStates/states.vo \
-    theories/FullStates/messages.vo \
-    theories/FullStates/in_state.vo \
     theories/FullStates/locally_sorted.vo \
     theories/FullStates/fault_weights.vo
 
 theories/FullStates/common_futures.vo : \
     theories/preamble.vo \
     theories/FullStates/states.vo \
-    theories/FullStates/messages.vo \
     theories/FullStates/protocol_states.vo \
     theories/FullStates/locally_sorted.vo \
     
 theories/FullStates/consistent_decisions_prop_protocol_states.vo: \
     theories/preamble.vo \
-    theories/FullStates/messages.vo \
     theories/FullStates/states.vo \
     theories/FullStates/protocol_states.vo \
     theories/FullStates/locally_sorted.vo \

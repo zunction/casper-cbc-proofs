@@ -18,7 +18,7 @@ Module Fault_Weights
         (PCons : Consensus_Values) 
         (PVal : Validators)
         (PVal_Weights : Validators_Weights PVal)
-        (PEstimator : Estimator PCons PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
         .
 
 Import PCons.
@@ -26,11 +26,9 @@ Import PVal.
 Import PVal_Weights.
 Import PEstimator.
 
-Module PLocally_Sorted := Locally_Sorted PCons PVal PEstimator.
+Module PLocally_Sorted := Locally_Sorted PCons PVal PVal_Weights PEstimator.
 Export PLocally_Sorted.
 
-Module PValidators_Properties := Validators_Properties PVal.
-Export PValidators_Properties.
 
 (****************************)
 (** Fault Weight of States **)

@@ -9,10 +9,12 @@ Require Import Casper.FullStates.states.
 Module Type Estimator
         (PCons : Consensus_Values)
         (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
         .
 
 Import PCons.
 Import PVal.
+Import PVal_Weights.
 
 Module PStates := States PCons PVal.
 Export PStates.

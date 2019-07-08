@@ -2,19 +2,24 @@
 (** Binary consensus protocol **)
 (*******************************)
 
+Require Import Bool.
 Require Import Coq.Reals.Reals.
 Require Import List.
 Require Import Coq.Lists.ListSet.
 Import ListNotations.
 
-
 Require Import Casper.preamble.
 
 Require Import Casper.FullStates.consensus_values.
-Require Import Casper.FullStates.latest_honest_estimate_driven_estimator.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.estimator.
+Require Import Casper.FullStates.states.
 
+(** The Friendly Binary Consensus Protocol **)
 
-Module BinC <: Casper.FullStates.consensus_values.Consensus_Values.
+(** The Friendly Binary Consensus Protocol - Consensus Values **)
+
+Module BinaryCV <: Consensus_Values.
 
 (** In order make an instance of module Consensus_Values 
     we are required to have inside our module a list of 
@@ -43,7 +48,7 @@ Definition c_compare (c1 : C) (c2 : C) : comparison :=
     | one, one => Eq
   end.
 
-Definition c_compare_strict_order : CompareStrictOrder c_compare.
+Lemma c_compare_strict_order : CompareStrictOrder c_compare.
 Proof.
   unfold CompareStrictOrder. split.
   - constructor.
@@ -67,20 +72,32 @@ Proof.
     .
 Qed.
 
-Definition c_non_empty : exists c : C, True.
+Lemma c_non_empty : exists c : C, True.
 Proof.
   exists one. reflexivity.
 Qed.
 
-End BinC.
-
+End BinaryCV.
 
 (*
-Definition score (c:C) (sigma:state) : R :=
-  fold_right Rplus R0  
-    (filter (fun v => In c (le sigma v)) (observed sigma))
+(** The Friendly Binary Consensus Protocol - Estimator **)
+
+Module BinaryEstimator 
+        (PVal : Validators) 
+        (PVal_Weights : Validators_Weights PVal)
+        <: Estimator BinaryCV PVal PVal_Weights.
+
+Import PVal.
+Import PVal_Weights.
+
+Module PStates := States BinaryCV PVal.
+Export PStates.
+
+Definition score (c:BinaryCV.C) (sigma:state) : R :=
+  fold_right Rplus R0
+  (map weight (validators_latest_estimates c sigma))
   .
-*)
+
 
 (*
 Definition estimator : state -> C -> Prop :=
@@ -91,7 +108,10 @@ Definition estimator : state -> C -> Prop :=
     | Eq => 
 *)
 
+End BinaryEstimator.
 
+
+*)
 
 
 

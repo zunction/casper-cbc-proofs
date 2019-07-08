@@ -14,8 +14,8 @@ Module Common_Futures
         (PCons : Consensus_Values) 
         (PVal : Validators)
         (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
         (PThreshold : Threshold PVal PVal_Weights)
-        (PEstimator : Estimator PCons PVal)
         .
 
 Import PCons.
@@ -24,7 +24,7 @@ Import PVal_Weights.
 Import PThreshold.
 Import PEstimator.
 
-Module PProtocol_States := Protocol_States PCons PVal PVal_Weights PThreshold PEstimator.
+Module PProtocol_States := Protocol_States PCons PVal PVal_Weights PEstimator PThreshold.
 Export PProtocol_States.
 
 (** Two party common futures **)

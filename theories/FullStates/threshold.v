@@ -11,7 +11,6 @@ Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.fault_weights.
 
-
 (************************************************************)
 (** Fault tolerance threshold (a non-negative real number) **)
 (************************************************************)
@@ -50,7 +49,7 @@ Module Threshold_Properties
         (PCons : Consensus_Values) 
         (PVal : Validators)
         (PVal_Weights : Validators_Weights PVal)
-        (PEstimator : Estimator PCons PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
         (PThreshold : Threshold PVal PVal_Weights)
         .
 

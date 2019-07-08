@@ -18,8 +18,8 @@ Module Properties_Consensus_Values
         (PCons : Consensus_Values) 
         (PVal : Validators)
         (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
         (PThreshold : Threshold PVal PVal_Weights)
-        (PEstimator : Estimator PCons PVal)
         .
 
 Import PCons.
@@ -28,7 +28,7 @@ Import PVal_Weights.
 Import PThreshold.
 Import PEstimator.
 
-Module PProperties_Protocol_States := Properties_Protocol_States PCons PVal PVal_Weights PThreshold PEstimator.
+Module PProperties_Protocol_States := Properties_Protocol_States PCons PVal PVal_Weights PEstimator PThreshold.
 Export PProperties_Protocol_States.
 
 (* Corresponding property of protocol states for a property of consensus values *)
