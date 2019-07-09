@@ -80,9 +80,4 @@ Proof.
   assumption.
 Qed.
 
-Definition non_trivial (p : state -> Prop) :=
-  (exists sigma1, protocol_state sigma1 /\ decided_state p sigma1)
-  /\
-  (exists sigma2, protocol_state sigma2 /\ decided_state (predicate_not p) sigma2).
-
 End Properties_Protocol_States.

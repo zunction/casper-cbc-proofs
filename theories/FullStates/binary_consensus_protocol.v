@@ -13,7 +13,9 @@ Require Import Casper.preamble.
 Require Import Casper.FullStates.consensus_values.
 Require Import Casper.FullStates.validators.
 Require Import Casper.FullStates.estimator.
+Require Import Casper.FullStates.threshold.
 Require Import Casper.FullStates.states.
+Require Import Casper.FullStates.consistent_decisions_prop_consensus_values.
 
 (** The Friendly Binary Consensus Protocol **)
 
@@ -79,7 +81,7 @@ Qed.
 
 End BinaryCV.
 
-(*
+
 (** The Friendly Binary Consensus Protocol - Estimator **)
 
 Module BinaryEstimator 
@@ -87,31 +89,103 @@ Module BinaryEstimator
         (PVal_Weights : Validators_Weights PVal)
         <: Estimator BinaryCV PVal PVal_Weights.
 
+Import BinaryCV.
 Import PVal.
 Import PVal_Weights.
 
 Module PStates := States BinaryCV PVal.
 Export PStates.
 
-Definition score (c:BinaryCV.C) (sigma:state) : R :=
+Definition score (c:C) (sigma:state) : R :=
   fold_right Rplus R0
   (map weight (validators_latest_estimates c sigma))
   .
 
+Inductive binEstimator : state -> C -> Prop :=
+  | estimator_one : forall sigma,
+        ((score zero sigma) < (score one sigma))%R ->
+        binEstimator sigma one
+  | estimator_zero : forall sigma,
+        ((score zero sigma) > (score one sigma))%R ->
+        binEstimator sigma zero
+  | estimator_both_zero : forall sigma,
+        ((score zero sigma) = (score one sigma))%R ->
+        binEstimator sigma zero
+  | estimator_both_one : forall sigma,
+        ((score zero sigma) = (score one sigma))%R ->
+        binEstimator sigma one
+  .
 
-(*
-Definition estimator : state -> C -> Prop :=
-  forall sigma,
-  match (score zero sigma) (score one sigma) with
-    | LT => one
-    | GT => zero
-    | Eq => 
-*)
+Definition estimator := binEstimator.
+
+Lemma estimator_total : forall s : state, exists c : C, estimator s c.
+Proof.
+  intros sigma.
+  destruct (total_order_T (score zero sigma) (score one sigma)) as [[HLT | HEQ] | HGT].
+  - exists one. apply estimator_one. assumption.
+  - exists one. apply estimator_both_one. assumption.
+  - exists zero. apply estimator_zero. assumption.
+Qed.
 
 End BinaryEstimator.
 
 
-*)
+(** The Friendly Binary Consensus Protocol - 
+    Non-triviality of Decisions on Properties of Consensus Values **)
+
+Module Non_triviality_Properties_Consensus_Values
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PThreshold : Threshold PVal PVal_Weights)
+        .
+
+Import BinaryCV.
+Import PVal.
+Import PVal_Weights.
+Import PThreshold.
+
+Module PBinaryEstimator := BinaryEstimator PVal PVal_Weights.
+Import PBinaryEstimator.
+
+Module PProperties_Consensus_Values := Properties_Consensus_Values BinaryCV PVal PVal_Weights PBinaryEstimator PThreshold.
+Export PProperties_Consensus_Values.
+
+Definition non_trivial_consensus_value (p : C -> Prop) :=
+  (exists sigma1, protocol_state sigma1 /\ decided_consensus_value p sigma1)
+  /\
+  (exists sigma2, protocol_state sigma2 /\ decided_consensus_value (predicate_not p) sigma2).
+
+Theorem non_triviality_decisions_on_properties_of_consensus_values :
+  exists p, non_trivial_consensus_value p.
+Admitted.
+End Non_triviality_Properties_Consensus_Values.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
