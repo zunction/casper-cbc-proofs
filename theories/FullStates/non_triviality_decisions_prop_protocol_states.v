@@ -32,6 +32,11 @@ Import PEstimator.
 Module PProperties_Protocol_States := Properties_Protocol_States PCons PVal PVal_Weights PEstimator PThreshold.
 Export PProperties_Protocol_States.
 
+Definition non_trivial_state (p : state -> Prop) :=
+  (exists sigma1, protocol_state sigma1 /\ decided_state p sigma1)
+  /\
+  (exists sigma2, protocol_state sigma2 /\ decided_state (predicate_not p) sigma2).
+
 Definition potentially_pivotal (v : V) : Prop :=
     exists (vs : list V),
       NoDup vs /\
@@ -123,7 +128,7 @@ Qed.
 
 Theorem non_triviality_decisions_on_properties_of_protocol_states :
   at_least_two_validators ->
-  exists p, non_trivial p.
+  exists p, non_trivial_state p.
 Proof.
   intro H2v.
   destruct exists_pivotal_message as [v Hpivotal].
