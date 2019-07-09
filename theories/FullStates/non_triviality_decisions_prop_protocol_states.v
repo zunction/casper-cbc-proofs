@@ -344,56 +344,60 @@ Proof.
       destruct (estimator_total sigma) as [csigma Hcsigma].
       remember (valid_protocol_state sigma csigma c (v' :: vs)) as sigma2.
       assert (Hequiv2 : set_eq (equivocating_senders sigma2) (v' :: vs)). 
-      { unfold equivocating_senders. split; intros; intros x Hin.
-        - apply (set_map_exists v_eq_dec sender)  in Hin.
-          destruct Hin as [[(cx, vx) jx] [Hin Hsend]].
-          simpl in Hsend. rewrite <- Hsend.
-          apply filter_In in Hin. destruct Hin as [Hin Hequiv].
-          apply existsb_exists in Hequiv.
-          destruct Hequiv as [[(cy, vy) jy] [Hiny Hequiv]].
-          rewrite Heqsigma2 in Hin.
-          apply in_valid_protocol_state in Hin.
-          destruct Hin as [Hin | [vv [Hin [Heq | Heq]]]]; try (inversion Heq; subst; assumption).
-          exfalso. unfold equivocating_messages in Hequiv.
-          rewrite Heqsigma in Hin. apply in_singleton_state in Hin.
-          rewrite Heqsigma2 in Hiny.
-          apply in_valid_protocol_state in Hiny.
-          destruct Hiny as [Hiny | [vv [Hiny [Heq | Heq]]]].
-          + rewrite Heqsigma in Hiny. apply in_singleton_state in Hiny.
-            rewrite Hin in Hequiv. rewrite Hiny in Hequiv.
-            rewrite eq_dec_if_true in Hequiv; try reflexivity.
-            inversion Hequiv.
-          + rewrite Hin in Hequiv. rewrite Heq in Hequiv.
-            rewrite eq_dec_if_false in Hequiv.
-            * rewrite eq_dec_if_false in Hequiv; try inversion Hequiv.
-              intro; subst. inversion Hin; subst; clear Hin. inversion Heq; subst; clear Heq.
-              apply Hnin. assumption.
-            * intro. inversion H; subst; clear H. apply Hnin. assumption.
-          + rewrite Hin in Hequiv. rewrite Heq in Hequiv.
-            rewrite eq_dec_if_false in Hequiv.
-            * rewrite eq_dec_if_false in Hequiv; try inversion Hequiv.
-              intro; subst. inversion Hin; subst; clear Hin. inversion Heq; subst; clear Heq.
-              apply Hnin. assumption.
-            * intro. inversion H; subst; clear H. apply Hnin. assumption.
-      - apply (set_map_exists v_eq_dec sender).
-        exists (c, x, Empty). simpl. split; try reflexivity.
-        apply filter_In. split.
-        + rewrite Heqsigma2. apply in_valid_protocol_state_rev_cempty. assumption.
-        + apply existsb_exists. exists (csigma, x, sigma). split.
-          * rewrite Heqsigma2. apply in_valid_protocol_state_rev_csigma. assumption.
-          * unfold equivocating_messages.
-            { rewrite eq_dec_if_false.
-              - rewrite eq_dec_if_true; try reflexivity. apply andb_true_iff. split.
-                + apply negb_true_iff. unfold in_state_fn. 
-                  rewrite in_state_dec_if_false; try reflexivity.
-                  rewrite Heqsigma. intro. apply in_singleton_state in H.
-                  apply Hnin. inversion H; subst; clear H. assumption.
-                + apply negb_true_iff. unfold in_state_fn. 
-                  rewrite in_state_dec_if_false; try reflexivity.
-                  apply in_empty_state.
-              - intro. inversion H; subst. inversion H2.
-            }
+      { rewrite Heqsigma2. rewrite Heqsigma in *.
+        apply valid_protocol_state_equivocating_senders; assumption.
       }
-  Admitted.
+      exists sigma2. split.
+      * subst. apply valid_protocol_state_ps; assumption.
+      * unfold decided_state. intros sigma' Hfutures.
+        unfold predicate_not. intro Hin.
+        destruct Hfutures as [Hps2 [Hps' Hincl]].
+        apply protocol_state_fault_tolerance in Hps'.
+        { apply (fault_tolerance_condition_subset (add (c0, v, sigma0) to sigma2)) in Hps'.
+        - unfold fault_tolerance_condition in Hps'.
+          apply Rlt_irrefl with t.
+          apply Rlt_le_trans with (fault_weight_state (add (c0, v, sigma0)to sigma2)); try assumption.
+          unfold fault_weight_state.
+          unfold Rminus in Hgt. apply (Rplus_gt_compat_r (weight v)) in Hgt.
+          rewrite Rplus_assoc in Hgt. rewrite Rplus_opp_l, Rplus_0_r in Hgt.
+          apply Rgt_lt. apply Rge_gt_trans with (sum_weights (v' :: vs) + weight v)%R; try assumption.
+          rewrite Rplus_comm.
+          assert (Hsum : (weight v + sum_weights (v' :: vs))%R = sum_weights (v :: v' :: vs))
+          ; try reflexivity; try rewrite Hsum.
+          apply Rle_ge. apply sum_weights_incl; try apply set_map_nodup; try (constructor; assumption).
+          intros vv Hvin. unfold equivocating_senders.
+          apply set_map_exists.
+          exists (c, vv, Empty).
+          split; try reflexivity.
+          apply filter_In.
+          split; destruct Hvin as [Heq | Hvin]; subst; apply existsb_exists || right.
+          + apply in_valid_protocol_state_rev_sigma. simpl. left. reflexivity.
+          + apply in_valid_protocol_state_rev_cempty; assumption.
+          + exists (c0, vv, add_in_sorted_fn (c, v', Empty) Empty).
+            split ; try (left; reflexivity).
+            simpl. unfold equivocating_messages.
+            rewrite eq_dec_if_false; try rewrite eq_dec_if_true; try reflexivity
+            ; try (apply andb_true_iff; split; apply negb_true_iff
+            ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity; intro).
+            * rewrite add_is_next in H. apply in_singleton_state in H.
+              inversion H; subst; clear H. apply Hnin. left. reflexivity.
+            * inversion H.
+            * intro. inversion H.
+          + exists (csigma, vv, (next (c, v, Empty) Empty)). split
+            ; try (right; apply in_valid_protocol_state_rev_csigma; assumption).
+            unfold equivocating_messages.
+            rewrite eq_dec_if_false; try rewrite eq_dec_if_true; try reflexivity
+            ; try (apply andb_true_iff; split; apply negb_true_iff
+            ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity; intro).
+            * apply in_singleton_state in H.
+              inversion H; subst; clear H. apply Hnin. assumption.
+            * inversion H.
+            * intro. inversion H.
+        - intros msg Hmin.
+          destruct Hmin as [Heq | Hmin].
+          * subst. assumption.
+          * apply Hincl. assumption.
+   }
+Qed.
 
 End Non_triviality_Properties_Protocol_States.
