@@ -67,7 +67,6 @@ Definition valid_protocol_state (sigma : state) (csigma cempty : C) (vs : list V
     sigma
     vs.
 
-
 Lemma in_valid_protocol_state : forall msg sigma csigma cempty vs,
   in_state msg (valid_protocol_state sigma csigma cempty vs) ->
   in_state msg sigma \/
@@ -119,6 +118,136 @@ Proof.
        apply in_state_add_in_sorted_iff. left. reflexivity.
     + simpl. apply in_state_add_in_sorted_iff. right. 
       apply in_state_add_in_sorted_iff. right.  apply IHvs. assumption.
+Qed.
+
+Lemma valid_protocol_state_equivocating_senders :
+  forall cempty,
+  estimator Empty cempty ->
+  forall v vs,
+  ~ In v vs ->
+  forall csigma,
+  estimator (next (cempty, v, Empty) Empty) csigma ->
+  set_eq (equivocating_senders (valid_protocol_state (next (cempty, v, Empty) Empty) csigma cempty vs)) vs.
+Proof.
+  intros.
+  remember (next (cempty, v, Empty) Empty) as sigma.
+  remember (valid_protocol_state sigma csigma cempty vs) as sigma2.
+  unfold equivocating_senders. split; intros; intros x Hin.
+  - apply (set_map_exists v_eq_dec sender)  in Hin.
+    destruct Hin as [[(cx, vx) jx] [Hin Hsend]].
+    simpl in Hsend. rewrite <- Hsend.
+    apply filter_In in Hin. destruct Hin as [Hin Hequiv].
+    apply existsb_exists in Hequiv.
+    destruct Hequiv as [[(cy, vy) jy] [Hiny Hequiv]].
+    rewrite Heqsigma2 in Hin.
+    apply in_valid_protocol_state in Hin.
+    destruct Hin as [Hin | [vv [Hin [Heq | Heq]]]]; try (inversion Heq; subst; assumption).
+    exfalso. unfold equivocating_messages in Hequiv.
+    rewrite Heqsigma in Hin. apply in_singleton_state in Hin.
+    rewrite Heqsigma2 in Hiny.
+    apply in_valid_protocol_state in Hiny.
+    destruct Hiny as [Hiny | [vv [Hiny [Heq | Heq]]]].
+    + rewrite Heqsigma in Hiny. apply in_singleton_state in Hiny.
+      rewrite Hin in Hequiv. rewrite Hiny in Hequiv.
+      rewrite eq_dec_if_true in Hequiv; try reflexivity.
+      inversion Hequiv.
+    + rewrite Hin in Hequiv. rewrite Heq in Hequiv.
+      rewrite eq_dec_if_false in Hequiv.
+      * rewrite eq_dec_if_false in Hequiv; try inversion Hequiv.
+        intro; subst. inversion Hin; subst; clear Hin. inversion Heq; subst; clear Heq.
+        apply H0. assumption.
+      * intro. inversion H2; subst; clear H2. apply H0. assumption.
+    + rewrite Hin in Hequiv. rewrite Heq in Hequiv.
+      rewrite eq_dec_if_false in Hequiv.
+      * rewrite eq_dec_if_false in Hequiv; try inversion Hequiv.
+        intro; subst. inversion Hin; subst; clear Hin. inversion Heq; subst; clear Heq.
+        apply H0. assumption.
+      * intro. inversion H2; subst; clear H2. apply H0. assumption.
+  - apply (set_map_exists v_eq_dec sender).
+    exists (cempty, x, Empty). simpl. split; try reflexivity.
+    apply filter_In. split.
+    + rewrite Heqsigma2. apply in_valid_protocol_state_rev_cempty. assumption.
+    + apply existsb_exists. exists (csigma, x, sigma). split.
+      * rewrite Heqsigma2. apply in_valid_protocol_state_rev_csigma. assumption.
+      * unfold equivocating_messages.
+        { rewrite eq_dec_if_false.
+          - rewrite eq_dec_if_true; try reflexivity. apply andb_true_iff. split.
+            + apply negb_true_iff. unfold in_state_fn. 
+              rewrite in_state_dec_if_false; try reflexivity.
+              rewrite Heqsigma. intro. apply in_singleton_state in H2.
+              apply H0. inversion H2; subst; clear H2. assumption.
+            + apply negb_true_iff. unfold in_state_fn. 
+              rewrite in_state_dec_if_false; try reflexivity.
+              apply in_empty_state.
+          - intro. inversion H2; subst. inversion H5.
+        }
+Qed.
+
+Lemma valid_protocol_state_ps :
+  forall cempty,
+  estimator Empty cempty ->
+  forall vs,
+  NoDup vs ->
+  (sum_weights vs <= t)%R ->
+  forall v,
+  ~ In v vs ->
+  forall csigma,
+  estimator (next (cempty, v, Empty) Empty) csigma ->
+  protocol_state (valid_protocol_state (next (cempty, v, Empty) Empty) csigma cempty vs).
+Proof.
+  intros. induction vs.
+  - simpl. apply protocol_state_singleton. assumption.
+  - simpl. constructor.
+    + apply protocol_state_singleton. assumption.
+    + constructor.
+      * constructor.
+      * { apply IHvs.
+        - apply NoDup_cons_iff in H0. destruct H0. assumption.
+        - simpl in H1. apply Rle_trans with (weight a + sum_weights vs)%R; try assumption.
+          rewrite <- (Rplus_0_l (sum_weights vs))  at 1.
+          apply Rplus_le_compat_r.
+          apply Rge_le. left. apply weight_positive.
+        - intro.  apply H2. right. assumption.
+        }
+      * intro. simpl. intro. inversion H4.
+      * assumption.
+      * unfold fault_tolerance_condition. unfold fault_weight_state.
+        apply Rle_trans with (sum_weights (a :: vs)); try assumption.
+        apply sum_weights_incl; try assumption; try apply set_map_nodup.
+        rewrite add_is_next.
+        remember (next (cempty, v, Empty) Empty) as sigma.
+        remember (valid_protocol_state sigma csigma cempty vs) as sigma2.
+        { apply incl_tran with (equivocating_senders sigma2).
+        - apply set_eq_proj1. apply equivocating_senders_single.
+          intro. apply set_map_exists in H4.
+          destruct H4 as [[(cx, vx) jx] [Hin Heq]].
+          simpl in Heq. rewrite Heq in Hin. clear Heq.
+          rewrite Heqsigma2 in Hin. apply in_valid_protocol_state in Hin.
+          destruct Hin.
+          + rewrite Heqsigma in H4. apply in_singleton_state in H4.
+            apply H2. inversion H4. left; reflexivity.
+          + destruct H4 as [vv [Hin Heq]]. apply NoDup_cons_iff in H0.
+            destruct H0 as [Hnin Hnodup]. apply Hnin.
+            destruct Heq as [Heq | Heq]; inversion Heq; subst; assumption.
+        - apply incl_tran with vs.
+          + apply set_eq_proj1. subst.
+            apply valid_protocol_state_equivocating_senders; try assumption.
+            intro. apply H2. right. assumption.
+          + intros x Hin. right. assumption.
+        }
+    + intros msg Hin. simpl in Hin.
+      destruct Hin as [Heq | Hcontra]; try inversion Hcontra; subst.
+      apply in_state_add_in_sorted_iff. right.
+      rewrite add_is_next.
+      apply in_valid_protocol_state_rev_sigma. simpl. left. reflexivity.
+    + assumption.
+    + unfold fault_tolerance_condition. unfold fault_weight_state.
+      apply Rle_trans with (sum_weights (a :: vs)); try assumption.
+      apply sum_weights_incl; try assumption; try apply set_map_nodup.
+      apply incl_tran with (equivocating_senders (valid_protocol_state (next (cempty, v, Empty) Empty) csigma cempty (a :: vs)))
+      ; try  apply incl_refl.
+      apply set_eq_proj1.
+      apply valid_protocol_state_equivocating_senders; try assumption.
 Qed.
 
 Theorem non_triviality_decisions_on_properties_of_protocol_states :

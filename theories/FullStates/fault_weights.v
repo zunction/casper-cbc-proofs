@@ -79,6 +79,28 @@ Proof.
   rewrite Hin. simpl. reflexivity.
 Qed.
 
+Lemma non_equivocating_messages_sender : forall msg1 msg2,
+  sender msg1 <> sender msg2 ->
+  equivocating_messages msg1 msg2 = false.
+Proof.
+  intros [(c1, v1) j1] [(c2, v2) j2] Hneq. simpl in Hneq.
+  unfold equivocating_messages.
+  rewrite eq_dec_if_false.
+  - rewrite eq_dec_if_false; try reflexivity. assumption.
+  - intro Heq. inversion Heq; subst; clear Heq. apply Hneq. reflexivity.
+Qed.
+
+Lemma equivocating_messages_sender : forall msg1 msg2,
+  equivocating_messages msg1 msg2 = true ->
+  sender msg1 = sender msg2.
+Proof.
+  unfold equivocating_messages.
+  intros [(c1, v1) j1] [(c2, v2) j2] Hequiv.
+  simpl. destruct (message_eq_dec (c1, v1, j1) (c2, v2, j2)).
+  - inversion Hequiv.
+  - destruct (v_eq_dec v1 v2); try assumption. inversion Hequiv.
+Qed.
+
 (******************************)
 (* equivocating_message_state *)
 (******************************)
@@ -109,6 +131,18 @@ Proof.
       rewrite non_equivocating_messages_extend; try reflexivity.
       apply H. left. reflexivity.
     + intros x Hin. apply H. right. assumption.
+Qed.
+
+Lemma equivocating_message_state_notIn : forall msg sigma,
+  ~In (sender msg) (set_map v_eq_dec sender (get_messages sigma)) ->
+  equivocating_message_state msg sigma = false.
+Proof.
+  intros [(c, v) j] sigma Hnin. rewrite set_map_exists in Hnin. simpl in Hnin.
+  unfold equivocating_message_state. apply existsb_forall.
+  intros [(cx, vx) jx] Hin.
+  apply non_equivocating_messages_sender. simpl.
+  intro Heq. subst. apply Hnin.
+  exists (cx, vx, jx). split; try assumption. reflexivity.
 Qed.
 
 Definition equivocating_senders (sigma : state) : set V :=
@@ -160,6 +194,47 @@ Proof.
     apply (non_equivocating_messages_extend _ _ c v) in H.
     rewrite Hmsg in H. inversion H.
   - right. assumption.
+Qed.
+
+Lemma equivocating_senders_single : forall sigma c v j,
+  ~In v (set_map v_eq_dec sender (get_messages sigma)) ->
+  set_eq (equivocating_senders (add_in_sorted_fn (c, v, j) sigma)) (equivocating_senders sigma).
+Proof.
+  intros.
+  unfold equivocating_senders. intros.
+  split; intros v' Hin
+  ; apply set_map_exists; apply set_map_exists in Hin
+  ; destruct Hin as [[(cx, vx) jx] [Hin Heq]]
+  ; simpl in Heq; subst
+  ; exists (cx, v', jx)
+  ; simpl; split; try reflexivity
+  ; apply filter_In; apply filter_In in Hin
+  ; destruct Hin as [Hin HEquiv]
+  ; unfold equivocating_message_state in HEquiv
+  ; apply existsb_exists in HEquiv
+  ; destruct HEquiv as [[(cy, vy) jy] [Hiny HEquiv]]
+  .
+  - apply in_state_add_in_sorted_iff in Hiny. apply in_state_add_in_sorted_iff in Hin.
+    destruct Hin.
+    + exfalso. inversion H0; subst; clear H0.
+      assert (Hnequiv : equivocating_messages (c, v, j) (cy, vy, jy) = false)
+      ;try (rewrite Hnequiv  in HEquiv; inversion HEquiv); clear HEquiv.
+      destruct Hiny.
+      * rewrite H0. unfold equivocating_messages. rewrite eq_dec_if_true; reflexivity.
+      * apply non_equivocating_messages_sender. simpl. intro; subst. apply H.
+        apply set_map_exists. exists (cy, vy, jy). split; try reflexivity; assumption.
+    + split; try assumption. unfold equivocating_message_state.
+      apply existsb_exists. exists (cy, vy, jy).
+      destruct Hiny.
+      * exfalso. inversion H1; subst; clear H1. apply H.
+        apply set_map_exists. exists (cx, v', jx). split; try assumption. simpl.
+        apply equivocating_messages_sender in HEquiv. simpl in HEquiv. assumption.
+      * split; assumption.
+  -  split.
+    + apply in_state_add_in_sorted_iff. right. assumption.
+    + unfold equivocating_message_state. apply existsb_exists.
+      exists (cy, vy, jy). split; try assumption.
+      apply in_state_add_in_sorted_iff. right. assumption.
 Qed.
 
 Definition sum_weights : set V -> R := fold_right (fun v r => (weight v + r)%R) 0%R.
