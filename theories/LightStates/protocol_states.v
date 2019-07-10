@@ -142,8 +142,7 @@ Proof.
     intros. unfold equivocating_messages. rewrite eq_dec_if_false.
     + rewrite eq_dec_if_true; try reflexivity.
       apply andb_true_iff. split.
-      * unfold hash_state. simpl. unfold justification_add. simpl.
-        unfold justification_in. unfold inb.
+      * unfold hash_state, justification_in, inb; simpl. 
         rewrite eq_dec_if_false; simpl; try reflexivity.
         intro. apply hash_injective in H0. inversion H0; subst.
       * simpl. reflexivity.
