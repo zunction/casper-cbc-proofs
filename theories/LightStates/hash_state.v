@@ -4,10 +4,26 @@ Require Import Coq.Sorting.Sorted.
 Require Import Casper.preamble.
 Require Import Casper.ListSetExtras.
 
+Require Import Casper.LightStates.consensus_values.
+Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
-Require Import Casper.LightStates.messages.
+Require Import Casper.LightStates.hash_function.
 Require Import Casper.LightStates.states.
-Require Import Casper.LightStates.justifications.
+
+Module Hash_States 
+        (PCons : Consensus_Values)
+        (PVal : Validators)
+        (PHash : Hash)
+        (PHash_function : Hash_function PCons PVal PHash)
+        .
+
+Import PCons.
+Import PVal.
+Import PHash.
+Import PHash_function.
+
+Module PStates := States PCons PVal PHash.
+Export PStates.
 
 Definition hash_state (sigma : state) : justification_type :=
   justification_add_all (map Hash sigma).
@@ -34,3 +50,5 @@ Proof.
   ; subst; assumption
   .
 Qed.
+
+End Hash_States.

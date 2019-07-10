@@ -5,13 +5,28 @@ Require Import Casper.preamble.
 (** Hash universe **)
 (*******************)
 
+Module Type Hash.
+
 Parameter hash : Set .
 
 Parameter hash_compare : hash -> hash -> comparison.
 
 (** hash totally ordered **)
 
-Parameter hash_compare_strict_order : CompareStrictOrder hash_compare.
+Axiom hash_compare_strict_order : CompareStrictOrder hash_compare.
+
+End Hash.
+
+
+(*********************)
+(** Hash properties **)
+(*********************)
+
+Module Hash_Properties
+        (PHash : Hash)
+        .
+
+Import PHash.
 
 Definition hash_lt := compare_lt hash_compare.
 
@@ -25,3 +40,5 @@ Qed.
 
 Definition hash_eq_dec : forall x y : hash, {x = y} + {x <> y} :=
   compare_eq_dec hash hash_compare hash_compare_strict_order.
+
+End Hash_Properties.

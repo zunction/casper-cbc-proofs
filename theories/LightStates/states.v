@@ -1,9 +1,25 @@
 Require Import Coq.Lists.ListSet.
 Require Import List.
 
+Require Import Casper.LightStates.consensus_values.
+Require Import Casper.LightStates.validators.
+Require Import Casper.LightStates.hashes.
 Require Import Casper.LightStates.messages.
 
 (** Hash sets **)
+
+Module States 
+        (PCons : Consensus_Values)
+        (PVal : Validators)
+        (PHash : Hash)
+        .
+
+Import PCons.
+Import PVal.
+Import PHash.
+
+Module PMessages := Messages PCons PVal PHash.
+Export PMessages.
 
 Definition state := set message.
 
@@ -21,3 +37,5 @@ Lemma state_eq_dec : forall (sigma1 sigma2 : state), {sigma1 = sigma2} + {sigma1
 Proof.
   intros. apply list_eq_dec. apply message_eq_dec.
 Qed.
+
+End States.

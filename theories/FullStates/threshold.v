@@ -27,9 +27,6 @@ Parameter t : R.
 
 Axiom threshold_nonnegative : (t >= 0)%R .
 
-(* fold_right (fun v r => (weight v + r)%R) 0%R.
-   is sum_weights.
-*)
 Axiom sufficient_validators_condition :
   exists (vs : list V), 
     NoDup vs /\ 

@@ -5,6 +5,18 @@ Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
 Require Import Casper.LightStates.justifications.
 
+Module Messages
+        (PCons : Consensus_Values)
+        (PVal : Validators)
+        (PHash : Hash)
+        .
+
+Import PCons.
+Import PVal.
+Import PHash.
+
+Module PJustifications := Justifications PHash.
+Export PJustifications.
 
 Definition message : Type := C * V * justification_type.
 
@@ -17,10 +29,6 @@ Definition sender (msg : message) : V :=
 Definition justification (msg : message) : justification_type :=
   match msg with (_, _, j) => j end.
 
-Parameter Hash : message -> hash.
-
-Parameter hash_injective : Injective Hash.
-
 Lemma message_eq_dec : forall x y : message, {x = y} + {x <> y}.
 Proof.
   intros.
@@ -30,3 +38,7 @@ Proof.
   destruct (justification_eq_dec jx jy); try (right; intro; inversion H; apply n; assumption).
   left. subst. reflexivity.
 Qed.
+
+End Messages.
+
+

@@ -5,22 +5,28 @@ Require Import Coq.Lists.ListSet.
 Require Import Casper.preamble.
 Require Import Casper.RealsExtras.
 
+Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
+Require Import Casper.LightStates.hashes.
+Require Import Casper.LightStates.hash_function.
+Require Import Casper.LightStates.estimator.
 Require Import Casper.LightStates.fault_weights.
 
 (************************************************************)
 (** Fault tolerance threshold (a non-negative real number) **)
 (************************************************************)
 
+Module Type Threshold
+              (PVal : Validators)
+              (PVal_Weights : Validators_Weights PVal)
+              .
+Import PVal.
+Import PVal_Weights.
+
 Parameter t : R.
 
-Parameter threshold_nonnegative : (t >= 0)%R .
+Axiom threshold_nonnegative : (t >= 0)%R .
 
-
-(*
-(** TODO: Can we assume validators' individual weights are below the threshold **)
-Parameter validators_beyond_threshold : forall v : V, (weight v <= t)%R.
-*)
 (**
   NOTE: Because lists are finite (by definition), the assumption below
   states that there exists a finite set of validators whose weight is 
@@ -28,8 +34,38 @@ Parameter validators_beyond_threshold : forall v : V, (weight v <= t)%R.
 
 **)
 
-Parameter sufficient_validators_condition :
-  exists (vs : list V), NoDup vs /\ (sum_weights vs > t)%R.
+Axiom sufficient_validators_condition :
+  exists (vs : list V), NoDup vs /\ 
+  ((fold_right (fun v r => (weight v + r)%R) 0%R) vs > t)%R.
+
+
+End Threshold.
+
+(**************************)
+(** Threshold Properties **)
+(**************************)
+
+Module Threshold_Properties
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PHash : Hash)
+        (PHash_function : Hash_function PCons PVal PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        (PThreshold : Threshold PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PHash.
+Import PHash_function.
+Import PEstimator.
+Import PThreshold.
+
+Module PFault_Weights := Fault_Weights PCons PVal PVal_Weights PHash PHash_function PEstimator.
+Export PFault_Weights.
+
 
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -69,3 +105,5 @@ Proof.
   destruct Hweight as [vs' [Hnd [Hincl [Hweight Hv]]]].
   exists vs'. repeat (split; try assumption).
 Qed.
+
+End Threshold_Properties.

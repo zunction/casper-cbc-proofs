@@ -4,46 +4,48 @@ Require Import List.
 Require Import Coq.Lists.ListSet.
 Import ListNotations.
 
+Require Import Casper.preamble.
 Require Import Casper.ListExtras.
 Require Import Casper.ListSetExtras.
-Require Import Casper.preamble.
-
-(** Parameters of the protocol **)
 
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.threshold.
+Require Import Casper.LightStates.estimator.
 Require Import Casper.LightStates.hashes.
-Require Import Casper.LightStates.justifications.
-
-(** Messages **)
-
-Require Import Casper.LightStates.messages.
-
-
-(************)
-(** States **)
-(************)
-
+Require Import Casper.LightStates.hash_function.
+Require Import Casper.LightStates.fault_weights.
 Require Import Casper.LightStates.states.
-
 Require Import Casper.LightStates.hash_state.
 
-(***************)
-(** Estimator **)
-(***************)
 
-Parameter estimator : state -> C -> Prop.
+(*********************)
+(** Protocol states **)
+(*********************)
 
-Parameter estimator_total : forall s : state, exists c : C, estimator s c.
+Module Protocol_States
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PHash : Hash)
+        (PHash_function : Hash_function PCons PVal PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        (PThreshold : Threshold PVal PVal_Weights)
+        .
 
-(********************)
-(* State properties *)
-(********************)
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PHash.
+Import PHash_function.
+Import PEstimator.
+Import PThreshold.
 
+Module PHash_States  := Hash_States  PCons PVal PHash PHash_function.
+Export PHash_States .
 
-Require Import Casper.LightStates.fault_weights.
-
+Module PThreshold_Properties := Threshold_Properties PCons PVal PVal_Weights PHash PHash_function PEstimator PThreshold.
+Export PThreshold_Properties.
 
 (*******************************)
 (** Protocol state conditions **) 

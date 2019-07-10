@@ -8,6 +8,15 @@ Require Import Casper.sorted_lists.
 
 Require Import Casper.LightStates.hashes.
 
+Module Justifications
+        (PHash : Hash)
+        .
+
+Import PHash.
+
+Module PHash_Properties := Hash_Properties PHash.
+Export PHash_Properties.
+
 Definition justification_type := list hash.
 
 Definition justification_add := add_in_sorted_list_fn hash_compare.
@@ -64,3 +73,4 @@ Definition justification_compare_strict_order :=
 Definition justification_eq_dec :=
   list_compare_eq_dec hash hash_compare hash_compare_strict_order.
 
+End Justifications.

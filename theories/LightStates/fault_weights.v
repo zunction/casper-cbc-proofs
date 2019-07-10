@@ -8,9 +8,28 @@ Require Import Casper.ListSetExtras.
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
-Require Import Casper.LightStates.justifications.
-Require Import Casper.LightStates.messages.
+Require Import Casper.LightStates.hash_function.
+Require Import Casper.LightStates.estimator.
 Require Import Casper.LightStates.states.
+
+Module Fault_Weights
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PHash : Hash)
+        (PHash_function : Hash_function PCons PVal PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PHash.
+Import PHash_function.
+Import PEstimator.
+
+Module PStates := States PCons PVal PHash.
+Export PStates.
 
 Definition equivocating_messages (msg1 msg2 : message) : bool :=
   match message_eq_dec msg1 msg2 with
@@ -119,3 +138,5 @@ Proof.
   intros x Hin.
   apply filter_In in Hin. destruct Hin; assumption.
 Qed.
+
+End Fault_Weights.
