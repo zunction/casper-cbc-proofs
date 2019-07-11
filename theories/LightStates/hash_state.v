@@ -22,7 +22,7 @@ Import PVal.
 Import PHash.
 Import PHash_function.
 
-Module PStates := States PCons PVal PHash.
+Module PStates := States PCons PVal PHash PHash_function.
 Import PStates.
 
 Definition hash_state (sigma : state) : justification_type :=

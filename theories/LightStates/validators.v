@@ -30,3 +30,20 @@ Parameter weight : V -> R.
 Axiom weight_positive : forall v : V, (0 < weight v)%R.
 
 End Validators_Weights.
+
+(******************************)
+(** Properties of validators **)
+(******************************)
+
+Module Validators_Properties
+              (PVal : Validators)
+              .
+Import PVal.
+
+Definition v_eq_fn  (x y : V) : bool :=
+  match v_eq_dec x y with
+  | left _ => true
+  | right _ => false
+  end.
+
+End Validators_Properties.

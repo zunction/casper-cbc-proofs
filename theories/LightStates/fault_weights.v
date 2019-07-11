@@ -18,7 +18,7 @@ Module Fault_Weights
         (PVal_Weights : Validators_Weights PVal)
         (PHash : Hash)
         (PHash_function : Hash_function PCons PVal PHash)
-        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash PHash_function)
         .
 
 Import PCons.
@@ -28,7 +28,7 @@ Import PHash.
 Import PHash_function.
 Import PEstimator.
 
-Module PStates := States PCons PVal PHash.
+Module PStates := States PCons PVal PHash PHash_function.
 Export PStates.
 
 Definition equivocating_messages (msg1 msg2 : message) : bool :=

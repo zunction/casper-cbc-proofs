@@ -29,7 +29,7 @@ Module Protocol_States
         (PVal_Weights : Validators_Weights PVal)
         (PHash : Hash)
         (PHash_function : Hash_function PCons PVal PHash)
-        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash PHash_function)
         (PThreshold : Threshold PVal PVal_Weights)
         .
 
