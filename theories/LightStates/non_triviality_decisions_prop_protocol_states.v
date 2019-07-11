@@ -135,7 +135,8 @@ Proof.
         apply in_flat_map in Hin.
         unfold equivocating_messages in Hequiv.
         destruct ( message_eq_dec (c0, v0, hash_state j2) (mc, mv, mj))
-        ; try discriminate.
+        ; try (rewrite eq_dec_if_true in Hequiv; try assumption; discriminate).
+        rewrite eq_dec_if_false in Hequiv; try assumption.
         destruct (v_eq_dec v0 mv); try discriminate; subst.
         destruct Hin as [v0' [Hinv0 [Hin | [Hin | Hin]]]]
           ; inversion Hin; subst; clear Hin; assumption.
