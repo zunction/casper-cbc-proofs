@@ -41,5 +41,6 @@ theories/LightStates/common_futures.v
 theories/LightStates/consistent_decisions_prop_protocol_states.v
 theories/LightStates/consistent_decisions_prop_consensus_values.v
 theories/LightStates/non_triviality_decisions_prop_protocol_states.v
+theories/LightStates/binary_consensus_protocol.v
 
 theories/dependency_graph.v

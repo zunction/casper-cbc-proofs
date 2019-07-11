@@ -8,7 +8,8 @@ results: theories/FullStates/common_futures.vo \
     theories/LightStates/common_futures.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo \
     theories/LightStates/consistent_decisions_prop_consensus_values.vo \
-    theories/LightStates/non_triviality_decisions_prop_protocol_states.vo 
+    theories/LightStates/non_triviality_decisions_prop_protocol_states.vo \
+    theories/LightStates/binary_consensus_protocol.vo  
 
 theories/ListExtras.vo : \
     theories/preamble.vo
@@ -245,6 +246,19 @@ theories/LightStates/non_triviality_decisions_prop_protocol_states.vo: \
     theories/LightStates/protocol_states.vo \
     theories/LightStates/hash_state.vo \
     theories/LightStates/consistent_decisions_prop_protocol_states.vo
+
+theories/LightStates/binary_consensus_protocol.vo: \
+    theories/preamble.vo \
+    theories/LightStates/consensus_values.vo \
+    theories/LightStates/validators.vo \
+    theories/LightStates/threshold.vo \
+    theories/LightStates/estimator.vo \
+    theories/LightStates/hashes.vo \
+    theories/LightStates/hash_function.vo \
+    theories/LightStates/fault_weights.vo \
+    theories/LightStates/protocol_states.vo \
+    theories/LightStates/hash_state.vo \
+    theories/LightStates/consistent_decisions_prop_consensus_values.vo
 
 all: Makefile.coq
 	+$(MAKE) -f Makefile.coq all

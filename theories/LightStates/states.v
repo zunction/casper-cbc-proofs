@@ -2,6 +2,8 @@ Require Import Bool.
 Require Import Coq.Lists.ListSet.
 Require Import List.
 
+Require Import Casper.preamble.
+
 Require Import Casper.LightStates.consensus_values.
 Require Import Casper.LightStates.validators.
 Require Import Casper.LightStates.hashes.
@@ -47,6 +49,10 @@ Qed.
 
 (** More properties of messages **)
 
+Definition observed (sigma:state) : list V :=
+  set_map v_eq_dec sender sigma
+  .
+
 (** Messages from a sender in a state **)
 Definition from_sender (v:V) (sigma:state) : list message :=
   filter (fun msg' => v_eq_fn (sender msg') v) sigma.
@@ -57,15 +63,6 @@ Definition later_from (msg:message) (v:V) (sigma:state) : list message :=
     (fun msg' => (justification_in (Hash msg) (justification msg')) && 
                  (v_eq_fn (sender msg') v))
     sigma
-  .
-
-(*
-(** Later messages for a message and a sender in a state **)
-Definition later_from (msg:message) (v:V) (sigma:state) : list message :=
-  filter 
-    (fun msg' => (in_state_fn msg (justification msg')) && 
-                 (v_eq_fn (sender msg') v))
-    (get_messages sigma)
   .
 
 (** Latest messages from senders in a state **)
@@ -85,5 +82,5 @@ Definition latest_estimates (sigma:state) : V -> list C :=
 Definition validators_latest_estimates (c:C) (sigma:state) : list V :=
     filter (fun v => in_fn c_eq_dec c (latest_estimates sigma v)) (observed sigma)
   .
-*)
+
 End States.
