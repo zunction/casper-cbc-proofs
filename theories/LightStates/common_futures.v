@@ -4,11 +4,40 @@ Require Import Coq.Lists.ListSet.
 
 Require Import Casper.ListSetExtras.
 
-Require Import Casper.LightStates.messages.
-Require Import Casper.LightStates.states.
-Require Import Casper.LightStates.protocol_states.
-
+Require Import Casper.LightStates.consensus_values.
+Require Import Casper.LightStates.validators.
+Require Import Casper.LightStates.threshold.
+Require Import Casper.LightStates.estimator.
+Require Import Casper.LightStates.hashes.
+Require Import Casper.LightStates.hash_function.
 Require Import Casper.LightStates.fault_weights.
+Require Import Casper.LightStates.protocol_states.
+Require Import Casper.LightStates.hash_state.
+
+Module Common_Futures
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PHash : Hash)
+        (PHash_function : Hash_function PCons PVal PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        (PThreshold : Threshold PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PHash.
+Import PHash_function.
+Import PEstimator.
+Import PThreshold.
+
+Module PProtocol_States := Protocol_States PCons PVal PVal_Weights 
+                                           PHash PHash_function 
+                                           PEstimator PThreshold.
+
+Export PProtocol_States.
+
 
 (** Two party common futures **)
 
@@ -22,7 +51,7 @@ Proof.
   induction Hps2; intros.
   - simpl. assumption.
   - clear IHHps2_1.
-    assert (protocol_state (state_union sig1 (state_remove (c, v, hash_state.hash_state j) sigma'))).
+    assert (protocol_state (state_union sig1 (state_remove (c, v, hash_state j) sigma'))).
     { apply IHHps2_2.
       apply fault_tolerance_condition_subset with (state_union sig1 sigma'); try assumption.
       intro msg; intro Hin.
@@ -35,14 +64,14 @@ Proof.
      apply protocol_state_nodup in Hps1 as Hnodups1.
       assert (HnodupUs1s' := H1).
       apply (set_union_nodup message_eq_dec Hnodups1) in HnodupUs1s'.
-      destruct (in_dec message_eq_dec (c, v, hash_state.hash_state j) sig1).
-    + apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state.hash_state j) sigma'))
+      destruct (in_dec message_eq_dec (c, v, hash_state j) sig1).
+    + apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state j) sigma'))
       ; try assumption.
       apply set_eq_remove_union_in; assumption.
     + apply (protocol_state_cons c v j); try assumption.
       * apply set_union_iff. right. assumption.
-      * apply (set_remove_nodup message_eq_dec (c, v, hash_state.hash_state j)) in HnodupUs1s' as Hnoduprem.
-        apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state.hash_state j) sigma'))
+      * apply (set_remove_nodup message_eq_dec (c, v, hash_state j)) in HnodupUs1s' as Hnoduprem.
+        apply set_eq_protocol_state with (state_union sig1 (state_remove (c, v, hash_state j) sigma'))
         ; try assumption.
         apply set_eq_remove_union_not_in; assumption.
 Qed.
@@ -95,3 +124,5 @@ Proof.
   constructor; try assumption. split; try assumption.
   apply set_union_incl_iterated. assumption.
 Qed.
+
+End Common_Futures.

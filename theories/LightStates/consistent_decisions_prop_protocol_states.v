@@ -8,11 +8,40 @@ Import ListNotations.
 Require Import Casper.ListExtras.
 Require Import Casper.ListSetExtras.
 
+Require Import Casper.LightStates.consensus_values.
+Require Import Casper.LightStates.validators.
+Require Import Casper.LightStates.threshold.
+Require Import Casper.LightStates.estimator.
+Require Import Casper.LightStates.hashes.
+Require Import Casper.LightStates.hash_function.
+Require Import Casper.LightStates.fault_weights.
 Require Import Casper.LightStates.protocol_states.
-Require Import Casper.LightStates.states.
-Require Import Casper.LightStates.messages.
-
+Require Import Casper.LightStates.hash_state.
 Require Import Casper.LightStates.common_futures.
+
+Module Properties_Protocol_States
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PHash : Hash)
+        (PHash_function : Hash_function PCons PVal PHash)
+        (PEstimator : Estimator PCons PVal PVal_Weights PHash)
+        (PThreshold : Threshold PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PHash.
+Import PHash_function.
+Import PEstimator.
+Import PThreshold.
+
+Module PCommon_Futures := Common_Futures PCons PVal PVal_Weights 
+                                           PHash PHash_function 
+                                           PEstimator PThreshold.
+
+Export PCommon_Futures.
 
 
 (* Decided properties of protocol states *)
@@ -63,3 +92,4 @@ Proof.
   assumption.
 Qed.
 
+End Properties_Protocol_States.

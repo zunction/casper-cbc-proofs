@@ -277,3 +277,5 @@ Proof.
   intros. destruct H as [Hps2 [Hps1 Hincl21]]. destruct H0 as [Hps3 [_ Hincl32]].
   repeat (split; try assumption). apply incl_tran with sigma2; assumption.
 Qed.
+
+End Protocol_States.
