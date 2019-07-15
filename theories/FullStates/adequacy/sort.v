@@ -1,12 +1,26 @@
 Require Import Casper.preamble.
 
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.add_in_sorted.
-Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.estimator.
 
 Require Import Casper.FullStates.adequacy.add_in_sorted_extras.
+
+Module Sort
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PEstimator.
+
+Module PAdd_In_Sorted_Extras := Add_In_Sorted_Extras PCons PVal PVal_Weights PEstimator.
+Export PAdd_In_Sorted_Extras.
+
 
 (** (Insertion) sorting function **)
 
@@ -151,3 +165,4 @@ Proof.
       right. assumption.
 Qed.
 
+End Sort.

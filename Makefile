@@ -15,9 +15,9 @@ theories/ListExtras.vo : \
     theories/preamble.vo
 
 theories/ListSetExtras.vo : \
-    theories/ListExtras.vo \
-    theories/preamble.vo
-
+    theories/preamble.vo \
+    theories/ListExtras.vo 
+    
 theories/sorted_lists.vo : \
     theories/preamble.vo \
     theories/ListSetExtras.vo
@@ -52,7 +52,7 @@ theories/FullStates/fault_weights.vo : \
     theories/ListSetExtras.vo \
     theories/FullStates/consensus_values.vo \
     theories/FullStates/validators.vo \
-    theories/FullStates/states.vo \
+    theories/FullStates/estimator.vo \
     theories/FullStates/locally_sorted.vo
 
 theories/FullStates/threshold.vo : \
@@ -63,14 +63,12 @@ theories/FullStates/threshold.vo : \
 
 theories/FullStates/protocol_states.vo : \
     theories/preamble.vo \
-    theories/ListSetExtras.vo \
+    theories/RealsExtras.vo \
     theories/FullStates/consensus_values.vo \
     theories/FullStates/validators.vo \
-    theories/FullStates/threshold.vo \
-    theories/FullStates/states.vo \
-    theories/FullStates/locally_sorted.vo \
-    theories/FullStates/fault_weights.vo
-
+    theories/FullStates/estimator.vo \
+    theories/FullStates/fault_weights.vo 
+    
 theories/FullStates/common_futures.vo : \
     theories/preamble.vo \
     theories/FullStates/consensus_values.vo \
@@ -113,8 +111,8 @@ theories/FullStates/binary_consensus_protocol.vo: \
     theories/FullStates/consensus_values.vo \
     theories/FullStates/validators.vo \
     theories/FullStates/estimator.vo \
-    theories/FullStates/fault_weights.vo \
     theories/FullStates/threshold.vo \
+    theories/FullStates/states.vo \
     theories/FullStates/consistent_decisions_prop_protocol_states.vo
 
 theories/LightStates/hashes.vo: \

@@ -1,15 +1,26 @@
 Require Import Coq.Classes.RelationClasses.
 
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.in_state.
-Require Import Casper.FullStates.add_in_sorted.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.estimator.
 
-Require Import Casper.FullStates.adequacy.add_in_sorted_extras.
 Require Import Casper.FullStates.adequacy.state_inclusion.
-Require Import Casper.FullStates.adequacy.state_eq.
-Require Import Casper.FullStates.adequacy.sort.
+
+Module Sorted_Subset
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PEstimator.
+
+Module PState_Inclusion := State_Inclusion PCons PVal PVal_Weights PEstimator.
+Export PState_Inclusion.
+
 
 Inductive sorted_subset : state -> state -> Prop :=
   | SubSet_Empty: forall sigma,
@@ -190,3 +201,5 @@ Proof.
   apply state_eq_symmetric in Hsort1.
   apply (state_eq_transitive _ _ _ Hsort1 Hsort2).
 Qed.
+
+End Sorted_Subset.

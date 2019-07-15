@@ -3,11 +3,27 @@ Require Import List.
 Require Import Casper.preamble.
 Require Import Casper.ListSetExtras.
 
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.estimator.
 Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.add_in_sorted.
+
+
+Module Add_In_Sorted_Extras
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PEstimator.
+
+Module PLocally_Sorted := Locally_Sorted PCons PVal PVal_Weights PEstimator.
+Export PLocally_Sorted.
+
 
 Inductive add_in_sorted : message -> state -> state -> Prop :=
    | add_in_Empty : forall msg,
@@ -70,7 +86,7 @@ Lemma add_in_sorted_sorted : forall msg sigma sigma',
   locally_sorted sigma'.
 Proof.
   intros. apply add_in_sorted_function in H1; subst.
-  apply add_in_sorted.add_in_sorted_sorted; assumption.
+  apply add_in_sorted_sorted; assumption.
 Qed.
 
 Lemma no_confusion_add_in_sorted_empty : forall msg sigma,
@@ -182,3 +198,19 @@ Proof.
     + right. apply IHadd_in_sorted.
       assumption. 
 Qed.
+
+Lemma in_sorted_state : forall sigma,
+  locally_sorted sigma ->
+   forall msg,
+  in_state msg sigma ->
+  locally_sorted_msg msg.
+Proof.
+  intros sigma H. induction H; intros.
+  - exfalso. apply (in_empty_state _ H).
+  - apply in_singleton_state in H0; subst. apply locally_sorted_message_justification. assumption.
+  - rewrite in_state_iff in H2. destruct H2; subst.
+    + apply locally_sorted_message_justification. assumption.
+    + apply IHlocally_sorted2 ; assumption.
+Qed.
+
+End Add_In_Sorted_Extras.

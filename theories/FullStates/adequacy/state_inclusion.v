@@ -1,14 +1,25 @@
 Require Import Coq.Classes.RelationClasses.
 
-Require Import Casper.FullStates.states.
-Require Import Casper.FullStates.messages.
-Require Import Casper.FullStates.add_in_sorted.
-Require Import Casper.FullStates.locally_sorted.
-Require Import Casper.FullStates.in_state.
+Require Import Casper.FullStates.consensus_values.
+Require Import Casper.FullStates.validators.
+Require Import Casper.FullStates.estimator.
 
-Require Import Casper.FullStates.adequacy.locally_sorted_extras.
-Require Import Casper.FullStates.adequacy.sort.
 Require Import Casper.FullStates.adequacy.state_eq.
+
+Module State_Inclusion
+        (PCons : Consensus_Values) 
+        (PVal : Validators)
+        (PVal_Weights : Validators_Weights PVal)
+        (PEstimator : Estimator PCons PVal PVal_Weights)
+        .
+
+Import PCons.
+Import PVal.
+Import PVal_Weights.
+Import PEstimator.
+
+Module PState_Eq := State_Eq PCons PVal PVal_Weights PEstimator.
+Export PState_Eq.
 
 Definition state_inclusion (sigma1 : state) (sigma2 : state) : Prop :=
   forall msg, in_state_eq msg sigma1 -> in_state_eq msg sigma2.
@@ -92,3 +103,5 @@ Proof.
     apply H1 in H2. unfold in_state_eq. exists x. split; assumption.
   }
 Qed.
+
+End State_Inclusion.
