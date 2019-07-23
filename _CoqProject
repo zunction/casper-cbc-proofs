@@ -1,14 +1,15 @@
--Q theories Casper
-theories/RealsExtras.v
-theories/preamble.v
-theories/FullStates/consensus_values.v
-theories/FullStates/validators.v
-theories/FullStates/states.v
-theories/FullStates/estimator.v
-theories/FullStates/locally_sorted.v
-theories/FullStates/fault_weights.v
+-R . Casper
+preamble.v
+ListExtras.v
+ListSetExtras.v
+RealsExtras.v
+sorted_lists.v
+fullnode.v
+preambletwo.v
+fault_weights.v
+protocol_states.v
 theories/FullStates/threshold.v
-theories/FullStates/protocol_states.v
+theories/FullStates/states.v
 theories/FullStates/common_futures.v
 theories/FullStates/consistent_decisions_prop_protocol_states.v
 theories/FullStates/consistent_decisions_prop_consensus_values.v
@@ -21,9 +22,7 @@ theories/FullStates/adequacy/sorted_subset.v
 theories/FullStates/adequacy/state_eq.v
 theories/FullStates/adequacy/state_inclusion.v
 
-theories/sorted_lists.v
-theories/ListExtras.v
-theories/ListSetExtras.v
+
 theories/LightStates/consensus_values.v
 theories/LightStates/validators.v
 theories/LightStates/hashes.v
@@ -42,4 +41,4 @@ theories/LightStates/consistent_decisions_prop_consensus_values.v
 theories/LightStates/non_triviality_decisions_prop_protocol_states.v
 theories/LightStates/binary_consensus_protocol.v
 
-theories/dependency_graph.v
+dependency_graph.v

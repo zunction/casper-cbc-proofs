@@ -221,31 +221,23 @@ Qed.
 
 (** After cycling to fault_weights for a bit, **)
 
-Lemma about_prot_state : forall (s1 s2 : sorted_state),
-  protocol_state s1 ->
-  protocol_state s2 ->
-  (fault_weight_state (state_union s1 s2) <= t)%R ->
-  protocol_state (state_union s1 s2).
-Proof.
-  intros sig1 sig2 Hps1 Hps2.
-  induction Hps2; intros.
-  - unfold state_union. simpl.
-    unfold messages_union. rewrite app_nil_r.
-    rewrite list_to_state_sorted; try assumption.
-    destruct sig1; simpl; assumption.
-  - clear IHHps2_1.
-    rewrite (state_union_add_in_sorted sig1 (c, v, sigma) sigma') in *
-    ; try (apply (locally_sorted_message_justification c v sigma))
-    ; try (apply protocol_state_sorted; assumption)
-    .
-    assert (protocol_state (state_union sig1 sigma')).
-    { apply IHHps2_2.
-      apply fault_tolerance_condition_subset with
-        (add_in_sorted_fn (c, v, sigma) (state_union sig1 sigma'))
-      ; try assumption.
-      intros msg Hin. apply set_eq_add_in_sorted. right. assumption.
-    }
-    constructor; try assumption.
-    + intros msg Hin. apply state_union_iff. right. apply H. assumption.
-Qed.
-
+Lemma about_prot_state :
+  forall (s1 s2 : sorted_state),
+    protocol_state s1 ->
+    protocol_state s2 ->
+    (fault_weight_state (state_union s1 s2) <= t)%R ->
+    protocol_state (state_union s1 s2). 
+Proof. 
+  intros s1 s2 H_s1 H_s2 H_weight. 
+  unfold state_union.
+  inversion H_s1. subst.
+  simpl. rewrite list_to_state_sorted; try assumption.
+  destruct s2; simpl in *; assumption.
+  remember (messages_union (get_messages s1) (get_messages s2)) as lm. 
+  induction (get_messages s1) as [|hd tl IHlm].
+  - simpl. simpl in Heqlm. rewrite Heqlm.
+    admit.
+  - apply protocol_state_empty.
+  - simpl. destruct hd. destruct p.
+    apply protocol_state_next. apply protocol_state_singleton. (msplit. 
+End Protocol_States.
