@@ -16,6 +16,7 @@ Tactic Notation "spec" hyp(H) constr(a) constr(b) constr(c) constr(d) :=
 Tactic Notation "spec" hyp(H) constr(a) constr(b) constr(c) constr(d) constr(e) := 
   (generalize (H a b c d e); clear H; intro H).
 
+(** Logic library **)
 Lemma mirror_reflect: forall X (f : X -> bool) (P : X -> Prop),
   (forall x : X, f x = true <-> P x) ->
   (forall x : X, f x = false <-> ~P x).
@@ -27,15 +28,21 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma In_app_comm {X} : forall l1 l2 (x : X), In x (l1 ++ l2) <-> In x (l2 ++ l1). 
+Lemma eq_dec_if_true {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
+  x = y -> (if eq_dec x y then t else e) = t.
 Proof.
-  intros l1 l2 x; split; intro H_in;
-  apply in_or_app; apply in_app_or in H_in;
-    destruct H_in as [cat | dog];
-    tauto.
+  intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
+  exfalso. apply n; apply H.
 Qed.
 
-(* Additional definitions on relations *)
+
+Lemma eq_dec_if_false {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
+  x <> y -> (if eq_dec x y then t else e) = e.
+Proof.
+  intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
+  exfalso. apply H; assumption.
+Qed.
+
 Class TotalOrder {A} (lt : relation A) : Prop :=
    totality : forall c1 c2, c1 = c2 \/ lt c1 c2 \/ lt c2 c1.
 
@@ -344,31 +351,63 @@ Instance TripleStrictlyComparable (X Y Z : Type) `{StrictlyComparable X} `{Stric
     compare_strictorder := strictorder_compose;
   }.
 
-Lemma eq_dec_if_true {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
-  x = y -> (if eq_dec x y then t else e) = t.
-Proof.
-  intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
-  exfalso. apply n; apply H.
-Qed.
-
-
-Lemma eq_dec_if_false {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
-  x <> y -> (if eq_dec x y then t else e) = e.
-Proof.
-  intros. destruct (eq_dec x y) eqn:Hcmp; try reflexivity.
-  exfalso. apply H; assumption.
-Qed.
-
-Definition in_fn {A:Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) (a:A) (l:list A) : bool :=
-  match in_dec eq_dec a l with
-  | left _ => true
-  | right _ => false
-  end.
-
-Definition is_nil_fn {A:Type} (l:list A) : bool :=
+(** Polymorphic list library **)
+Fixpoint is_member {W} `{StrictlyComparable W} (w : W) (l : list W) : bool :=
   match l with
-    | nil => true
-    | _ => false
+  | [] => false
+  | hd :: tl => match compare w hd with
+              | Eq => true
+              | _ => is_member w tl
+              end
   end.
+
+Definition compareb {A} `{StrictlyComparable A} (a1 a2 : A) : bool :=
+  match compare a1 a2 with
+  | Eq => true
+  | _ => false
+  end.
+
+Lemma is_member_correct {W} `{StrictlyComparable W} : forall l w, is_member w l = true <-> In w l. 
+Proof. 
+  intros l w.
+  induction l as [|hd tl IHl].
+  - split; intro H'. 
+    + unfold is_member in H'; inversion H'.  
+    + inversion H'.
+  - split; intro H'.
+    + simpl in H'.
+      destruct (compare w hd) eqn:Hcmp;
+        try (right; apply IHl; assumption ). 
+      apply StrictOrder_Reflexive in Hcmp.
+      left. symmetry; assumption.
+    + apply in_inv in H'.
+      destruct H' as [eq | neq]. 
+      rewrite eq.
+      simpl.
+      rewrite compare_eq_refl. 
+      reflexivity.
+      rewrite <- IHl in neq.
+      simpl. assert (H_dec := compare_eq_dec w hd).
+      destruct H_dec as [Heq | Hneq].
+      rewrite Heq. rewrite compare_eq_refl. reflexivity.
+      destruct (compare w hd); try reflexivity;
+        assumption.
+Qed.
+
+Lemma is_member_correct' {W} `{StrictlyComparable W} : forall l w, is_member w l = false <-> ~ In w l. 
+Proof.
+  intros. 
+  apply mirror_reflect.
+  intros; apply is_member_correct.
+Qed.
+
+Lemma In_app_comm {X} : forall l1 l2 (x : X), In x (l1 ++ l2) <-> In x (l2 ++ l1). 
+Proof.
+  intros l1 l2 x; split; intro H_in;
+  apply in_or_app; apply in_app_or in H_in;
+    destruct H_in as [cat | dog];
+    tauto.
+Qed.
+
 
 

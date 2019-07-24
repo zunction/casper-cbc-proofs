@@ -1,11 +1,11 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
 Import ListNotations.  
 From Casper
-Require Import preamble ListExtras ListSetExtras protocol_eq.
- 
+Require Import preamble ListExtras ListSetExtras protocol.
+
 (* Proof irrelevance states that all proofs of the same proposition are equal *) 
 Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
- 
+
 Lemma proj1_sig_injective {X : Type} :
     forall (P : X -> Prop)
       (x1 x2 : X) (H1 : P x1) (H2 : P x2),
@@ -1192,10 +1192,7 @@ Proof.
   spec useful x. spec useful.
   apply in_app_iff. tauto.
   assumption.
-Qed.
-
-Lemma reachable_morphism : forall s1 s2 s3, reachable s1 s2 -> s2 = s3 -> reachable s1 s3.  
-Proof. intros; subst; assumption. Qed. 
+Qed. 
 
 (* Defining the estimator function as a relation *) 
 Parameters (estimator : state -> C -> Prop)
@@ -1635,8 +1632,8 @@ Proof.
     + intros msg Hin. apply state_union_iff.
       right. apply H. assumption.
 Qed.
-  
-Instance FullNode_syntactic : CBC_protocol_eq :=
+
+Instance FullNode_syntactic : CBC_protocol :=
   { consensus_values := C;  
     about_consensus_values := about_C;
     validators := V;
@@ -1644,15 +1641,13 @@ Instance FullNode_syntactic : CBC_protocol_eq :=
     weight := weight;
     t := t_full;
     suff_val := suff_val_full;
+    state := sorted_state;
+    state0 := sorted_state0;
+    state_union := sorted_state_union;
+    state_union_comm := sorted_state_sorted_union_comm;
     reach := reachable; 
     reach_trans := reachable_trans;
     reach_union := reach_union;
-    reach_morphism := reachable_morphism;
-    state := sorted_state;
-    state0 := sorted_state0;
-    state_eq := eq;
-    state_union := sorted_state_union;
-    state_union_comm := sorted_state_sorted_union_comm;
     E := estimator;
     estimator_total := estimator_total; 
     prot_state := protocol_state;

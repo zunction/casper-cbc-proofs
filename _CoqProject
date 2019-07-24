@@ -4,10 +4,11 @@ ListExtras.v
 ListSetExtras.v
 RealsExtras.v
 sorted_lists.v
+protocol.v
+protocol_eq.v
 fullnode.v
-preambletwo.v
-fault_weights.v
-protocol_states.v
+fullnode_eq.v
+
 theories/FullStates/threshold.v
 theories/FullStates/states.v
 theories/FullStates/common_futures.v

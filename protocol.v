@@ -16,52 +16,27 @@ Class CBC_protocol :=
       (** Threshold is a non-negative real **) 
       t : {r | (r >= 0)%R}; 
       suff_val : exists vs, NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t))%R; 
-      (** States equipped with their own notion of equality **) 
+      (** States with syntactic equality **) 
       state : Type; 
       state0 : state; 
-      state_eq : state -> state -> Prop; 
-      state_union : state -> state -> state; 
-      eq_state_refl : reflexive state state_eq; 
-      eq_state_sym : symmetric state state_eq; 
-      eq_state_trans : transitive state state_eq; 
-      state0_neutral : forall s, state_eq (state_union s state0) s; 
-      state_union_compat : forall s1 s2, state_eq s1 s2 -> 
-                                    forall t1 t2, state_eq t1 t2 ->
-                                             state_eq (state_union s1 t1) (state_union s2 t2); 
+      state_union : state -> state -> state;
+      state_union_comm : forall s1 s2, state_union s1 s2 = state_union s2 s1;
+      (** Reachability relation **) 
       reach : state -> state -> Prop; 
       reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3; 
-      state_union_comm : forall s1 s2, state_eq (state_union s1 s2) (state_union s2 s1); 
       reach_union : forall s1 s2, reach s1 (state_union s1 s2);  
-      reach_morphism : forall s1 s2 s3, reach s1 s2 -> state_eq s2 s3 -> reach s1 s3; 
-      (* Estimator *)
+      (** Total estimator **)
       E : state -> consensus_values -> Prop; 
       estimator_total : forall s, exists c, E s c; 
-      (* Protocol state definition as predicate *) 
+      (** Protocol state definition as predicate **) 
       prot_state : state -> Prop; 
       about_state0 : prot_state state0; 
-      (* Obtaining equivocation weight from a state *) 
+      (** Equivocation weights from states **) 
       equivocation_weight : state -> R; 
       equivocation_weight_compat : forall s1 s2, (equivocation_weight s1 <= equivocation_weight (state_union s2 s1))%R; 
-      (* Protocol state is some kind of morphism *)
       about_prot_state : forall s1 s2, prot_state s1 -> prot_state s2 ->
                                   (equivocation_weight (state_union s1 s2) <= proj1_sig t)%R -> prot_state (state_union s1 s2); 
    }.
-
-Add Parametric Relation `{CBC_protocol} : state state_eq 
-  reflexivity proved by (eq_state_refl)
-  symmetry proved by (eq_state_sym)
-  transitivity proved by (eq_state_trans)
-  as eq_state_rel.
-
-Add Parametric Morphism `{CBC_protocol} : state_union
-  with signature state_eq ==> state_eq ==> state_eq as state_union_mor.
-Proof. exact state_union_compat. Qed. 
-
-(*
-Theorem reach_trans `{CBC_protocol} :
-  forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3.
-Proof. apply compare_lt_transitive. apply about_state. Qed.
- *)
 
 Theorem reach_total `{CBC_protocol} :
   forall s, exists s', reach s s'.
@@ -81,9 +56,8 @@ Section CommonFutures.
     exists (state_union s1 s2); split.
     apply about_prot_state; assumption. 
     split. apply reach_union.
-    apply (reach_morphism s2 (state_union s2 s1) (state_union s1 s2)). 
+    rewrite state_union_comm.
     apply reach_union.
-    apply state_union_comm. 
   Qed.
   
   Lemma reach_union_iter `{CBC_protocol} :
@@ -98,10 +72,8 @@ Section CommonFutures.
       + spec IHtl H0. simpl. 
         eapply reach_trans.
         exact IHtl.  
-        apply (reach_morphism (fold_right state_union state0 tl)
-                              (state_union (fold_right state_union state0 tl) hd)
-                              (state_union hd (fold_right state_union state0 tl))). 
-        apply reach_union. apply state_union_comm. 
+        rewrite state_union_comm.
+        apply reach_union.
   Qed.
 
   Lemma prot_state_union_iter `{CBC_protocol} :
