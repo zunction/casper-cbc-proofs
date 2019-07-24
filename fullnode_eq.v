@@ -764,7 +764,6 @@ Instance FullNode_seteq : CBC_protocol_eq :=
     about_prot_state := about_prot_state;
   }.
 
-
 End States.
 
 

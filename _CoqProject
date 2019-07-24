@@ -8,6 +8,7 @@ protocol.v
 protocol_eq.v
 fullnode.v
 fullnode_eq.v
+lightnode_eq.v
 
 theories/FullStates/threshold.v
 theories/FullStates/states.v
