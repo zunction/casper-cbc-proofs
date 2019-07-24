@@ -1,9 +1,9 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
-Import ListNotations.   
+Import ListNotations.    
 From Casper 
 Require Import preamble ListExtras ListSetExtras sorted_lists protocol_eq.
 
-(** Building blocks for instancing CBC_protocol with full node version **)
+(** Building blocks for instancing CBC_protocol with light node version **)
 (** Set equality on states **) 
 
 Section States. 
