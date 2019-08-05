@@ -22,6 +22,18 @@ Class CBC_protocol_eq :=
       state_eq : state -> state -> Prop;
       state_union : state -> state -> state;
       state_union_comm : forall s1 s2, state_eq (state_union s1 s2) (state_union s2 s1);
+(* Toplevel input, characters 138-144: *)
+(* > Definition non_trivial_state (p : sorted_state -> Prop) :=   (exists sigma1, protocol_state sigma1 /\ decided sigma1 p)   /\   (exists sigma2, protocol_state sigma2 /\ decided sigma2 (predicate_not p)). *)
+(* >                                                                                                               ^^^^^^ *)
+(* Error: *)
+(* In environment *)
+(* C, V : Type *)
+(* about_C : StrictlyComparable C *)
+(* about_V : StrictlyComparable V *)
+(* p : sorted_state -> Prop *)
+(* sigma1 : state *)
+(* The term "sigma1" has type "state" while it is expected to have type *)
+(*  "protocol_eq.state". *)
       (** Reachability relation **) 
       reach : state -> state -> Prop; 
       reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3; 

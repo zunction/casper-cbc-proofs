@@ -3,7 +3,7 @@ Import ListNotations.
 From Casper 
 Require Import preamble ListExtras ListSetExtras sorted_lists protocol_eq.
 
-(** Building blocks for instancing CBC_protocol_eq with a concrete binary consensus protocol **) 
+(** Building blocks for instancing CBC_protocol_eq with light node binary protocol **) 
 (** Set equality on states **) 
 
 Section States. 

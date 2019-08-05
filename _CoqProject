@@ -11,6 +11,7 @@ fullnode_eq.v
 lightnode_eq.v
 binary_full_eq.v
 binary_light_eq.v
+shapeshifters.v
 
 theories/FullStates/threshold.v
 theories/FullStates/states.v

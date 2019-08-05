@@ -8,3 +8,4 @@ Makefile.coq
 .dep
 .depend
 *.v~
+*_eq.v

@@ -3,7 +3,7 @@ Import ListNotations.
 From Casper 
      Require Import preamble ListExtras ListSetExtras protocol_eq.
 
-(** Building blocks for instancing CBC_protocol with full node version **)
+(** Building blocks for instancing CBC_protocol with full node binary protocol **)
 (** Set equality on states **) 
 
 Section States. 
