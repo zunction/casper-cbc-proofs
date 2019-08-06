@@ -1,7 +1,9 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
 Import ListNotations.  
 From Casper
-Require Import preamble ListExtras ListSetExtras RealsExtras protocol.
+     Require Import preamble ListExtras ListSetExtras RealsExtras protocol.
+
+Require Import Omega.
  
 (* Proof irrelevance states that all proofs of the same proposition are equal *) 
 Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
@@ -1526,7 +1528,6 @@ Inductive protocol_state : state -> Prop :=
       fault_tolerance_condition (add_in_sorted_fn (c, v, sigma) sigma') ->
       protocol_state (add_in_sorted_fn (c, v, sigma) sigma').
 
-
 Lemma about_sorted_state0 : protocol_state sorted_state0.
 Proof.
   unfold sorted_state0. 
@@ -1659,9 +1660,26 @@ Definition pstate_proj1 (p : pstate) : state :=
 Coercion pstate_proj1 : pstate >-> state.
 
 Lemma pstate_eq_dec : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
-Proof.
-  intros. destruct p1, p2. destruct x. 
-Admitted.
+  induction p1. destruct p2.
+  - destruct x.
+    * destruct x0.
+      + assert (p = p0) by apply proof_irrelevance; subst. left; auto.
+      + right; intros contra; inversion contra.
+    * destruct x0.
+      + right; intros contra; inversion contra.
+      + destruct (compare_eq_dec c c0), (compare_eq_dec v v0),
+                 (compare_eq_dec x1 x0_1), (compare_eq_dec x2, x0_2).
+        specialize (s x0_2); destruct s; subst.
+        assert (p = p0) by apply proof_irrelevance; subst. left; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+        right; intros contra; inversion contra; auto.
+Qed.
 
 Lemma pstate_inhabited : exists (p1 : pstate), True.
 Proof. now exists (exist protocol_state Empty protocol_state_empty). Qed. 
