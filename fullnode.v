@@ -1794,6 +1794,7 @@ Proof.
     assumption.
 Qed.
 
+(* This definition is doing what exactly? *) 
 Definition valid_protocol_state (sigma : state) (csigma cempty : C) (vs : list V) : state :=
   fold_right
     (fun v sigma' =>
@@ -1984,14 +1985,193 @@ Proof.
       apply valid_protocol_state_equivocating_senders; try assumption.
 Qed.
 
+Definition non_trivial_pstate (P : pstate -> Prop) :=
+  (exists (s1 : pstate), forall (s : pstate), pstate_rel s1 s -> P s)
+  /\
+  (exists (s2 : pstate), forall (s : pstate), pstate_rel s2 s -> (P s -> False)).
+
+Program Definition singleton_pstate (c : C) (v : V) (H : valid_estimate_condition c Empty) : pstate := _.
+Next Obligation. 
+  exists (next (c,v,Empty) Empty).
+  now apply protocol_state_singleton.
+Qed.
+
+Theorem non_triviality_decisions_on_properties_of_protocol_states :
+  at_least_two_validators ->
+  exists (p : pstate -> Prop) , non_trivial_pstate p.
+Proof.
+  intro H2v. 
+
+  (* Because E is total, we can have some consensus value for the Empty state *)
+  destruct (estimator_total Empty) as [c Hc].
+  
+  (* There exists a configuration of pivotal validator and set of remaining validators *) 
+  destruct exists_pivotal_message as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
+  (* Case analysis on this configuration of validator + rest *) 
+  destruct vs as [ | v' vs].
+  - (* When there is just one heavy validator *)
+    (* The non-trivial property is that the lone heavy validator has sent a message *) 
+    exists (in_state (c,v,Empty)).
+    split.
+    + assert (bleh : protocol_state (next (c,v,Empty) Empty)) by now apply protocol_state_singleton. 
+      exists (exist protocol_state (next (c,v,Empty) Empty) bleh).      intros sigma H. apply H. simpl. left. reflexivity.
+    + (* There must be one other validator *)
+      destruct (H2v v) as [v' Hv'].
+      (* The other state is one in which that validator has sent a good message *) 
+      remember (add_in_sorted_fn (c, v', Empty) Empty) as sigma0.
+      assert (Hps0 : protocol_state sigma0) by (subst; now apply protocol_state_singleton).
+      destruct (estimator_total sigma0) as [c0 Hc0].
+      assert (bleh : protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0)) by (apply extend_protocol_state; assumption). 
+      exists (exist protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0) bleh).
+      intros sigma' H'. 
+      intro.
+      apply protocol_state_fault_tolerance in bleh as Hft'.
+      unfold fault_tolerance_condition in Hft'.
+      assert (Hnft' : (fault_weight_state sigma' > proj1_sig t_full)%R).
+      { apply Rlt_le_trans with (fault_weight_state (add (c, v, Empty) to (add (c0, v, sigma0) to Empty))).
+        - unfold fault_weight_state. unfold equivocating_senders. simpl.
+          assert ( Hequiv : equivocating_message_state (c, v, Empty)
+                    (add (c, v, Empty)to (add (c0, v, sigma0)to Empty)) = true).
+          { apply existsb_exists. exists (c0, v, sigma0). 
+            split.
+            - right. left. reflexivity.
+            - unfold equivocating_messages. rewrite eq_dec_if_false.
+              + rewrite eq_dec_if_true; try reflexivity.
+                apply andb_true_iff. split.
+                * subst. simpl. apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  intro. rewrite add_is_next in H0. apply in_singleton_state in H0.
+                  apply Hv'. inversion H0. reflexivity.
+                * apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  apply in_empty_state.
+              + intro. subst. inversion H0; subst; clear H0.
+          }
+          rewrite Hequiv.
+          assert ( Hequiv0 : equivocating_message_state (c0, v, sigma0)
+                    (add (c, v, Empty)to (add (c0, v, sigma0)to Empty)) = true).
+          { apply existsb_exists. exists (c, v, Empty). 
+            split.
+            - left. reflexivity.
+            - unfold equivocating_messages. rewrite eq_dec_if_false.
+              + rewrite eq_dec_if_true; try reflexivity.
+                apply andb_true_iff. split.
+                * apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  apply in_empty_state.
+                * subst. simpl. apply negb_true_iff. unfold in_state_fn.
+                  rewrite in_state_dec_if_false; try reflexivity.
+                  intro. rewrite add_is_next in H0. apply in_singleton_state in H0.
+                  apply Hv'. inversion H0. reflexivity.
+              + intro. subst. inversion H0; subst; clear H0.
+          }
+          rewrite Hequiv0. simpl. rewrite eq_dec_if_true; try reflexivity.
+          simpl. simpl in Hgt. unfold Rminus in Hgt.
+          apply (Rplus_gt_compat_r (proj1_sig (weight v))) in Hgt. rewrite Rplus_assoc in Hgt.
+          rewrite Rplus_0_r. rewrite Rplus_0_l in Hgt. rewrite Rplus_opp_l in Hgt. rewrite Rplus_0_r in Hgt.
+          apply Rgt_lt. assumption.
+        - apply fault_weight_state_incl. unfold syntactic_state_inclusion. simpl.
+          intros x Hin. destruct Hin as [Hin | [Hin | Hcontra]]; try inversion Hcontra; subst
+          ; try assumption.
+          unfold pstate_rel in H'. apply H'. apply in_state_add_in_sorted_iff. left. reflexivity.
+      }
+      unfold Rgt in Hnft'.
+      apply (Rlt_irrefl (proj1_sig t_full)).
+      apply Rlt_le_trans with (fault_weight_state sigma'). assumption. destruct sigma' as [sigma' about_sigma'].
+      inversion about_sigma'. subst. assumption.
+      simpl in *. subst. assumption. 
+  - remember (add_in_sorted_fn (c, v', Empty) Empty) as sigma0.
+    assert (Hps0 : protocol_state sigma0) by (subst; now apply protocol_state_singleton).
+    destruct (estimator_total sigma0) as [c0 Hc0].
+    exists (in_state (c0,v,sigma0)).
+    split.
+    + assert (bleh : protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0)) by (apply extend_protocol_state; assumption).
+      exists (exist protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0) bleh).
+      intros sigma' H'. 
+      red in H'; apply H'. apply in_state_add_in_sorted_iff. left. reflexivity.
+    + remember (add_in_sorted_fn (c, v, Empty) Empty) as sigma.
+      simpl in Heqsigma. rewrite add_is_next in Heqsigma.
+      destruct (estimator_total sigma) as [csigma Hcsigma].
+      remember (valid_protocol_state sigma csigma c (v' :: vs)) as sigma2.
+      assert (Hequiv2 : set_eq (equivocating_senders sigma2) (v' :: vs)). 
+      { rewrite Heqsigma2. rewrite Heqsigma in *.
+        apply valid_protocol_state_equivocating_senders; assumption.
+      }
+      assert (bleh : protocol_state sigma2) by (subst; now apply valid_protocol_state_ps).
+      exists (exist protocol_state sigma2 bleh). 
+      intros sigma' Hfutures.
+      unfold predicate_not. intro Hin.
+      red in Hfutures.
+      destruct sigma' as [sigma' about_sigma']. 
+      assert (Hps' := about_sigma').
+      apply protocol_state_fault_tolerance in Hps'.
+      { apply (fault_tolerance_condition_subset (add (c0, v, sigma0) to sigma2)) in Hps'.
+        - unfold fault_tolerance_condition in Hps'.
+          apply Rlt_irrefl with (proj1_sig t_full).
+          apply Rlt_le_trans with (fault_weight_state (add (c0, v, sigma0)to sigma2)); try assumption.
+          unfold fault_weight_state.
+          unfold Rminus in Hgt. apply (Rplus_gt_compat_r (proj1_sig (weight v))) in Hgt.
+          rewrite Rplus_assoc in Hgt. rewrite Rplus_opp_l, Rplus_0_r in Hgt.
+          apply Rgt_lt. apply Rge_gt_trans with (sum_weights (v' :: vs) + (proj1_sig (weight v)))%R; try assumption.
+          rewrite Rplus_comm.
+          assert (Hsum : (proj1_sig (weight v) + sum_weights (v' :: vs))%R = sum_weights (v :: v' :: vs))
+          ; try reflexivity; try rewrite Hsum.
+          apply Rle_ge. apply sum_weights_incl; try apply set_map_nodup; try (constructor; assumption).
+          intros vv Hvin. unfold equivocating_senders.
+          apply set_map_exists.
+          exists (c, vv, Empty).
+          split; try reflexivity.
+          apply filter_In.
+          split; destruct Hvin as [Heq | Hvin]; subst; apply existsb_exists || right.
+          + apply in_valid_protocol_state_rev_sigma. simpl. left. reflexivity.
+          + apply in_valid_protocol_state_rev_cempty; assumption.
+          + exists (c0, vv, add_in_sorted_fn (c, v', Empty) Empty).
+            split ; try (left; reflexivity).
+            simpl. unfold equivocating_messages.
+            rewrite eq_dec_if_false; try rewrite eq_dec_if_true; try reflexivity
+            ; try (apply andb_true_iff; split; apply negb_true_iff
+                   ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity; intro).
+            * rewrite add_is_next in H. apply in_singleton_state in H.
+              inversion H; subst; clear H. apply Hnin. left. reflexivity.
+            * inversion H.
+            * intro. inversion H.
+          + exists (csigma, vv, (next (c, v, Empty) Empty)). split
+                                                        ; try (right; apply in_valid_protocol_state_rev_csigma; assumption).
+            unfold equivocating_messages.
+            rewrite eq_dec_if_false; try rewrite eq_dec_if_true; try reflexivity
+            ; try (apply andb_true_iff; split; apply negb_true_iff
+            ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity; intro).
+            * apply in_singleton_state in H.
+              inversion H; subst; clear H. apply Hnin. assumption.
+            * inversion H.
+            * intro. inversion H.
+        - intros msg Hmin.
+          destruct Hmin as [Heq | Hmin].
+          * subst. assumption.
+          * now apply Hfutures. 
+   }
+Qed.
+
 Theorem no_local_confluence_prot_state :
+  at_least_two_validators -> 
   exists (a a1 a2 : pstate),
         pstate_rel a a1 /\ pstate_rel a a2 /\
-        ~ exists (a' : pstate), pstate_rel a1 a' /\ pstate_rel a2 a'.
-Admitted. 
+        ~ exists (a' : pstate), pstate_rel a1 a' /\ pstate_rel a2 a'. 
+Proof.
+  intro H_vals. 
+  assert (H_useful := non_triviality_decisions_on_properties_of_protocol_states H_vals).
+  destruct H_useful as [P [[ps1 about_ps1] [ps2 about_ps2]]].
+  exists (exist protocol_state Empty protocol_state_empty).
+  exists ps1, ps2. repeat split; try (red; simpl; easy).
+  intro Habsurd. destruct Habsurd as [s [Hs1 Hs2]].
+  spec about_ps1 s Hs1.
+  spec about_ps2 s Hs2. contradiction.
+Qed.
+
+Parameter inhabited_two : at_least_two_validators. 
 
 Instance level1 : PartialOrderNonLCish :=
-  { no_local_confluence_ish := no_local_confluence_prot_state; }.
+  { no_local_confluence_ish := no_local_confluence_prot_state inhabited_two; }.
 
 
 
