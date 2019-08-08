@@ -1,29 +1,11 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
-Import ListNotations.  
-From Casper
-     Require Import preamble ListExtras ListSetExtras RealsExtras protocol.
+Import ListNotations.   
+From Casper 
+Require Import preamble ListExtras ListSetExtras RealsExtras protocol.
 
-Require Import Omega.
- 
-(* Proof irrelevance states that all proofs of the same proposition are equal *) 
-Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
- 
-Lemma proj1_sig_injective {X : Type} :
-    forall (P : X -> Prop)
-      (x1 x2 : X) (H1 : P x1) (H2 : P x2),
-      (exist P x1 H1) = (exist P x2 H2) <-> x1 = x2. 
-Proof.
-  intros P x1 x2 H1 H2; split.  
-  - intro H_eq_dep.
-    apply eq_sig_fst in H_eq_dep; assumption.
-  - intro H_eq.
-    subst. assert (H1 = H2) by eapply proof_irrelevance.
-    rewrite H. reflexivity.
-Qed.
-
+(* Implementation -instantiates-> Level Specific *)
 (** Building blocks for instancing CBC_protocol with full node version **)
 (** Syntactic equality on states **) 
-
 
 Variables C V : Type. 
 Context (about_C : `{StrictlyComparable C})
@@ -732,6 +714,43 @@ Qed.
 Definition sorted_state0 : sorted_state :=
   exist (fun s => locally_sorted s) Empty LSorted_Empty.
 
+Lemma sorted_state_inhabited : exists (s : sorted_state), True. 
+Proof. exists sorted_state0. auto. Qed.
+
+Definition sorted_state_compare : sorted_state -> sorted_state -> comparison := sigify_compare locally_sorted.
+
+Lemma sorted_state_compare_reflexive : CompareReflexive sorted_state_compare.
+Proof.
+  red. intros s1 s2.  
+  destruct s1 as [s1 about_s1];
+    destruct s2 as [s2 about_s2].
+  simpl. split; intros.
+  apply state_compare_reflexive in H. subst.
+  f_equal. apply proof_irrelevance.
+  apply state_compare_reflexive. 
+  inversion H. reflexivity.
+Qed.
+
+Lemma sorted_state_compare_transitive : CompareTransitive sorted_state_compare.
+Proof. 
+  red; intros s1 s2 s3 c H12 H23;
+    destruct s1 as [s1 about_s1];
+    destruct s2 as [s2 about_s2];
+    destruct s3 as [s3 about_s3].
+  simpl in *.
+  now apply (state_compare_transitive s1 s2 s3 c).
+Qed.
+
+Instance sorted_state_strictorder : CompareStrictOrder sorted_state_compare :=
+  { StrictOrder_Reflexive := sorted_state_compare_reflexive;
+    StrictOrder_Transitive := sorted_state_compare_transitive; }. 
+
+Instance sorted_state_type : StrictlyComparable sorted_state :=
+  { inhabited := sorted_state_inhabited;
+    compare := sigify_compare locally_sorted;
+    compare_strictorder := sorted_state_strictorder;
+  }. 
+
 (* Commence add_in_sorted_fn tedium *) 
 Lemma add_in_sorted_ignore_repeat :
   forall msg c v j,
@@ -1174,6 +1193,9 @@ Definition reachable (s1 s2 : sorted_state) :=
 Notation "sigma2 'in_Futures' sigma1" :=
   (reachable sigma1 sigma2)
   (at level 20).
+
+Lemma reachable_refl : forall s, reachable s s.
+Proof. intros; easy. Qed.
 
 Lemma reachable_trans : forall sigma1 sigma2 sigma3,
   reachable sigma1 sigma2 ->
@@ -1636,89 +1658,6 @@ Proof.
       right. apply H. assumption.
 Qed.
 
-(* First trying to construct something of this type : *)
-Class PartialOrder :=
-  { A : Type;
-    A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
-    A_inhabited : exists (a0 : A), True;
-    R : A -> A -> Prop;
-    R_refl :> Reflexive R;
-    R_trans :> Transitive R;
-  }.
-
-(* Using only an abstract instance of CBC_protocol *) 
-(* Won't work because we need more stuff than is in there 
-Context (H_prot : `{CBC_protocol}). *)
-
-(* All protocol states are locally sorted, so we only need the strongest predicate here *)
-
-Definition pstate : Type := {s : state | protocol_state s}. 
-
-Definition pstate_proj1 (p : pstate) : state :=
-  proj1_sig p. 
-
-Coercion pstate_proj1 : pstate >-> state.
-
-Lemma pstate_eq_dec : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
-  induction p1. destruct p2.
-  - destruct x.
-    * destruct x0.
-      + assert (p = p0) by apply proof_irrelevance; subst. left; auto.
-      + right; intros contra; inversion contra.
-    * destruct x0.
-      + right; intros contra; inversion contra.
-      + destruct (compare_eq_dec c c0), (compare_eq_dec v v0),
-                 (compare_eq_dec x1 x0_1), (compare_eq_dec x2, x0_2).
-        specialize (s x0_2); destruct s; subst.
-        assert (p = p0) by apply proof_irrelevance; subst. left; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-        right; intros contra; inversion contra; auto.
-Qed.
-
-Lemma pstate_inhabited : exists (p1 : pstate), True.
-Proof. now exists (exist protocol_state Empty protocol_state_empty). Qed. 
-
-Definition pstate_rel : pstate -> pstate -> Prop :=
-  fun p1 p2 => syntactic_state_inclusion (pstate_proj1 p1) (pstate_proj1 p2).
-
-Lemma pstate_rel_refl : Reflexive pstate_rel.
-Proof.
-  red. intro p.
-  destruct p as [p about_p].
-  red. simpl. easy. Qed.
-
-Lemma pstate_rel_trans : Transitive pstate_rel. 
-Proof. 
-  red; intros p1 p2 p3 H_12 H_23.
-  destruct p1 as [p1 about_p1];
-    destruct p2 as [p2 about_p2];
-    destruct p3 as [p3 about_p3];
-    simpl in *.
-  unfold pstate_rel in *; simpl in *.
-  now eapply incl_tran with (get_messages p2).
-Qed.
-
-Instance level0 : PartialOrder :=
-  { A := pstate;
-    A_eq_dec := pstate_eq_dec;
-    A_inhabited := pstate_inhabited;
-    R := pstate_rel;
-    R_refl := pstate_rel_refl;
-    R_trans := pstate_rel_trans;
-  }.
-
-Class PartialOrderNonLCish `{PartialOrder} :=
-  { no_local_confluence_ish : exists (a a1 a2 : A),
-        R a a1 /\ R a a2 /\
-        ~ exists (a' : A), R a1 a' /\ R a2 a';
-  }.
-
 Instance FullNode_syntactic : CBC_protocol :=
   { consensus_values := C;  
     about_consensus_values := about_C;
@@ -1727,10 +1666,12 @@ Instance FullNode_syntactic : CBC_protocol :=
     weight := weight;
     t := t_full;
     suff_val := suff_val_full;
-    reach := reachable; 
+    reach := reachable;
+    reach_refl := reachable_refl;
     reach_trans := reachable_trans;
     reach_union := reach_union;
     state := sorted_state;
+    about_state := sorted_state_type;
     state0 := sorted_state0;
     state_union_comm := sorted_state_sorted_union_comm;
     E := estimator;
@@ -1741,7 +1682,9 @@ Instance FullNode_syntactic : CBC_protocol :=
     equivocation_weight_compat := equivocation_weight_compat; 
     about_prot_state := about_prot_state;
     }. 
- 
+
+Check @level0 FullNode_syntactic.
+
 (* From threshold.v *)
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -1795,7 +1738,7 @@ Definition potentially_pivotal (v : V) : Prop :=
 Definition at_least_two_validators : Prop :=
   forall v1 : V, exists v2 : V, v1 <> v2.
 
-Lemma exists_pivotal_message : exists v, potentially_pivotal v.
+Lemma exists_pivotal_validator : exists v, potentially_pivotal v.
 Proof.
   destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
   exists v.
@@ -1812,7 +1755,6 @@ Proof.
     assumption.
 Qed.
 
-(* This definition is doing what exactly? *) 
 Definition valid_protocol_state (sigma : state) (csigma cempty : C) (vs : list V) : state :=
   fold_right
     (fun v sigma' =>
@@ -2003,39 +1945,32 @@ Proof.
       apply valid_protocol_state_equivocating_senders; try assumption.
 Qed.
 
+(* Over-riding notation *) 
+Definition pstate : Type := {s : state | protocol_state s}. 
+Definition pstate_proj1 (p : pstate) : state :=
+  proj1_sig p. 
+Coercion pstate_proj1 : pstate >-> state.
+Definition pstate_rel : pstate -> pstate -> Prop :=
+  fun p1 p2 => syntactic_state_inclusion (pstate_proj1 p1) (pstate_proj1 p2).
+
 Definition non_trivial_pstate (P : pstate -> Prop) :=
   (exists (s1 : pstate), forall (s : pstate), pstate_rel s1 s -> P s)
   /\
   (exists (s2 : pstate), forall (s : pstate), pstate_rel s2 s -> (P s -> False)).
-
-Program Definition singleton_pstate (c : C) (v : V) (H : valid_estimate_condition c Empty) : pstate := _.
-Next Obligation. 
-  exists (next (c,v,Empty) Empty).
-  now apply protocol_state_singleton.
-Qed.
 
 Theorem non_triviality_decisions_on_properties_of_protocol_states :
   at_least_two_validators ->
   exists (p : pstate -> Prop) , non_trivial_pstate p.
 Proof.
   intro H2v. 
-
-  (* Because E is total, we can have some consensus value for the Empty state *)
   destruct (estimator_total Empty) as [c Hc].
-  
-  (* There exists a configuration of pivotal validator and set of remaining validators *) 
-  destruct exists_pivotal_message as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
-  (* Case analysis on this configuration of validator + rest *) 
+  destruct exists_pivotal_validator as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
   destruct vs as [ | v' vs].
-  - (* When there is just one heavy validator *)
-    (* The non-trivial property is that the lone heavy validator has sent a message *) 
-    exists (in_state (c,v,Empty)).
+  - exists (in_state (c,v,Empty)).
     split.
     + assert (bleh : protocol_state (next (c,v,Empty) Empty)) by now apply protocol_state_singleton. 
       exists (exist protocol_state (next (c,v,Empty) Empty) bleh).      intros sigma H. apply H. simpl. left. reflexivity.
-    + (* There must be one other validator *)
-      destruct (H2v v) as [v' Hv'].
-      (* The other state is one in which that validator has sent a good message *) 
+    + destruct (H2v v) as [v' Hv'].
       remember (add_in_sorted_fn (c, v', Empty) Empty) as sigma0.
       assert (Hps0 : protocol_state sigma0) by (subst; now apply protocol_state_singleton).
       destruct (estimator_total sigma0) as [c0 Hc0].
@@ -2167,8 +2102,8 @@ Proof.
           destruct Hmin as [Heq | Hmin].
           * subst. assumption.
           * now apply Hfutures. 
-   }
-Qed.
+      }
+Qed. 
 
 Theorem no_local_confluence_prot_state :
   at_least_two_validators -> 
@@ -2187,6 +2122,44 @@ Proof.
 Qed.
 
 Parameter inhabited_two : at_least_two_validators. 
+
+Lemma pstate_eq_dec : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
+Proof.
+  intros p1 p2.
+  assert (H_useful := about_state). 
+  now apply sigify_eq_dec. 
+Qed.
+
+Lemma pstate_inhabited : exists (p1 : pstate), True.
+Proof. now exists (exist protocol_state Empty protocol_state_empty). Qed. 
+
+Lemma pstate_rel_refl : Reflexive pstate_rel.
+Proof.
+  red. intro p.
+  destruct p as [p about_p].
+  red. simpl. easy. Qed.
+
+Lemma pstate_rel_trans : Transitive pstate_rel. 
+Proof. 
+  red; intros p1 p2 p3 H_12 H_23.
+  destruct p1 as [p1 about_p1];
+    destruct p2 as [p2 about_p2];
+    destruct p3 as [p3 about_p3];
+    simpl in *.
+  unfold pstate_rel in *; simpl in *.
+  now eapply incl_tran with (get_messages p2).
+Qed.
+
+Instance level0 : PartialOrder :=
+  { A := pstate;
+    A_eq_dec := pstate_eq_dec;
+    A_inhabited := pstate_inhabited;
+    A_rel := pstate_rel;
+    A_rel_refl := pstate_rel_refl;
+    A_rel_trans := pstate_rel_trans;
+  }.
+
+(* Instance level0 : PartialOrder := @level0 FullNode_syntactic. *) 
 
 Instance level1 : PartialOrderNonLCish :=
   { no_local_confluence_ish := no_local_confluence_prot_state inhabited_two; }.

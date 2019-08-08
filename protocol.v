@@ -1,8 +1,61 @@
-Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation.
+Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
 Import ListNotations.  
 From Casper
 Require Import preamble ListExtras ListSetExtras.
 
+(* Proof irrelevance states that all proofs of the same proposition are equal *) 
+Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
+ 
+Lemma proj1_sig_injective {X : Type} :
+    forall (P : X -> Prop)
+      (x1 x2 : X) (H1 : P x1) (H2 : P x2),
+      (exist P x1 H1) = (exist P x2 H2) <-> x1 = x2. 
+Proof.
+  intros P x1 x2 H1 H2; split.  
+  - intro H_eq_dep.
+    apply eq_sig_fst in H_eq_dep; assumption.
+  - intro H_eq.
+    subst. assert (H1 = H2) by eapply proof_irrelevance.
+    rewrite H. reflexivity.
+Qed.
+
+Lemma sigify_eq_dec {X : Type} `{StrictlyComparable X} :
+  forall (P : X -> Prop),
+    forall (x1 x2 : {x | P x}), {x1 = x2} + {x1 <> x2}. 
+Proof.
+  intros P x1 x2;
+    destruct x1 as [x1 about_x1];
+    destruct x2 as [x2 about_x2].
+  simpl.
+  destruct (compare_eq_dec x1 x2) as [left | right].
+  left. apply proj1_sig_injective; assumption. 
+  right. intro Hnot. apply proj1_sig_injective in Hnot.
+  contradiction.
+Qed.
+
+Program Definition sigify_compare {X} `{StrictlyComparable X} (P : X -> Prop) : {x | P x} -> {x | P x} -> comparison := _. 
+Next Obligation.
+  exact (compare X0 X1).
+Defined.
+
+(* Level 0 : *)
+Class PartialOrder :=
+  { A : Type;
+    A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
+    A_inhabited : exists (a0 : A), True;
+    A_rel : A -> A -> Prop;
+    A_rel_refl :> Reflexive A_rel;
+    A_rel_trans :> Transitive A_rel;
+  }.
+
+(* Level 1 *) 
+Class PartialOrderNonLCish `{PartialOrder} :=
+  { no_local_confluence_ish : exists (a a1 a2 : A),
+        A_rel a a1 /\ A_rel a a2 /\
+        ~ exists (a' : A), A_rel a1 a' /\ A_rel a2 a';
+  }.
+
+(* Level Specific : *)
 Class CBC_protocol :=
    {
       (** Consensus values equipped with reflexive transitive comparison **) 
@@ -17,12 +70,14 @@ Class CBC_protocol :=
       t : {r | (r >= 0)%R}; 
       suff_val : exists vs, NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t))%R; 
       (** States with syntactic equality **) 
-      state : Type; 
+      state : Type;
+      about_state : StrictlyComparable state;
       state0 : state; 
       state_union : state -> state -> state;
       state_union_comm : forall s1 s2, state_union s1 s2 = state_union s2 s1;
       (** Reachability relation **) 
-      reach : state -> state -> Prop; 
+      reach : state -> state -> Prop;
+      reach_refl : forall s, reach s s; 
       reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3; 
       reach_union : forall s1 s2, reach s1 (state_union s1 s2);  
       (** Total estimator **)
@@ -226,3 +281,50 @@ Section Consistency.
 
 End Consistency. 
 
+(* Level Specific -refines-> Level 0 *) 
+
+(** Defining A **) 
+Definition pstate `{CBC_protocol} : Type := {s : state | prot_state s}. 
+Definition pstate_proj1 `{CBC_protocol} (p : pstate) : state :=
+  proj1_sig p. 
+Coercion pstate_proj1 : pstate >-> state.
+
+(** Proving A_eq_dec **)
+Lemma pstate_eq_dec `{CBC_protocol} : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
+Proof.
+  intros p1 p2.
+  assert (H_useful := about_state). 
+  now apply sigify_eq_dec. 
+Qed.
+
+(** Proving A_inhabited **) 
+Lemma pstate_inhabited `{CBC_protocol} : exists (p1 : pstate), True.
+Proof. now exists (exist prot_state state0 about_state0). Qed. 
+
+(** Defining A_rel **) 
+Definition pstate_rel `{CBC_protocol} : pstate -> pstate -> Prop :=
+  fun p1 p2 => reach (pstate_proj1 p1) (pstate_proj1 p2).
+
+(** Proving A_rel_refl **) 
+Lemma pstate_rel_refl `{CBC_protocol} : Reflexive pstate_rel.
+Proof. red; intro p; now apply reach_refl. Qed.
+
+(** Proving A_rel_trans **) 
+Lemma pstate_rel_trans `{CBC_protocol} : Transitive pstate_rel. 
+Proof. 
+  red; intros p1 p2 p3 H_12 H_23.
+  destruct p1 as [p1 about_p1];
+    destruct p2 as [p2 about_p2];
+    destruct p3 as [p3 about_p3];
+    simpl in *.
+  now apply reach_trans with p2.
+Qed.
+
+Instance level0 `{CBC_protocol} : PartialOrder :=
+  { A := pstate;
+    A_eq_dec := pstate_eq_dec;
+    A_inhabited := pstate_inhabited;
+    A_rel := pstate_rel;
+    A_rel_refl := pstate_rel_refl;
+    A_rel_trans := pstate_rel_trans;
+  }.
