@@ -42,13 +42,13 @@ Defined.
 Class PartialOrder :=
   { A : Type;
     A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
-    A_inhabited : exists (a0 : A), True;
+    A_inhabited : exists (a0 : A), True; (* ? *) 
     A_rel : A -> A -> Prop;
     A_rel_refl :> Reflexive A_rel;
     A_rel_trans :> Transitive A_rel;
   }.
 
-(* Level 1 *) 
+(* Level 1 : *) 
 Class PartialOrderNonLCish `{PartialOrder} :=
   { no_local_confluence_ish : exists (a a1 a2 : A),
         A_rel a a1 /\ A_rel a a2 /\

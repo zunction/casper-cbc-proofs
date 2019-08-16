@@ -1432,8 +1432,6 @@ Proof.
       apply in_state_add_in_sorted_iff. right. assumption.
 Qed.
 
-
-
 Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_senders sigma).
 
 Lemma sum_weights_in : forall v vs,
@@ -1501,27 +1499,27 @@ Proof.
   assumption. 
 Qed.
 
+(** Sunday, 11th August **) 
 (* From protocol_states.v *)
-Definition full_node_condition (sigma1 sigma2 : state) : Prop :=
-    syntactic_state_inclusion sigma1 sigma2.
 
-(** The valid message condition **)
+(* Justification subset condition *) 
+Definition incl_messages (s1 s2 : state) : Prop :=
+  incl (get_messages s1) (get_messages s2).
 
-Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
+(* Estimator approval condition *) 
+Definition valid_estimate (c : C) (sigma : state) : Prop :=
     estimator sigma c.
 
-(** The fault tolerance condition **)
-
-Definition fault_tolerance_condition (sigma : state) : Prop :=
+(* The not overweight condition *)
+Definition not_heavy (sigma : state) : Prop :=
   (fault_weight_state sigma <= proj1_sig t_full)%R.
 
-Lemma fault_tolerance_condition_singleton : forall msg,
-  fault_tolerance_condition (next msg Empty).
+(* States following Empty states are never overweight *) 
+Lemma not_heavy_single : forall msg,
+  not_heavy (next msg Empty).
 Proof.
   intros [(c, v) j].
-  unfold fault_tolerance_condition.
-  unfold fault_weight_state.
-  unfold equivocating_senders.
+  unfold not_heavy, fault_weight_state, equivocating_senders.
   simpl. unfold equivocating_message_state. simpl.
   unfold equivocating_messages. 
   rewrite eq_dec_if_true; try reflexivity. simpl.
@@ -1529,44 +1527,46 @@ Proof.
   simpl; auto.
 Qed.
 
-Lemma fault_tolerance_condition_subset : forall sigma sigma',
-  syntactic_state_inclusion sigma sigma' ->
-  fault_tolerance_condition sigma' ->
-  fault_tolerance_condition sigma.
+(* If a state is not overweight, none of its subsets are *) 
+Lemma not_heavy_subset : forall s s',
+  syntactic_state_inclusion s s' ->
+  not_heavy s' ->
+  not_heavy s.
 Proof.
-  unfold fault_tolerance_condition.
+  red.
   intros.
-  apply Rle_trans with (fault_weight_state sigma'); try assumption.
+  apply Rle_trans with (fault_weight_state s'); try assumption.
   apply fault_weight_state_incl; assumption.
 Qed.
 
+(* Moving and renaming quantifiers *) 
 Inductive protocol_state : state -> Prop :=
   | protocol_state_empty : protocol_state Empty
-  | protocol_state_next : forall c v sigma sigma',
-      protocol_state sigma -> 
-      protocol_state sigma' ->
-      full_node_condition sigma sigma' ->
-      valid_estimate_condition c sigma ->
-      fault_tolerance_condition (add_in_sorted_fn (c, v, sigma) sigma') ->
-      protocol_state (add_in_sorted_fn (c, v, sigma) sigma').
+  | protocol_state_next : forall s j, protocol_state s ->
+                                  protocol_state j ->
+                                  incl_messages j s ->
+                                  forall c v,
+                                    valid_estimate c j ->
+                                    not_heavy (add_in_sorted_fn (c,v,j) s) ->
+                                    protocol_state (add_in_sorted_fn (c,v,j) s).
 
+(* Ignore *) 
 Lemma about_sorted_state0 : protocol_state sorted_state0.
 Proof.
   unfold sorted_state0. 
   simpl. apply protocol_state_empty.
 Qed. 
 
-Lemma protocol_state_fault_tolerance : forall sigma,
-  protocol_state sigma ->
-  fault_tolerance_condition sigma.
+Lemma nil_empty_state :
+  forall s, get_messages s = [] -> s = Empty. 
 Proof.
-  intros.
-  inversion H.
-  - unfold fault_tolerance_condition. unfold fault_weight_state.
-    simpl. apply Rge_le. destruct t_full; simpl; auto. 
-  - assumption.
+  intros s H_nil.
+  induction s. reflexivity.
+  inversion H_nil.
 Qed.
 
+(** Facts about protocol states as traces **) 
+(* All protocol states are sorted by construction *) 
 Lemma protocol_state_sorted : forall state,
   protocol_state state -> 
   locally_sorted state.
@@ -1574,88 +1574,186 @@ Proof.
   intros.
   induction H.
   - constructor.
-  - apply (add_in_sorted_sorted (c, v, sigma) sigma'); try assumption.
+  - apply (add_in_sorted_sorted (c, v, j) s); try assumption.
     apply locally_sorted_message_justification. assumption.
 Qed.
 
+(* All protocol states are not too heavy *) 
+Lemma protocol_state_not_heavy : forall s,
+  protocol_state s ->
+  not_heavy s.
+Proof.
+  intros.
+  inversion H.
+  - unfold not_heavy. unfold fault_weight_state.
+    simpl. apply Rge_le. destruct t_full; simpl; auto. 
+  - assumption.
+Qed.
+
+(* All messages in protocol states are estimator approved *) 
+Lemma protocol_state_valid_estimate :
+  forall s,
+    protocol_state s ->
+    forall msg,
+      in_state msg s ->
+      valid_estimate (estimate msg) (justification msg).
+Proof.
+  intros s H_ps msg H_in.
+  induction H_ps. 
+  inversion H_in.
+  rewrite in_state_add_in_sorted_iff in H_in.
+  destruct H_in as [H_eq | H_in].
+  subst.
+  assumption.
+  now apply IHH_ps1.
+Qed.
+
+(* All past states of a protocol state are also protocol states *)
+Proposition protocol_state_subset :
+  forall s, protocol_state s ->
+       forall s', incl_messages s' s ->
+             protocol_state s'. 
+Proof. (* This is false. *) Abort. 
+
+(* All singleton states are protocol states *) 
 Lemma protocol_state_singleton : forall c v,
-  valid_estimate_condition c Empty ->
+  estimator Empty c ->
   protocol_state (next (c, v, Empty) Empty).
 Proof.
   intros.
-  assert (Heq : add_in_sorted_fn (c, v, Empty) Empty = (next (c, v, Empty) Empty))
-  ; try reflexivity.
+  assert (Heq : add_in_sorted_fn (c, v, Empty) Empty = (next (c, v, Empty) Empty)); try reflexivity.
   rewrite <- Heq.
   apply protocol_state_next; try assumption; try apply protocol_state_empty.
   - apply incl_refl. 
-  - simpl. rewrite add_is_next. apply fault_tolerance_condition_singleton.
+  - simpl. rewrite add_is_next. apply not_heavy_single.
 Qed.
 
-Definition estimator_functional : Prop :=
-  forall sigma c1 c2, estimator sigma c1 -> estimator sigma c2 -> c1 = c2.
-
-Lemma protocol_state_empty_justification : forall sigma,
-  protocol_state sigma ->
-  sigma = Empty \/ exists msg, in_state msg sigma /\ justification msg = Empty.
+(* All protocol states are either empty or contain a message with an empty justification *) 
+Lemma protocol_state_start_from_empty : forall s,
+  protocol_state s ->
+  s = Empty \/ exists msg, in_state msg s /\ justification msg = Empty.
 Proof.
   intros. induction H; try (left; reflexivity). right.
-  destruct sigma.
+  destruct s.
   - exists (c, v, Empty). split; try reflexivity.
-    apply in_state_add_in_sorted_iff. left. reflexivity.
+    apply in_state_add_in_sorted_iff. left.
+    red in H1; simpl in H1.
+    apply incl_empty in H1.
+    apply nil_empty_state in H1.
+    subst; reflexivity.
   - destruct IHprotocol_state2.
-    + subst. exfalso. apply (in_empty_state (c0, v0, sigma1)). apply H1. 
-      simpl. left. reflexivity.
-    + destruct H4 as [msg [Hin Hj]].
-      exists msg. split; try assumption.
-      apply in_state_add_in_sorted_iff. right. assumption.
-Qed.
+    + subst. destruct IHprotocol_state1.
+      inversion H4.
+      destruct H4 as [msg [H_in H_empty]].
+      exists msg. 
+      repeat split. apply in_state_add_in_sorted_iff.
+      right; assumption. assumption.
+    + destruct H4 as [msg [H_in H_empty]].
+      exists msg. 
+      repeat split. apply in_state_add_in_sorted_iff.
+      right. apply H1. assumption. assumption.
+Qed. 
 
-Lemma extend_protocol_state : forall sigma,
-  protocol_state sigma ->
+(* Recording entire histories preserves protocol state-ness *)
+Lemma copy_protocol_state : forall s,
+  protocol_state s ->
   forall c,
-  valid_estimate_condition c sigma ->
-  forall v,
-  protocol_state (add_in_sorted_fn (c, v, sigma) sigma).
+    estimator s c->
+    forall v,
+      protocol_state (add_in_sorted_fn (c, v, s) s).
 Proof.
   intros sigma Hps c Hc v.
   constructor; try assumption; try apply incl_refl.
-  unfold fault_tolerance_condition.
-  apply fault_tolerance_condition_subset with (add (c,v,sigma) to sigma).
+  unfold not_heavy.
+  apply not_heavy_subset with (add (c,v,sigma) to sigma).
   - unfold syntactic_state_inclusion. apply set_eq_add_in_sorted.
-  - unfold fault_tolerance_condition. unfold fault_weight_state.
+  - unfold not_heavy. unfold fault_weight_state.
     rewrite equivocating_senders_extend.
-    apply protocol_state_fault_tolerance in Hps. assumption.
-Qed.
+    apply protocol_state_not_heavy in Hps. assumption.
+Qed. 
 
-(* This proof is taken from common_futures.v*)
-Lemma about_prot_state :
+(* Two protocol states if not too heavy combined can be combined into a protocol state. *) 
+Lemma union_protocol_states :
   forall (s1 s2 : sorted_state),
     protocol_state s1 ->
     protocol_state s2 ->
     (fault_weight_state (state_union s1 s2) <= proj1_sig t_full)%R ->
     protocol_state (state_union s1 s2). 
 Proof.
-  intros sig1 sig2 Hps1 Hps2.
+  intros s1 s2 Hps1 Hps2.
   induction Hps2; intros.
-  - unfold state_union. simpl.
+  - unfold state_union. simpl. 
     unfold messages_union. rewrite app_nil_r.
     rewrite list_to_state_sorted. assumption.
     apply protocol_state_sorted. assumption.
-  - clear IHHps2_1.
-    rewrite (state_union_add_in_sorted sig1 (c, v, sigma) sigma') in *
-    ; try (apply (locally_sorted_message_justification c v sigma))
-    ; try (apply protocol_state_sorted; assumption)
-    .
-    assert (protocol_state (state_union sig1 sigma')).
-    { apply IHHps2_2.
-      apply fault_tolerance_condition_subset with
-        (add_in_sorted_fn (c, v, sigma) (state_union sig1 sigma'))
-      ; try assumption.
-      intros msg Hin. apply set_eq_add_in_sorted. right. assumption.
-    }
-    constructor; try assumption.
-    + intros msg Hin. apply state_union_iff.
-      right. apply H. assumption.
+  - replace (state_union s1 (add_in_sorted_fn (c,v,j) s)) with (add_in_sorted_fn (c,v,j) (state_union s1 s)) in *.
+    2 : { rewrite (state_union_add_in_sorted s1 (c, v, j) s).
+          reflexivity. 
+          now apply protocol_state_sorted.
+          now apply protocol_state_sorted.
+          apply (locally_sorted_message_justification c v j).
+          now apply protocol_state_sorted. }
+    apply protocol_state_next; try assumption. 
+    apply IHHps2_1. 
+    apply not_heavy_subset with (add_in_sorted_fn (c, v, j) (state_union s1 s)); try assumption.
+    intros msg H_in. apply set_eq_add_in_sorted.
+    right; assumption.
+    intros msg H_in. 
+    apply state_union_iff.
+    right. apply H. assumption.
+Qed.
+
+(* All messages in a protocol state have correct subsetted justifications *)
+Lemma message_subset_correct :
+  forall s, protocol_state s ->
+       forall msg, In msg (get_messages s) ->
+              incl_messages (justification msg) s.  
+Proof.
+  intros s H_ps msg H_in_msg m H_in.
+  induction H_ps; subst. 
+  inversion H_in_msg.
+  assert (H_useful := in_state_add_in_sorted_iff m (c,v,j) s).
+  rewrite H_useful. clear H_useful.
+  apply in_state_add_in_sorted_iff in H_in_msg. 
+  destruct H_in_msg as [H_eq | H_in_msg].
+  - right. subst; simpl in H_in.
+    spec H m H_in.
+    assert (H_useful := set_eq_add_in_sorted (c,v,j) s).
+    destruct H_useful as [H_left H_right].
+    spec H_right (c,v,j) (in_eq (c,v,j) (get_messages s)).
+    assumption. 
+  - right; apply IHH_ps1.
+    assumption.
+Qed.
+
+(** Lemmas about justifications of messages contained within protocol states, i.e. "past" protocol states **) 
+(* Any justification of protocol state messages are themselves protocol states *) 
+Lemma protocol_state_justification :
+  forall s, protocol_state s ->
+       forall msg, in_state msg s ->
+              protocol_state (justification msg). 
+Proof.
+  intros s H_ps msg H_in.
+  induction H_ps.
+  - inversion H_in. 
+  - apply in_state_add_in_sorted_iff in H_in.
+    destruct H_in as [left | right].
+    + subst. simpl. assumption. 
+    + now apply IHH_ps1.
+Qed.
+
+(* All justifications of protocol state messages are themselves protocol states *) 
+Lemma protocol_state_all_justifications :
+  forall s, protocol_state s ->
+       Forall protocol_state (map justification (get_messages s)).
+Proof.
+  intros s H_ps.
+  induction H_ps; apply Forall_forall; intros x H_in.  
+  - inversion H_in. 
+  - rewrite in_map_iff in H_in.
+    destruct H_in as [msg [H_justif H_justif_in]].
+    subst.
+    apply (protocol_state_justification (add_in_sorted_fn (c,v,j) s)); try constructor; assumption. 
 Qed.
 
 Instance FullNode_syntactic : CBC_protocol :=
@@ -1680,9 +1778,9 @@ Instance FullNode_syntactic : CBC_protocol :=
     about_state0 := about_sorted_state0;
     equivocation_weight := fault_weight_state; 
     equivocation_weight_compat := equivocation_weight_compat; 
-    about_prot_state := about_prot_state;
+    about_prot_state := union_protocol_states;
     }. 
-
+ 
 Check @level0 FullNode_syntactic.
 
 (* From threshold.v *)
@@ -1893,26 +1991,27 @@ Proof.
   intros. induction vs.
   - simpl. apply protocol_state_singleton. assumption.
   - simpl. constructor.
-    + apply protocol_state_singleton. assumption.
     + constructor.
-      * constructor.
-      * { apply IHvs.
-        - apply NoDup_cons_iff in H0. destruct H0. assumption.
-        - simpl in H1. apply Rle_trans with (proj1_sig (weight a) + sum_weights vs)%R; try assumption.
-          rewrite <- (Rplus_0_l (sum_weights vs))  at 1.
-          apply Rplus_le_compat_r.
-          apply Rge_le. left. destruct (weight a). simpl. auto. 
-        - intro.  apply H2. right. assumption.
-        }
-      * intro. simpl. intro. inversion H4.
-      * assumption.
-      * unfold fault_tolerance_condition. unfold fault_weight_state.
-        apply Rle_trans with (sum_weights (a :: vs)); try assumption.
-        apply sum_weights_incl; try assumption; try apply set_map_nodup.
-        rewrite add_is_next.
-        remember (next (cempty, v, Empty) Empty) as sigma.
-        remember (valid_protocol_state sigma csigma cempty vs) as sigma2.
-        { apply incl_tran with (equivocating_senders sigma2).
+      apply IHvs.
+      apply NoDup_cons_iff in H0.
+      tauto.
+      simpl in H1.
+      apply Rle_trans with (proj1_sig (weight a) + sum_weights vs)%R; try assumption.
+      rewrite <- (Rplus_0_l (sum_weights vs)) at 1.
+      apply Rplus_le_compat_r.
+      apply Rge_le. left. destruct (weight a). simpl.
+      auto.
+      intro. apply H2. right; assumption.
+      constructor.
+      intros m H_in. inversion H_in.
+      assumption.
+      red. unfold fault_weight_state.
+      apply Rle_trans with (sum_weights (a :: vs)); try assumption.
+      apply sum_weights_incl; try assumption; try apply set_map_nodup.
+      rewrite add_is_next.
+      remember (next (cempty, v, Empty) Empty) as sigma.
+      remember (valid_protocol_state sigma csigma cempty vs) as sigma2.
+      { apply incl_tran with (equivocating_senders sigma2).
         - apply set_eq_proj1. apply equivocating_senders_single.
           intro. apply set_map_exists in H4.
           destruct H4 as [[(cx, vx) jx] [Hin Heq]].
@@ -1930,13 +2029,14 @@ Proof.
             intro. apply H2. right. assumption.
           + intros x Hin. right. assumption.
         }
+    + apply protocol_state_singleton; assumption.
     + intros msg Hin. simpl in Hin.
       destruct Hin as [Heq | Hcontra]; try inversion Hcontra; subst.
       apply in_state_add_in_sorted_iff. right.
       rewrite add_is_next.
       apply in_valid_protocol_state_rev_sigma. simpl. left. reflexivity.
     + assumption.
-    + unfold fault_tolerance_condition. unfold fault_weight_state.
+    + red; unfold fault_weight_state.
       apply Rle_trans with (sum_weights (a :: vs)); try assumption.
       apply sum_weights_incl; try assumption; try apply set_map_nodup.
       apply incl_tran with (equivocating_senders (valid_protocol_state (next (cempty, v, Empty) Empty) csigma cempty (a :: vs)))
@@ -1969,17 +2069,17 @@ Proof.
   - exists (in_state (c,v,Empty)).
     split.
     + assert (bleh : protocol_state (next (c,v,Empty) Empty)) by now apply protocol_state_singleton. 
-      exists (exist protocol_state (next (c,v,Empty) Empty) bleh).      intros sigma H. apply H. simpl. left. reflexivity.
+      exists (exist protocol_state (next (c,v,Empty) Empty) bleh).
+      intros sigma H. apply H. simpl. left. reflexivity.
     + destruct (H2v v) as [v' Hv'].
       remember (add_in_sorted_fn (c, v', Empty) Empty) as sigma0.
       assert (Hps0 : protocol_state sigma0) by (subst; now apply protocol_state_singleton).
       destruct (estimator_total sigma0) as [c0 Hc0].
-      assert (bleh : protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0)) by (apply extend_protocol_state; assumption). 
+      assert (bleh : protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0)) by (apply copy_protocol_state; assumption). 
       exists (exist protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0) bleh).
       intros sigma' H'. 
       intro.
-      apply protocol_state_fault_tolerance in bleh as Hft'.
-      unfold fault_tolerance_condition in Hft'.
+      apply protocol_state_not_heavy in bleh as Hft'.
       assert (Hnft' : (fault_weight_state sigma' > proj1_sig t_full)%R).
       { apply Rlt_le_trans with (fault_weight_state (add (c, v, Empty) to (add (c0, v, sigma0) to Empty))).
         - unfold fault_weight_state. unfold equivocating_senders. simpl.
@@ -2038,7 +2138,7 @@ Proof.
     destruct (estimator_total sigma0) as [c0 Hc0].
     exists (in_state (c0,v,sigma0)).
     split.
-    + assert (bleh : protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0)) by (apply extend_protocol_state; assumption).
+    + assert (bleh : protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0)) by (apply copy_protocol_state; assumption).
       exists (exist protocol_state (add_in_sorted_fn (c0, v, sigma0) sigma0) bleh).
       intros sigma' H'. 
       red in H'; apply H'. apply in_state_add_in_sorted_iff. left. reflexivity.
@@ -2057,10 +2157,9 @@ Proof.
       red in Hfutures.
       destruct sigma' as [sigma' about_sigma']. 
       assert (Hps' := about_sigma').
-      apply protocol_state_fault_tolerance in Hps'.
-      { apply (fault_tolerance_condition_subset (add (c0, v, sigma0) to sigma2)) in Hps'.
-        - unfold fault_tolerance_condition in Hps'.
-          apply Rlt_irrefl with (proj1_sig t_full).
+      apply protocol_state_not_heavy in Hps'.
+      { apply (not_heavy_subset (add (c0, v, sigma0) to sigma2)) in Hps'.
+        - apply Rlt_irrefl with (proj1_sig t_full).
           apply Rlt_le_trans with (fault_weight_state (add (c0, v, sigma0)to sigma2)); try assumption.
           unfold fault_weight_state.
           unfold Rminus in Hgt. apply (Rplus_gt_compat_r (proj1_sig (weight v))) in Hgt.
@@ -2164,6 +2263,570 @@ Instance level0 : PartialOrder :=
 Instance level1 : PartialOrderNonLCish :=
   { no_local_confluence_ish := no_local_confluence_prot_state inhabited_two; }.
 
+(** Strong non-triviality **)
 
+(* Defining reachablity in terms of message sending *)
+
+Definition in_future (s1 s2 : pstate) :=
+  syntactic_state_inclusion s1 s2. 
+
+Fixpoint add_messages (s : state) (lm : list message) :=
+  match lm with
+  | [] => s
+  | msg :: tl => add_messages (add_in_sorted_fn msg s) tl
+  end.
+
+Definition in_future_trace (s1 s2 : pstate) :=
+  exists (lm : list message), add_messages s1 lm = s2. 
+
+(* This should be provable *) 
+Theorem in_future_equiv :
+  forall (s1 s2 : pstate), in_future s1 s2 <-> in_future_trace s1 s2. 
+Proof. Abort.
+
+Definition next_future (s1 s2 : pstate) :=
+   exists (msg : message), add_in_sorted_fn msg s1 = s2. 
+
+Definition in_past (s1 s2 : pstate) :=
+  syntactic_state_inclusion s2 s1. 
+
+Definition in_past_trace (s1 s2 : pstate) :=
+  exists (msg : message), in_state msg s2 /\ justification msg = s1. 
+
+(* Should this be provable? *) 
+Theorem in_past_equiv :
+  forall (s1 s2 : pstate), in_past s1 s2 <-> in_past_trace s1 s2. 
+Proof. Abort.
+
+Definition strong_nontriviality :=
+  forall (s1 : pstate),
+  exists (s2 : pstate),
+    next_future s1 s2 /\
+    exists (s3 : pstate),
+    forall (s : pstate),
+      in_future s s3 /\ in_future s s2 -> False. 
+
+Theorem to_prove : strong_nontriviality. 
+Proof.
+  intros [s1 about_s1].
+  (* Any validator v can send a message to reach s2 from s1. Both s1 and s2 are agnostic about whether v is equivocating in them. *)
+  (* So we construct such a message with an arbitrary v. *)
+  destruct (@inhabited V about_V) as [v _].
+  destruct (estimator_total s1) as [c about_c]. 
+  exists (exist protocol_state (add_in_sorted_fn (c,v,s1) s1) (copy_protocol_state s1 about_s1 c about_c v)).
+  (* Proving next-step relation is trivial. *) 
+  split.
+  exists (c,v,s1); easy.
+  (* Now we want to construct a future state that does not share any common future states with s2. 
+     In order for this to be true, s3 must be constructed such that 1) v is a pivotal equivocator in s3, and 2) the equivocating partner message of (c,v,s1) is contained in s3. 
+     Because s2 contains (c,v,s1), and (c,v,s1) can never be added to s3 (and therefore appear in any of its future states), s2 and s3 can never share a common future. *)
+  (* We are agnostic as to whether s3 is reachable from s1. *) 
+Admitted.
+
+(** Helper lemmas/exploration **) 
+Definition two_senders := exists (v1 v2 : V), v1 <> v2.
+
+Lemma distinct_sender : two_senders -> forall v1 : V, exists v2 : V, v1 <> v2.
+Proof.
+  intros.
+  destruct H  as [v1' [v2' Hneq]].
+  destruct (compare_eq_dec v1 v1') eqn:Heq.
+  - subst. exists v2'. assumption.
+  - exists v1'. assumption.
+Qed.
+
+Theorem not_extx_in_x : forall c v j j',
+  syntactic_state_inclusion j' j ->
+   ~ in_state (c, v, j) j'.
+Proof.
+  induction j'; intros;  unfold in_state; simpl; intro; try assumption.
+  destruct H0.
+  - inversion H0; subst; clear H0.
+    apply IHj'1; try apply incl_refl. apply H. left. reflexivity.
+  - apply IHj'2; try assumption.
+    intros msg Hin. apply H. right. assumption.
+Qed.
+
+Theorem equivocating_messages_exists :
+  two_senders ->
+  forall c v j,
+    protocol_state j ->
+    estimator j c ->
+    exists j' c',
+      protocol_state j' /\
+      incl_messages j j' /\
+      estimator j' c' /\
+      equivocating_messages (c, v, j) (c', v, j') = true.
+Proof.
+  intros H c v j H0 Hestj.
+  destruct (distinct_sender H v) as [v' Hneq].
+  exists (add_in_sorted_fn (c, v', j) j).
+  remember (add_in_sorted_fn (c, v', j) j) as j'.
+  destruct (estimator_total j') as [c' Hest].
+  exists c'.
+  repeat split; try assumption. 
+  - (* Proving that the conflicting justification is also a valid protocol state *) 
+    subst.
+    constructor; try assumption; try apply incl_refl.
+    (* Proving that the conflicting justification/future state is not heavy *)
+    unfold not_heavy. unfold fault_weight_state.
+    apply protocol_state_not_heavy in H0.
+    unfold not_heavy in H0.
+    apply Rle_trans with (fault_weight_state j); try assumption.
+    apply sum_weights_incl; try apply set_map_nodup.
+    unfold equivocating_senders. apply set_map_incl.
+    intros msg Hin.
+      apply filter_In in Hin. apply filter_In. destruct Hin.
+      apply in_state_add_in_sorted_iff in H1. destruct H1 as [Heq | Hin].
+      + subst. exfalso. unfold equivocating_message_state in H2.
+        rewrite existsb_exists in H2. destruct H2 as [msg [Hin Hequiv]].
+        apply in_state_add_in_sorted_iff in Hin.
+        destruct Hin as [Heq | Hin].
+        * subst. unfold equivocating_messages in Hequiv. rewrite eq_dec_if_true in Hequiv; try reflexivity.
+          inversion Hequiv.
+        * rewrite equivocating_messages_comm in Hequiv. rewrite non_equivocating_messages_extend in Hequiv
+                                                        ; try assumption. inversion Hequiv.
+    + split; try assumption.
+      unfold equivocating_message_state in H2. apply existsb_exists in H2.
+      destruct H2 as [msg' [Hin' Hequiv]].
+      apply existsb_exists. exists msg'. split; try assumption.
+      apply in_state_add_in_sorted_iff in Hin'.
+      destruct Hin'; try assumption; subst.
+      exfalso. rewrite non_equivocating_messages_extend in Hequiv; try assumption. inversion Hequiv.
+  - subst.
+      intros msg Hin; apply in_state_add_in_sorted_iff; right; assumption.
+  - unfold equivocating_messages.
+      rewrite eq_dec_if_false.
+      + rewrite eq_dec_if_true; try reflexivity.
+        rewrite andb_true_iff.
+        split; rewrite negb_true_iff
+        ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity
+        ; intro.
+        * subst. apply in_state_add_in_sorted_iff in H1.
+          { destruct H1.
+            - inversion H1. subst. apply Hneq. reflexivity.
+            - apply (not_extx_in_x c v j j); try assumption.
+              apply incl_refl.
+          }
+        * apply (not_extx_in_x c' v j' j); try assumption. subst.
+          intros msg Hin. apply in_state_add_in_sorted_iff. right. assumption.
+      + intro. inversion H1; subst; clear H1.
+        apply (not_extx_in_x c' v' j j); try apply incl_refl. rewrite H4 at 2.
+        apply in_state_add_in_sorted_iff. left. reflexivity.
+Qed.
+
+(* Equivocation in Prop *) 
+Definition equivocating (msg1 msg2 : message) : Prop :=
+  sender msg1 = sender msg2 /\ ~ in_state msg1 (justification msg2) /\ ~ in_state msg2 (justification msg1). 
+
+(* Equivocation in Prop <-> equivocation in bool *) 
+Theorem equivocating_messages_correct :
+  forall (msg1 msg2 : message),
+    equivocating_messages msg1 msg2 = true <->
+    equivocating msg1 msg2.
+Proof.
+  intros msg1 msg2; split; intros.
+  - repeat split.
+    now apply equivocating_messages_sender.
+    intro H_not.
+    destruct msg1 as [[c1 v1] j1];
+      destruct msg2 as [[c2 v2] j2].
+    assert (H_copy := H).
+    unfold equivocating_messages in H.
+    apply equivocating_messages_sender in H_copy.
+    simpl in H_copy. subst.
+    destruct (compare_eq_dec (c1, v2, j1) (c2, v2, j2)).
+Admitted.
+
+Definition in_past_state (s1 s2 : state) :=
+  exists (msg : message), in_state msg s2 /\ justification msg = s1. 
+
+Lemma past_protocol_state :
+  forall s, protocol_state s -> 
+       forall s', in_past_state s' s ->
+             protocol_state s'. 
+Proof.
+  intros s H_ps s' H_past.
+  destruct H_past as [msg [H_in H_eq]].
+  rewrite <- H_eq. 
+  now apply protocol_state_justification with s.
+Qed.
+
+Definition exists_next (s : pstate) :=
+  exists msg, protocol_state (add_in_sorted_fn msg s). 
+
+(* All protocol states can transition *) 
+Theorem exists_next_state :
+  forall (s : pstate), exists_next s. 
+Proof.
+  intros [s about_s].
+  remember (map sender (get_messages s)) as lv.
+  destruct lv as [|v lv'] eqn:H_lv.
+  subst. symmetry in Heqlv.
+  apply map_eq_nil in Heqlv.
+  apply nil_empty_state in Heqlv.
+  destruct (@inhabited V) as [v about_v].
+  exact about_V.
+  destruct (estimator_total Empty) as [c about_c].
+  exists (c, v, Empty).
+  apply protocol_state_next; try assumption. 
+  constructor.
+  intros m H_absurd; inversion H_absurd.
+  simpl; rewrite Heqlv; apply not_heavy_single.
+  destruct (estimator_total s) as [c about_c].
+  exists (c,v,s). simpl.
+  apply protocol_state_next; try assumption.
+  easy.
+  (* Now... this message is not in s, but the validator has appeared before *)
+  assert (H_useful := copy_protocol_state s about_s c about_c v). apply protocol_state_not_heavy. 
+  assumption.
+Qed.
+
+Definition exists_next_from (s : pstate) (v : V) :=
+  exists msg, sender msg = v /\
+         protocol_state (add_in_sorted_fn msg s).
+
+Definition is_seen_validator (s : pstate) (v : V) :=
+  In v (map sender (get_messages s)).
+
+(* Senders in any state can continue to send messages *) 
+Theorem exists_next_from_seen_validators :
+  forall (s : pstate) (v : V),
+    is_seen_validator s v ->
+    exists_next_from s v.
+Proof.
+  intros [s about_s] v H_seen.
+  destruct (estimator_total s) as [c about_c]. 
+  exists (c, v, s); repeat split.
+  simpl; apply protocol_state_next; try assumption.
+  apply incl_refl.
+  assert (H_useful := copy_protocol_state s about_s c about_c v). apply protocol_state_not_heavy. 
+  assumption.
+Qed.
+
+(* Indeed, any sender can send messages *) 
+Theorem exists_next_from_any_validator :
+  forall (s : pstate) (v : V),
+    exists_next_from s v.  
+Proof. 
+  intros [s about_s] v.
+  destruct (estimator_total s) as [c about_c]. 
+  exists (c, v, s); repeat split.
+  simpl; apply protocol_state_next; try assumption.
+  apply incl_refl.
+  assert (H_useful := copy_protocol_state s about_s c about_c v). apply protocol_state_not_heavy. 
+  assumption.
+Qed.
+
+(* Assuming there are always at least two validators *) 
+Parameter two_senders_proof : two_senders. 
+
+(* Any message contained in a protocol state can have an equivocating partner *)
+Theorem exists_equivocating_partner :
+  forall (s : pstate) (msg : message),
+    in_state msg s ->
+    exists (msg' : message),
+      equivocating_messages msg msg' = true. 
+Proof.
+  intros [s about_s] msg H_in.
+  assert (H_useful := equivocating_messages_exists two_senders_proof).
+  spec H_useful (estimate msg) (sender msg) (justification msg). spec H_useful.
+  now apply protocol_state_justification with s.
+  spec H_useful.
+  now apply protocol_state_valid_estimate with s.
+  destruct H_useful as [j' [c' [H_prot [H_incl [H_good H_equiv]]]]].
+  exists (c', sender msg, j').
+  replace msg with (estimate msg, sender msg, justification msg). assumption.
+  destruct msg as [[c v] j]; easy.
+Qed.
+(* However, this equivocating partner cannot always be sent - this depends on the current fault weight *)
+
+Proposition exists_next_equivocation :
+  forall (s : pstate) (msg : message),
+    in_state msg s ->
+    exists (msg' : message),
+      equivocating_messages msg msg' = true /\
+      ((proj1_sig (weight (sender msg)) + fault_weight_state s <= proj1_sig t_full)%R -> protocol_state (add_in_sorted_fn msg' s)). 
+Proof.
+  intros [s about_s] msg H_in.
+  destruct (equivocating_messages_exists two_senders_proof (estimate msg) (sender msg) (justification msg)) as [s' H_useful]. 
+  now apply protocol_state_justification with s.
+  now apply protocol_state_valid_estimate with s.
+  destruct H_useful as [c' [about_s' [H_incl [H_good H_equiv]]]].
+  exists (c', sender msg, s'); repeat split; try assumption. 
+  destruct msg as [[c v] j]; simpl; assumption.
+  intro H_not_heavy.
+  simpl in *.
+  constructor; try assumption. 
+Abort. 
+
+Theorem no_self_justification :
+  forall j, protocol_state j ->
+       forall c v, in_state (c, v, j) j -> False. 
+Proof.
+  intros j H_prot c v H_in.
+  induction H_prot.
+  - inversion H_in. 
+  - rewrite in_state_add_in_sorted_iff in H_in. 
+    destruct H_in as [H_eq | H_in].
+    + inversion H_eq.
+      subst. apply IHH_prot2. rewrite <- H5 at 2.
+      unfold in_state.
+      assert (H_useful := set_eq_add_in_sorted (c0,v0,j) s).
+      red in H_useful. destruct H_useful as [H_left H_right].
+      spec H_right (c0,v0,j) (in_eq (c0,v0,j) (get_messages s)).
+      assumption.
+    + apply (not_extx_in_x c v (add_in_sorted_fn (c0,v0,j) s) s).
+      red. intros msg H_msg_in.
+      assert (H_useful := set_eq_add_in_sorted (c0,v0,j) s).
+      destruct H_useful as [_ H_useful].
+      spec H_useful msg. spec H_useful.
+      right; assumption. assumption.
+      assumption.
+Qed.
+
+
+Definition all_validators_equivocate (s : pstate) :=
+  forall (v : V), is_seen_validator s v -> In v (equivocating_senders s). 
+
+Definition exists_honest_validator (s : pstate) :=
+  exists (v : V), is_seen_validator s v /\ ~ In v (equivocating_senders s).
+
+Axiom always_exists_honest :
+  forall (s : pstate), exists (v : V), ~ In v (equivocating_senders s).
+(* This is saying that if all validators equivocate, we can't be a protocol state *)
+
+Lemma equivocating_validator_seen :
+  forall (s : pstate) (v : V),
+    In v (equivocating_senders s) -> is_seen_validator s v. 
+Proof.     
+  intros s v H_in. 
+  unfold equivocating_senders in H_in.
+  rewrite set_map_exists in H_in.
+  destruct H_in as [msg [H_in H_sender]].
+  rewrite <- H_sender.
+  red. rewrite in_map_iff.
+  exists msg; split. reflexivity.
+  rewrite filter_In in H_in.
+  destruct H_in; assumption.
+Qed.
+
+Require Import Classical. 
+
+Theorem reach_exists_honest_validator :
+  forall (s : pstate),
+    exists_honest_validator s \/
+    (exists (s' : pstate),
+      next_future s s' /\ exists_honest_validator s'). 
+Proof. 
+  intros s. 
+  destruct (always_exists_honest s) as [v H_v_honest]. 
+  destruct (classic (is_seen_validator s v)).
+  - (* In the case that v has already been seen *)
+    left; exists v; split; assumption.
+  - (* In the case that v hasn't yet been seen *)
+    right.
+    destruct (estimator_total s) as [c H_c_good].
+    destruct s as [s about_s].
+    assert (about_s' : protocol_state (add_in_sorted_fn (c, v, s) s)) by (apply copy_protocol_state; assumption).
+    (* Constructing the next state in which v sends a message *) 
+    exists (exist _ (add_in_sorted_fn (c,v,s) s) about_s').
+    simpl; split.
+    + (* Proving next state obligation *)
+      exists (c,v,s). split; simpl; easy.
+    + exists v. simpl; split.
+      red. rewrite in_map_iff. exists (c,v,s).
+      split. easy.
+      admit. admit. 
+Admitted. 
+
+Theorem case_validator_equivocation :
+  forall (s : pstate),
+    all_validators_equivocate s \/ exists_honest_validator s.
+Proof. (* This is just predicate de Morgan + negating material implication *)
+Admitted.
+
+(* Only a special kind of state can diverge in one minimal transition : one that is dangerously heavy but has room for growth. *)
+Definition verge_state (s : pstate) := 
+  exists (v : V),
+    is_seen_validator s v /\
+    ~ In v (equivocating_senders s) /\
+    (proj1_sig (weight v) + fault_weight_state s > proj1_sig t_full)%R.
+
+Definition heavy (s : state) :=
+  (fault_weight_state s > proj1_sig t_full)%R. 
+
+Definition next_step_diverges (s : pstate) :=
+  exists (msg1 msg2 : message),
+    equivocating_messages msg1 msg2 = true /\
+    protocol_state (add_in_sorted_fn msg1 s) /\
+    heavy (add_in_sorted_fn msg2 s).
+
+Lemma new_equivocator_grows_weight :
+  forall (s : pstate) (msg : message),
+    in_state msg s -> 
+    is_seen_validator s (sender msg) ->
+    ~ In (sender msg) (equivocating_senders s) ->
+    forall (msg' : message),
+      equivocating_messages msg msg' = true ->
+      fault_weight_state (add_in_sorted_fn msg' s) = (fault_weight_state s + (proj1_sig (weight (sender msg))))%R.  
+Proof.
+  intros s msg H_in H_seen H_honest msg' H_equiv.
+  assert (H_useful := set_eq_add_in_sorted msg s).
+  unfold fault_weight_state, equivocating_senders.
+  admit. 
+Admitted.
+
+Theorem verge_diverges :
+  forall (s : pstate),
+    verge_state s ->
+    next_step_diverges s. 
+Proof.             
+  intros [s about_s] [v [H_v_seen [H_v_equiv H_danger]]].
+  red in H_v_seen. rewrite in_map_iff in H_v_seen.
+  destruct H_v_seen as [msg [H_sender H_in]].
+  exists msg.
+  assert (H_useful := equivocating_messages_exists two_senders_proof (estimate msg) (sender msg) (justification msg)).
+  spec H_useful.
+  now apply protocol_state_justification with s.
+  spec H_useful.
+  now apply protocol_state_valid_estimate with s. 
+  destruct H_useful as [j' [c' [H_incl [H_good H_equiv]]]].
+  exists (c',v,j'). repeat split.
+  - (* Using injectivity of sender to prove equivocation *)
+    destruct msg as [[c v_copy] j] eqn:H_msg.
+    simpl in *. rewrite <- H_sender. 
+    destruct H_equiv; assumption.
+  - (* Proving the good state *)
+    simpl.
+    assert (H_rewrite := add_in_sorted_ignore msg (exist locally_sorted s (protocol_state_sorted s about_s)) H_in).
+    simpl in *.
+    rewrite H_rewrite. assumption.
+  - (* Proving the bad state *)
+    unfold heavy. 
+    simpl in *.
+    assert (H_rewrite := new_equivocator_grows_weight (exist _ s about_s) msg). simpl in *.
+    spec H_rewrite H_in. 
+    spec H_rewrite. simpl. rewrite H_sender.
+    red. simpl. rewrite in_map_iff. exists msg; split; assumption.
+    spec H_rewrite.
+    rewrite H_sender; assumption.
+    spec H_rewrite (c', sender msg, j').
+    spec H_rewrite.
+    destruct msg as [[c v_same] j].
+    subst; simpl; destruct H_equiv; assumption.
+    rewrite H_sender in H_rewrite.
+    rewrite H_rewrite. rewrite Rplus_comm.
+    assumption. 
+Qed.
+
+Definition next_step_cones (s : pstate) :=
+  exists (msg1 msg2 : message),
+    equivocating_messages msg1 msg2 = true /\
+    protocol_state (add_in_sorted_fn msg1 s) /\
+    protocol_state (add_in_sorted_fn msg2 s).
+
+Lemma separate_states :
+  forall (s : pstate),
+  exists (s1 s2 : pstate),
+    set_eq (set_union compare_eq_dec (get_messages s1) (get_messages s2)) (get_messages s)
+    /\ set_inter compare_eq_dec (get_messages s1) (get_messages s2) = []. 
+Proof. Admitted.
+
+Theorem verge_cones :
+    forall (s : pstate),
+    verge_state s ->
+    next_step_cones s.
+Proof. 
+  intros s [v [H_v_seen [H_v_equiv H_danger]]].
+  destruct (separate_states s) as [s_left [s_right [s_union s_intersect]]]. 
+  destruct (estimator_total s_left) as [c_left about_c_left]. 
+  destruct (estimator_total s_right) as [c_right about_c_right].
+  exists (c_left, v, proj1_sig s_left), (c_right, v, proj1_sig s_right).
+  repeat split.
+  rewrite equivocating_messages_correct.
+  red; repeat split. 
+  intros H_not. simpl in H_not.
+  assert (H_useful := message_subset_correct (proj1_sig s_right)).
+  destruct s_right as [s_right about_s_right].
+  spec H_useful about_s_right.
+  spec H_useful (c_left, v, proj1_sig s_left) H_not.
+  simpl in *. red in H_useful.
+  admit.
+  intros H_not. simpl in H_not.
+  assert (H_useful := message_subset_correct (proj1_sig s_left)).
+  destruct s_left as [s_left about_s_left].
+  spec H_useful about_s_left.
+  spec H_useful (c_right, v, proj1_sig s_right) H_not.
+  simpl in *. red in H_useful.
+  admit.
+  destruct s as [s about_s]. 
+  constructor; simpl; try assumption.
+  destruct s_left as [s_left about_s_left]; assumption. intros x H_in. destruct s_union.
+  spec H x.  spec H.
+  rewrite set_union_iff. left; assumption.
+  assumption. admit.
+  destruct s as [s about_s];
+    constructor; try assumption.
+  destruct s_right as [s_right about_s_right].
+  simpl. assumption.
+  admit. admit.
+Admitted.
+
+(* However, we cannot show that all states can reach such verge states. *)
+(* Suppose that this were true *)
+Proposition to_be_shown :
+  forall (s : pstate),
+    exists (s' : pstate),
+      in_past_trace s s' /\ verge_state s'. 
+Proof.
+  intros [s about_s]. 
+  assert (H_ind := about_s).
+  induction H_ind.
+  Print verge_state. 
+Admitted.
+
+(* Then we can indeed show that every infinite path contains a non-confluent state. *) 
+Theorem verge_state_reachable :
+  forall (s : pstate),
+  exists (s' : pstate),
+    in_past_trace s s' /\ next_step_diverges s'. 
+Proof.     
+  intro s.
+  destruct (to_be_shown s) as [s_future [H_history H_verge]].
+  assert (H_useful := verge_diverges s_future H_verge).
+  exists s_future; split; assumption.
+Qed.
+
+(* Can we show that to_be_shown is false? *)
+Proposition cannot_be_shown :
+  (forall (s : pstate),
+      exists (s' : pstate),
+        in_past_trace s s' /\ verge_state s') -> False. 
+Proof. Abort. 
+
+(* This however, should be true : *) 
+Theorem construct_equivocating_messages :
+  forall (s : pstate),
+  exists (msg msg' : message),
+    equivocating_messages msg msg' = true /\
+    (not_heavy (add_in_sorted_fn msg s) ->
+     protocol_state (add_in_sorted_fn msg s) /\
+     protocol_state (add_in_sorted_fn msg' s)).
+Proof.
+  intros [s about_s].
+  assert (H_useful := equivocating_messages_exists two_senders_proof).
+  destruct (estimator_total s) as [c about_c].
+  destruct (@inhabited V about_V) as [v _].
+  spec H_useful c v s about_s about_c.
+  destruct H_useful as [s' [c' [H_prot [H_incl [H_good H_equiv]]]]]. 
+  exists (c,v,s), (c',v,s').
+  simpl; repeat split.
+  assumption.
+  (* Proving that adding the first message gives a protocol state *) 
+  constructor; try assumption; apply incl_refl.
+  (* Proving that adding the second message gives a protocol state *)
+  constructor; try assumption.
+Abort.
 
 
