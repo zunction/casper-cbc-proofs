@@ -1,7 +1,9 @@
-Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
+Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts ChoiceFacts.
 Import ListNotations.   
 From Casper 
 Require Import preamble ListExtras ListSetExtras RealsExtras protocol.
+
+Axiom choice : forall (X : Type), ConstructiveIndefiniteDescription_on X.
 
 (* Implementation -instantiates-> Level Specific *)
 (** Building blocks for instancing CBC_protocol with full node version **)
@@ -10,6 +12,35 @@ Require Import preamble ListExtras ListSetExtras RealsExtras protocol.
 Variables C V : Type. 
 Context (about_C : `{StrictlyComparable C})
         (about_V : `{StrictlyComparable V}). 
+
+Parameter two_senders : exists (v1 v2 : V), v1 <> v2.
+
+Lemma distinct_sender_total : forall v1 : V, exists v2 : V, v1 <> v2.
+Proof.
+  intros.
+  destruct two_senders  as [v1' [v2' Hneq]].
+  destruct (compare_eq_dec v1 v1') eqn:Heq.
+  - subst. exists v2'. assumption.
+  - exists v1'. assumption.
+Qed.
+
+(* ****** begin ****** *) 
+Definition get_distinct_sender (v : V) :=
+  proj1_sig (choice V (fun v' => v <> v') (distinct_sender_total v)).
+
+Definition get_distinct_sender_correct (v : V) :=
+  proj2_sig (choice V (fun v' => v <> v') (distinct_sender_total v)).
+
+Lemma get_distinct_sender_correct' :
+  forall v, get_distinct_sender v <> v. 
+Proof.
+  intros. unfold get_distinct_sender.
+  assert (H_useful := get_distinct_sender_correct v).
+  simpl in *.
+  intro H_absurd.
+  apply H_useful; symmetry; assumption.
+Qed.
+(* ******  end  ****** *)
 
 Parameter weight : V -> {r : R | (r > 0)%R}.
 Definition sum_weights (l : list V) : R :=
@@ -640,6 +671,20 @@ Proof.
     apply (no_confusion_next_empty _ _ H0).
 Qed.
 
+Lemma add_preserves_message_membership :
+  forall msg s,
+    in_state msg s ->
+    forall c v j,
+      in_state msg (add_in_sorted_fn (c,v,j) s). 
+Proof.
+  intros.
+  assert (H_useful := set_eq_add_in_sorted (c,v,j) s).
+  destruct H_useful as [_ H_useful].
+  spec H_useful msg; spec H_useful. 
+  right; assumption.
+  assumption.
+Qed.
+
 Lemma add_in_sorted_inv1 : forall msg msg' sigma,
   add_in_sorted_fn msg sigma = next msg' Empty -> msg = msg'.
 Proof.
@@ -1226,10 +1271,6 @@ Qed.
 Definition reachable (s1 s2 : sorted_state) :=
   syntactic_state_inclusion (sorted_state_proj1 s1) (sorted_state_proj1 s2).
 
-Notation "sigma2 'in_Futures' sigma1" :=
-  (reachable sigma1 sigma2)
-  (at level 20).
-
 Lemma reachable_refl : forall s, reachable s s.
 Proof. intros; easy. Qed.
 
@@ -1259,6 +1300,14 @@ Proof. intros; subst; assumption. Qed.
 (* Defining the estimator function as a relation *) 
 Parameters (estimator : state -> C -> Prop)
            (estimator_total : forall s : state, exists c : C, estimator s c). 
+
+(* ****** begin ****** *)
+Definition get_estimate (s : state) :=
+  proj1_sig (choice C (estimator s) (estimator_total s)).
+
+Definition get_estimate_correct (s : state) :=
+  proj2_sig (choice C (estimator s) (estimator_total s)). 
+(* ******  end  ****** *)
 
 (* Defining message equivocation, computationally and propositionally *) 
 Definition equivocating_messages (msg1 msg2 : message) : bool :=
@@ -1362,6 +1411,16 @@ Proof.
   assumption. 
 Qed. 
 
+Lemma equivocating_messages_prop_swap :
+  forall msg1 msg2,
+    equivocating_messages_prop msg1 msg2 <-> equivocating_messages_prop msg2 msg1.
+Proof.
+  intros; rewrite <- equivocating_messages_correct.
+  rewrite <- equivocating_messages_correct.
+  rewrite equivocating_messages_comm.
+  tauto.
+Qed. 
+  
 (* The intuition is we can never satisfy that neither messages are contained in each other's justifications. *) 
 Lemma non_equivocating_messages_extend : forall msg sigma1 c v,
   In msg (get_messages sigma1) ->
@@ -1570,15 +1629,18 @@ Proof.
       apply in_state_add_in_sorted_iff. right. assumption.
 Qed.
 
+(* ************ *)
 (* A new equivocation from a sender inducts it into the set of equivocating_senders *)
-(* Revolting proof warning *) 
-Lemma add_equivocation_from_sender :
+(* This says nothing about protocol state validity *) 
+(* And the proof is revolting *) 
+Lemma next_equivocation :
   forall s msg,
     ~ in_state msg s -> 
-  (exists msg',
-      in_state msg' s /\
-      equivocating_messages_prop msg msg') ->
-  set_eq (equivocating_senders (next msg s)) (set_add compare_eq_dec (sender msg) (equivocating_senders s)).
+    (exists msg',
+        in_state msg' s /\
+        equivocating_messages_prop msg msg') ->
+    set_eq (equivocating_senders (next msg s))
+           (set_add compare_eq_dec (sender msg) (equivocating_senders s)).
 Proof.   
   intros s [[c v] j] H_not_in [msg' [H_in H_equiv]].
   (* Book-keeping position *) 
@@ -1655,26 +1717,27 @@ Proof.
     destruct H_in0; assumption.
 Qed.
 
-
-Parameter get_estimate : state -> C.
-Parameter correct_estimate : forall s, estimator s (get_estimate s). 
-
-Lemma next_equivocation_from_sender :
+(* Specializing the above lemma with the next message from some v *) 
+Lemma next_equivocation_from :
   forall s v,
   (exists msg',
       in_state msg' s /\
       equivocating_messages_prop msg' (get_estimate s, v, s)) ->
-  set_eq (equivocating_senders (next (get_estimate s, v, s) s)) (set_add compare_eq_dec (sender (get_estimate s, v, s)) (equivocating_senders s)).
+  set_eq (equivocating_senders (next (get_estimate s, v, s) s))
+         (set_add compare_eq_dec (sender (get_estimate s, v, s)) (equivocating_senders s)).
 Proof.
   intros.
-  apply add_equivocation_from_sender. 
+  apply next_equivocation. 
   apply not_extx_in_x. apply incl_refl.
   destruct H as [msg' [H_in [H_neq [H_sender [H1 H2]]]]]; exists msg'; split; try assumption.
   repeat split; try symmetry; try assumption.
   intro Hnot; apply H_neq; symmetry; assumption.
 Qed.
+(* ************ *)
 
-(* What is the point of this lemma? *) 
+(* Lifting parameterization from set V to states *) 
+Definition fault_weight_state (sigma : state) : R := sum_weights (equivocating_senders sigma).
+
 Lemma sum_weights_in : forall v vs,
   NoDup vs ->
   In v vs ->
@@ -1716,6 +1779,79 @@ Proof.
       * rewrite <- Rplus_0_l at 1. apply Rplus_le_compat_r. left. destruct weight. simpl. auto. 
 Qed.
 
+(* ****** begin ****** *)
+Lemma messages_equivocating_senders_eq :
+  forall s1 s2,
+    set_eq (get_messages s1) (get_messages s2) ->
+    set_eq (equivocating_senders s1) (equivocating_senders s2). 
+Proof. Admitted.
+
+Lemma equivocating_senders_fault_weight_eq :
+  forall s1 s2,
+    set_eq (equivocating_senders s1) (equivocating_senders s2) ->
+    fault_weight_state s1 = fault_weight_state s2. 
+Proof. Admitted.
+
+Lemma messages_fault_weight_eq :
+  forall s1 s2,
+    set_eq (get_messages s1) (get_messages s2) ->
+    fault_weight_state s1 = fault_weight_state s2. 
+Proof. 
+  intros s1 s2 H_eq.
+  apply equivocating_senders_fault_weight_eq.
+  now apply messages_equivocating_senders_eq.
+Qed.
+
+Lemma add_next_equivocating_senders_eq :
+  forall c v j s,
+    set_eq (equivocating_senders (add_in_sorted_fn (c,v,j) s))
+           (equivocating_senders (next (c,v,j) s)). 
+Proof.
+  intros.
+  assert (H_obv : set_eq (get_messages (add_in_sorted_fn (c,v,j) s))
+                         (get_messages (next (c,v,j) s))).
+  { split; intros msg H_in. 
+    - apply in_state_add_in_sorted_iff in H_in.
+      destruct H_in. subst. simpl. tauto.
+      right. assumption.
+    - apply in_state_add_in_sorted_iff.
+      inversion H_in. subst. tauto.
+      right; assumption. }
+  now apply messages_equivocating_senders_eq.
+Qed. 
+
+Lemma senders_fault_weight_eq :
+  forall lv1 lv2,
+    set_eq lv1 lv2 ->
+    sum_weights lv1 = sum_weights lv2. 
+Proof. (* This involves some fold_right wrangling *) Admitted. 
+  
+Lemma add_fault_weight :
+  forall s v,
+    (exists msg',
+        in_state msg' s /\
+        equivocating_messages_prop msg' (get_estimate s, v, s)) ->
+    fault_weight_state (add_in_sorted_fn (get_estimate s, v, s) s) =
+    (fault_weight_state s + proj1_sig (weight v))%R. 
+Proof.
+  intros.
+  assert (H_useful := next_equivocation s (get_estimate s, v, s)).
+  spec H_useful. 
+  apply not_extx_in_x; apply incl_refl.
+  spec H_useful. 
+  destruct H as [msg [H_in H_equiv]].
+  exists msg. split; try assumption.
+  now apply equivocating_messages_prop_swap.
+  assert (H_eq := add_next_equivocating_senders_eq (get_estimate s) v s s).
+  assert (H_tran := set_eq_tran _ _ _ H_eq H_useful).
+  apply senders_fault_weight_eq in H_tran.
+  unfold fault_weight_state.
+  rewrite H_tran.
+  simpl. unfold sum_weights.
+  admit.
+Admitted.   
+(* ******  end  ****** *)
+
 Lemma fault_weight_state_incl : forall sigma sigma',
   syntactic_state_inclusion sigma sigma' ->
   (fault_weight_state sigma <= fault_weight_state sigma')%R.
@@ -1723,9 +1859,6 @@ Proof.
   intros. apply sum_weights_incl; try apply set_map_nodup.
   apply equivocating_senders_incl. assumption.
 Qed.
-
-(* Need to add a lot more meat to the fault_weight_state library in order to reason about reachability *) 
-
 
 (** Proof obligations from CBC_protocol **)
 Lemma equivocation_weight_compat : forall (s1 s2 : sorted_state), (fault_weight_state s1 <= fault_weight_state (state_union s2 s1))%R. 
@@ -1743,9 +1876,7 @@ Proof.
   assumption. 
 Qed.
 
-(** Sunday, 11th August **) 
 (* From protocol_states.v *)
-
 (* Justification subset condition *) 
 Definition incl_messages (s1 s2 : state) : Prop :=
   incl (get_messages s1) (get_messages s2).
@@ -2000,6 +2131,32 @@ Proof.
     apply (protocol_state_justification (add_in_sorted_fn (c,v,j) s)); try constructor; assumption. 
 Qed.
 
+(* No protocol state can contain a message that contains itself as the justification *) 
+Theorem no_self_justification :
+  forall j, protocol_state j ->
+       forall c v, in_state (c, v, j) j -> False. 
+Proof.
+  intros j H_prot c v H_in.
+  induction H_prot.
+  - inversion H_in. 
+  - rewrite in_state_add_in_sorted_iff in H_in. 
+    destruct H_in as [H_eq | H_in].
+    + inversion H_eq.
+      subst. apply IHH_prot2. rewrite <- H5 at 2.
+      unfold in_state.
+      assert (H_useful := set_eq_add_in_sorted (c0,v0,j) s).
+      red in H_useful. destruct H_useful as [H_left H_right].
+      spec H_right (c0,v0,j) (in_eq (c0,v0,j) (get_messages s)).
+      assumption.
+    + apply (not_extx_in_x c v (add_in_sorted_fn (c0,v0,j) s) s).
+      red. intros msg H_msg_in.
+      assert (H_useful := set_eq_add_in_sorted (c0,v0,j) s).
+      destruct H_useful as [_ H_useful].
+      spec H_useful msg. spec H_useful.
+      right; assumption. assumption.
+      assumption.
+Qed.
+
 Instance FullNode_syntactic : CBC_protocol :=
   { consensus_values := C;  
     about_consensus_values := about_C;
@@ -2026,11 +2183,6 @@ Instance FullNode_syntactic : CBC_protocol :=
     }. 
  
 Check @level0 FullNode_syntactic.
-
-
-Parameter get_estimate : state -> C.
-Parameter correct_estimate : forall s, estimator s (get_estimate s). 
-
 
 (* From threshold.v *)
 Lemma sufficient_validators_pivotal_ind : forall vss,
@@ -2261,7 +2413,8 @@ Proof.
       remember (next (cempty, v, Empty) Empty) as sigma.
       remember (valid_protocol_state sigma csigma cempty vs) as sigma2.
       { apply incl_tran with (equivocating_senders sigma2).
-        - apply set_eq_proj1. apply equivocating_senders_single.
+        - apply set_eq_proj1.
+          apply equivocating_senders_unseen.
           intro. apply set_map_exists in H4.
           destruct H4 as [[(cx, vx) jx] [Hin Heq]].
           simpl in Heq. rewrite Heq in Hin. clear Heq.
@@ -2513,9 +2666,7 @@ Instance level1 : PartialOrderNonLCish :=
   { no_local_confluence_ish := no_local_confluence_prot_state inhabited_two; }.
 
 (** Strong non-triviality **)
-
 (* Defining reachablity in terms of message sending *)
-
 Definition in_future (s1 s2 : state) :=
   syntactic_state_inclusion s1 s2. 
 
@@ -2524,11 +2675,6 @@ Fixpoint add_messages (s : state) (lm : list message) :=
   | [] => s
   | msg :: tl => add_messages (add_in_sorted_fn msg s) tl
   end.
-
-(* Eliding the choice nonsense for now *) 
-
-
-Program Definition step_protocol_state (s : pstate) (v : V) : pstate := exist protocol_state (add_in_sorted_fn (get_estimate s, v, s) s) (copy_protocol_state (proj1_sig s) (proj2_sig s) (get_estimate s) (correct_estimate s) v).
 
 Lemma add_messages_preserves :
   forall (s : state) (lm : list message) (msg : message),
@@ -2571,7 +2717,8 @@ Lemma add_messages_next :
     forall (msg' : message),
       In msg (get_messages (add_messages (next msg' s) lm)). 
 Proof.
-  intros. Admitted. 
+  intros.
+Admitted. 
 
 Lemma add_messages_ind :
   forall (s : state) (hd : message) (tl : list message),
@@ -2586,9 +2733,6 @@ Proof.
     simpl in IHtl.
     admit. 
 Admitted.
-
-Definition in_future_trace (s1 s2 : state) :=
-  exists (lm : list message), add_messages s1 lm = s2. 
 
 Lemma sorted_add_idempotent :
   forall c v j s,
@@ -2610,6 +2754,11 @@ Proof.
   rewrite <- H in H_copy.
 Admitted.   
 
+(* ****** begin ****** *)
+(* Modal [] operator *) 
+Definition in_future_trace (s1 s2 : state) :=
+  exists (lm : list message), add_messages s1 lm = s2. 
+
 Theorem in_future_equiv :
   forall (s1 s2 : pstate), in_future s1 s2 <-> in_future_trace s1 s2. 
 Proof.
@@ -2626,8 +2775,10 @@ Proof.
     intros x H_in.
     apply add_messages_preserves.
     assumption. 
-Abort.
+Admitted.
 
+(* Modal X operator *)
+(* Rename? *) 
 Definition next_future (s1 s2 : state) :=
    exists (msg : message), add_in_sorted_fn msg s1 = s2. 
 
@@ -2637,7 +2788,6 @@ Definition in_past (s1 s2 : state) :=
 Definition in_past_trace (s1 s2 : state) :=
   exists (msg : message), in_state msg s1 /\ justification msg = s2. 
 
-(* Should this be provable? *) 
 Theorem in_past_equiv :
   forall (s1 s2 : pstate), in_past s1 s2 <-> in_past_trace s1 s2. 
 Proof.
@@ -2652,47 +2802,136 @@ Proof.
     spec H_useful msg H_msg_in. assumption.
 Admitted. 
 
+Definition no_common_future (s1 s2 : pstate) :=
+  forall (s : pstate), in_future s1 s /\ in_future s2 s -> False. 
+
+Definition yes_common_future (s1 s2 : pstate) :=
+  exists (s : pstate), in_future s1 s /\ in_future s2 s. 
+
 Definition strong_nontriviality :=
+  (* For every state, there exists a state *) 
   forall (s1 : pstate),
   exists (s2 : pstate),
+    (* That is reachable in one step *) 
     next_future s1 s2 /\
+    (* And there exists a third state *)
     exists (s3 : pstate),
-    forall (s : pstate),
-      in_future s s3 /\ in_future s s2 -> False. 
+      (* Such that s1 and s3 share a common future *)
+      yes_common_future s1 s3
+      /\
+      (* But s2 and s3 don't. *) 
+      no_common_future s2 s3. 
+
+Definition not_strong_nontriviality :=
+  exists (s1 : pstate),
+  forall (s2 : pstate),
+    ~ next_future s1 s2 /\
+    forall (s3 : pstate),
+      ~ in_future s1 s3
+      \/
+      no_common_future s2 s3
+      \/
+      yes_common_future s1 s3. 
+
+(* Sanity check theorem *) 
+Theorem lem_strong_nontriviality :
+  ~ strong_nontriviality <-> not_strong_nontriviality.
+Proof.
+  split; intros H.
+  - red in H.
+    exfalso. 
+    apply H; clear H. intro.
+    destruct (@inhabited V about_V) as [v _]. 
+    assert (about_s2  : protocol_state (add_in_sorted_fn (get_estimate (proj1_sig s1), v, proj1_sig s1) s1)).
+    { destruct s1 as [s1 about_s1]; simpl in *.
+      apply copy_protocol_state; try assumption; try apply get_estimate_correct. } 
+    exists (exist protocol_state (add_in_sorted_fn (get_estimate (proj1_sig s1), v, proj1_sig s1) s1) about_s2).
+    simpl in *. split.
+    exists (get_estimate (proj1_sig s1), v, proj1_sig s1).
+    reflexivity.
+    admit. 
+  - intro Hnot.
+    destruct H as [s1 H].
+    spec Hnot s1. 
+    destruct Hnot as [s2 [H_next [s3 [H_yes H_no]]]].
+    spec H s2.
+    destruct H as [H _].
+    contradiction.
+Admitted.
+
+Theorem material_implication :
+  forall (P Q : Prop),
+    (P -> Q) <-> (~P \/ Q). 
+Proof.
+  intros; split; intros; tauto. 
+Qed.   
+
+Require Import Classical. 
+Theorem nnpp_strong_nontriviality :
+  ~ not_strong_nontriviality -> strong_nontriviality. 
+Proof.
+  rewrite material_implication.
+  destruct (classic strong_nontriviality).
+  right; assumption. 
+  left.
+  intro Hnot.
+  admit. 
+Admitted.   
+
+(* Assuming that we have NNPP, let's see why this is false *) 
+Theorem not_not_strong_nontriviality :
+  ~ not_strong_nontriviality. 
+Proof.
+  intros H_not.
+  destruct H_not as [s1 H_not].
+  destruct (@inhabited V about_V) as [v _]. 
+  assert (about_s2  : protocol_state (add_in_sorted_fn (get_estimate (proj1_sig s1), v, proj1_sig s1) s1)).
+  { destruct s1 as [s1 about_s1]; simpl in *.
+    apply copy_protocol_state; try assumption; try apply get_estimate_correct. } 
+  spec H_not (exist protocol_state (add_in_sorted_fn (get_estimate (proj1_sig s1), v, proj1_sig s1) s1) about_s2).
+  simpl in *.
+  destruct H_not as [H_absurd _].
+  apply H_absurd.
+  exists (get_estimate (proj1_sig s1), v, proj1_sig s1); reflexivity. 
+Qed.
+
+Definition is_equivocating_sender (v : V) (s : pstate) :=
+  In v (equivocating_senders s). 
+
+Parameter max_sender : list V -> V. 
+Parameter about_max_sender : forall lv v, max_sender lv = v -> forall v', In v' lv -> (proj1_sig (weight v') <= proj1_sig (weight v))%R.
 
 Theorem to_prove : strong_nontriviality. 
 Proof.
-  intros [s1 about_s1].
-  (* Any validator v can send a message to reach s2 from s1. Both s1 and s2 are agnostic about whether v is equivocating in them. *)
-  (* So we construct such a message with an arbitrary v. *)
-  destruct (@inhabited V about_V) as [v _].
+  intros s1.
+  (* There is a potentially pivotal validator v that can send a message to reach s2 from s1. Both s1 and s2 are agnostic about whether v is equivocating in them. *)
+  destruct exists_pivotal_validator as [v about_v].
   destruct (estimator_total s1) as [c about_c]. 
-  exists (exist protocol_state (add_in_sorted_fn (c,v,s1) s1) (copy_protocol_state s1 about_s1 c about_c v)).
+  destruct (classic (is_equivocating_sender v s1)).
+  - (* In the case that v is already equivocating in s1, *)
+    destruct about_v as [vs [H_nodup [H_notin [_ H_vs]]]].
+    remember (equivocating_senders s1) as v_now.
+    remember (set_diff compare_eq_dec vs v_now) as v_comp.
+    (* Now we want to sort v_comp and obtain the maximum weighted sender. *)
+    remember (max_sender v_comp) as v'.
+    destruct s1 as [s1 about_s1]. 
+    exists (exist protocol_state (add_in_sorted_fn (c,v',s1) s1) (copy_protocol_state s1 about_s1 c about_c v')).
   (* Proving next-step relation is trivial. *) 
   split.
-  exists (c,v,s1); easy.
-  (* Now we want to construct a future state that does not share any common future states with s2. 
-     In order for this to be true, s3 must be constructed such that 1) v is a pivotal equivocator in s3, and 2) the equivocating partner message of (c,v,s1) is contained in s3. 
-     Because s2 contains (c,v,s1), and (c,v,s1) can never be added to s3 (and therefore appear in any of its future states), s2 and s3 can never share a common future. *)
-  (* We are agnostic as to whether s3 is reachable from s1. *) 
-Admitted.
-
-(** Helper lemmas/exploration **) 
-Definition two_senders := exists (v1 v2 : V), v1 <> v2.
-
-Lemma distinct_sender : two_senders -> forall v1 : V, exists v2 : V, v1 <> v2.
-Proof.
-  intros.
-  destruct H  as [v1' [v2' Hneq]].
-  destruct (compare_eq_dec v1 v1') eqn:Heq.
-  - subst. exists v2'. assumption.
-  - exists v1'. assumption.
-Qed.
-
-
+  exists (c,v',s1); easy. 
+  (* s3 is the state with equivocations from all the senders in v_comp save for v' recursively added to s1, in addition to (c,v',s1)'s equivocating partner message. *)
+  admit. 
+  -  (* In the case that v is not equivocating in s1 *)
+    destruct s1 as [s1 about_s1].
+    exists (exist protocol_state (add_in_sorted_fn (c,v,s1) s1) (copy_protocol_state s1 about_s1 c about_c v)).
+    split.
+    exists (c,v,s1); easy.
+    (* s3 is the state with equivocations from all the senders in vs recursively added to s1, in addition to (c,v,s1)'s equivocating partner message. *)
+    destruct about_v as [lv [H_lv_nodup [H_lv_notin [H_weight1 H_weight2]]]].
+Abort.
+(* ******  end  ****** *)
 
 Theorem equivocating_messages_exists :
-  two_senders ->
   forall c v j,
     protocol_state j ->
     estimator j c ->
@@ -2702,8 +2941,9 @@ Theorem equivocating_messages_exists :
       estimator j' c' /\
       equivocating_messages (c, v, j) (c', v, j') = true.
 Proof.
-  intros H c v j H0 Hestj.
-  destruct (distinct_sender H v) as [v' Hneq].
+  intros c v j H0 Hestj.
+  remember (get_distinct_sender v) as v'.
+  assert (about_v' := get_distinct_sender_correct v).
   exists (add_in_sorted_fn (c, v', j) j).
   remember (add_in_sorted_fn (c, v', j) j) as j'.
   destruct (estimator_total j') as [c' Hest].
@@ -2721,9 +2961,9 @@ Proof.
     unfold equivocating_senders. apply set_map_incl.
     intros msg Hin.
       apply filter_In in Hin. apply filter_In. destruct Hin.
-      apply in_state_add_in_sorted_iff in H1. destruct H1 as [Heq | Hin].
-      + subst. exfalso. unfold equivocating_in_state in H2.
-        rewrite existsb_exists in H2. destruct H2 as [msg [Hin Hequiv]].
+      apply in_state_add_in_sorted_iff in H. destruct H as [Heq | Hin].
+      + subst. exfalso. unfold equivocating_in_state in H1.
+        rewrite existsb_exists in H1. destruct H1 as [msg [Hin Hequiv]].
         apply in_state_add_in_sorted_iff in Hin.
         destruct Hin as [Heq | Hin].
         * subst. unfold equivocating_messages in Hequiv. rewrite eq_dec_if_true in Hequiv; try reflexivity.
@@ -2731,8 +2971,8 @@ Proof.
         * rewrite equivocating_messages_comm in Hequiv. rewrite non_equivocating_messages_extend in Hequiv
                                                         ; try assumption. inversion Hequiv.
     + split; try assumption.
-      unfold equivocating_in_state in H2. apply existsb_exists in H2.
-      destruct H2 as [msg' [Hin' Hequiv]].
+      unfold equivocating_in_state in H1. apply existsb_exists in H1.
+      destruct H1 as [msg' [Hin' Hequiv]].
       apply existsb_exists. exists msg'. split; try assumption.
       apply in_state_add_in_sorted_iff in Hin'.
       destruct Hin'; try assumption; subst.
@@ -2746,655 +2986,399 @@ Proof.
         split; rewrite negb_true_iff
         ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity
         ; intro.
-        * subst. apply in_state_add_in_sorted_iff in H1.
-          { destruct H1.
-            - inversion H1. subst. apply Hneq. reflexivity.
+        * subst. apply in_state_add_in_sorted_iff in H.
+          { destruct H.
+            - inversion H. subst. apply about_v'; auto.
             - apply (not_extx_in_x c v j j); try assumption.
               apply incl_refl.
           }
         * apply (not_extx_in_x c' v j' j); try assumption. subst.
           intros msg Hin. apply in_state_add_in_sorted_iff. right. assumption.
-      + intro. inversion H1; subst; clear H1.
-        apply (not_extx_in_x c' v' j j); try apply incl_refl. rewrite H4 at 2.
+      + intro. inversion H; subst; clear H.
+        apply (not_extx_in_x c' (get_distinct_sender v) j j); try apply incl_refl. rewrite H3 at 2.
         apply in_state_add_in_sorted_iff. left. reflexivity.
 Qed.
 
+(* ****** begin ****** *)
 (* Removing the existential from the above theorem *)
-Theorem about_equivocating_messages :
-  forall j, protocol_state j ->
-       forall v v', v <> v' -> 
-               protocol_state (add_in_sorted_fn (get_estimate j, v', j) j)
-               /\
-               equivocating_messages (get_estimate j, v, j)
-                                     (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j) = true. 
-Proof.
-  intros j H0 v v' H_neq. split. 
-  - (* Proving that the conflicting justification is also a valid protocol state *) 
-    subst.
-    constructor; try assumption; try apply incl_refl.
-    (* Proving that the conflicting justification/future state is not heavy *)
-    unfold not_heavy. unfold fault_weight_state.
-    apply protocol_state_not_heavy in H0.
-    unfold not_heavy in H0.
-    apply correct_estimate.
-    apply Rle_trans with (fault_weight_state j); try assumption.
-    apply sum_weights_incl; try apply set_map_nodup.
-    unfold equivocating_senders. apply set_map_incl.
-    intros msg Hin.
-      apply filter_In in Hin. apply filter_In. destruct Hin.
-      apply in_state_add_in_sorted_iff in H.
-      destruct H as [Heq | Hin].
-      + subst. exfalso. unfold equivocating_in_state in H1.
-        rewrite existsb_exists in H1. destruct H1 as [msg [Hin Hequiv]].
-        apply in_state_add_in_sorted_iff in Hin.
-        destruct Hin as [Heq | Hin].
-        * subst. unfold equivocating_messages in Hequiv.
-          rewrite eq_dec_if_true in Hequiv; try reflexivity.
-          inversion Hequiv.
-        * rewrite equivocating_messages_comm in Hequiv.
-          rewrite non_equivocating_messages_extend in Hequiv
-          ; try assumption. inversion Hequiv.
-    + split; try assumption.
-      unfold equivocating_in_state in H1. apply existsb_exists in H1.
-      destruct H1 as [msg' [Hin' Hequiv]].
-      apply existsb_exists. exists msg'. split; try assumption.
-      apply in_state_add_in_sorted_iff in Hin'.
-      destruct Hin'; try assumption; subst.
-      exfalso. rewrite non_equivocating_messages_extend in Hequiv; try assumption.
-      inversion Hequiv.
-    + now apply protocol_state_not_heavy.
-  - unfold equivocating_messages.
-      rewrite eq_dec_if_false.
-      + rewrite eq_dec_if_true; try reflexivity.
-        rewrite andb_true_iff.
-        split; rewrite negb_true_iff
-        ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity
-        ; intro.
-        * subst. apply in_state_add_in_sorted_iff in H.
-          { destruct H.
-            - inversion H. subst. apply H_neq. reflexivity.
-            - apply (not_extx_in_x (get_estimate j) v j j); try assumption.
-              apply incl_refl.
-          }
-        * apply (not_extx_in_x (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j)) v (add_in_sorted_fn (get_estimate j, v', j) j) j); try assumption.
-          subst.
-          intros msg Hin. apply in_state_add_in_sorted_iff. right. assumption.
-      + intro. inversion H; subst; clear H.
-        apply (not_extx_in_x (get_estimate j) v' j j); try apply incl_refl.
-        rewrite H3 at 3.
-        apply in_state_add_in_sorted_iff. left. reflexivity.  
-Qed. 
-
-(* j' = add_in_sorted_fn (get_estimate j, v', j) j.
-   second state = add_in_sorted_fn (get_estimate j', v, j') j'.
-   third state = add_in_sorted_fn (get_estimate j, v, j) second_state.  *) 
-
-Lemma add_preserves_message_membership :
-  forall msg s,
-    in_state msg s ->
-    forall c v j,
-      in_state msg (add_in_sorted_fn (c,v,j) s). 
-Proof.
-  intros.
-  assert (H_useful := set_eq_add_in_sorted (c,v,j) s).
-  destruct H_useful as [_ H_useful].
-  spec H_useful msg; spec H_useful. 
-  right; assumption.
-  assumption.
-Qed. 
-
-Lemma fault_weight_preserve :
-  forall (s : pstate) (v : V),
-    fault_weight_state s = fault_weight_state (add_in_sorted_fn (get_estimate s, v, proj1_sig s) s).
-  intros s v.
-  assert (H_useful := non_equivocating_messages_extend (get_estimate s, v, proj1_sig s)). 
-Theorem more_about_equivocating_messages :
+(* Replacing all occurrences of equivocation in bool with equivocation in Prop *)
+(* Here's how we can construct two equivocating messages *) 
+Lemma about_equivocating_messages :
   forall j,
     protocol_state j ->
     forall v v',
       v <> v' -> 
-      protocol_state (add_in_sorted_fn (get_estimate j, v', j) j)
-      /\
-      equivocating_messages (get_estimate j, v, j) (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j) = true
-      /\
+      equivocating_messages_prop (get_estimate j, v, j)
+                                 (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j). 
+Proof.
+  intros j H0 v v' H_neq.
+  (* Being lazy here to reuse the other bool-based proof for now *) 
+  rewrite <- equivocating_messages_correct. 
+  unfold equivocating_messages.
+  rewrite eq_dec_if_false.
+  + rewrite eq_dec_if_true; try reflexivity.
+    rewrite andb_true_iff.
+    split; rewrite negb_true_iff
+    ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity
+    ; intro.
+    * subst. apply in_state_add_in_sorted_iff in H.
+      { destruct H.
+        - inversion H. subst. apply H_neq. reflexivity.
+        - apply (not_extx_in_x (get_estimate j) v j j); try assumption.
+          apply incl_refl.
+      }
+    * apply (not_extx_in_x (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j)) v (add_in_sorted_fn (get_estimate j, v', j) j) j); try assumption.
+      subst.
+      intros msg Hin. apply in_state_add_in_sorted_iff. right. assumption.
+  + intro. inversion H; subst; clear H.
+    apply (not_extx_in_x (get_estimate j) v' j j); try apply incl_refl.
+    rewrite H3 at 3.
+    apply in_state_add_in_sorted_iff. left. reflexivity.  
+Qed.
+
+(* Defining the state that adds this minimal equivocation *) 
+Definition next_equivocation_state (j : state) (v v' : V) : state :=
+  add_in_sorted_fn
+    (* One equivocation partner *)
+    (get_estimate j, v, j)
+    (* First state *) 
+    (add_in_sorted_fn
+       (* Other equivocation partner *) 
+       (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))
+       (* Zero-th state *)
+       (add_in_sorted_fn (get_estimate j, v', j) j)).
+
+Definition add_weight_under (s : state) (v : V) :=
+  (fault_weight_state s + proj1_sig (weight v) <= proj1_sig t_full)%R. 
+
+(* Under not-overweight conditions, the resulting state is a protocol state *) 
+Theorem next_equivocation_protocol_state :
+  forall j,
+    protocol_state j ->
+    forall v v',
+      v <> v' -> 
       (* This is the most minimal condition we need about fault weight *) 
-      ((fault_weight_state j + proj1_sig (weight v) <= proj1_sig t_full)%R ->
-       protocol_state (add_in_sorted_fn
-                        (* One equivocation partner *)
-                        (get_estimate j, v, j)
-                        (* First state *) 
-                        (add_in_sorted_fn
-                           (* Other equivocation partner *) 
-                           (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))
-                           (* Zero-th state *)
-                           (add_in_sorted_fn (get_estimate j, v', j) j)))).
+      (add_weight_under j v ->
+       protocol_state (next_equivocation_state j v v')). 
 Proof.
   intros j H0 v v' H_neq.
   assert (H_useful := about_equivocating_messages j H0 v v' H_neq).
-  destruct H_useful as [H1 H2].
-  repeat split; try assumption.
+  destruct H_useful as [H2_noteq [H2_sender [H2_left H2_right]]]. 
+  intro H_weight. 
   (* Now. *)
-  intro H_weight.
   constructor; try assumption; try apply correct_estimate.
-  - apply copy_protocol_state; try assumption; try apply correct_estimate.
+  - apply copy_protocol_state; try assumption; try apply get_estimate_correct.
+    apply copy_protocol_state; try assumption; try apply get_estimate_correct.
   - intros msg H_in.
     (* Facilitate membership peeling with helper lemma *) 
     do 2 apply add_preserves_message_membership.
     assumption.
-  - apply protocol_state_not_heavy in H1.
+  - apply get_estimate_correct.
+  - apply protocol_state_not_heavy in H0.
     red.
     assert (fault_weight_state (add_in_sorted_fn (get_estimate j, v, j)
                                                  (add_in_sorted_fn
                                                     (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j) (add_in_sorted_fn (get_estimate j, v', j) j)))
             =
             (fault_weight_state (add_in_sorted_fn (get_estimate j, v', j) j) + proj1_sig (weight v))%R) by admit. 
-    rewrite H.
     assert (fault_weight_state j = fault_weight_state (add_in_sorted_fn (get_estimate j, v', j) j)) by admit.
-    rewrite <- H3. assumption.
 Admitted.
 
-Definition is_seen_validator' (s : pstate) (v : V) :=
-  In v (set_map compare_eq_dec sender (get_messages s)).
+(* Under additional not-already-equivocating conditions, the resulting state actually adds weight *)
+Lemma next_equivocation_adds_weight :
+  forall (s : state),
+    protocol_state s ->
+    forall (v : V),
+      (* If the weight is not over *) 
+      add_weight_under s v ->
+      (* And the sender is not already equivocating *) 
+      ~ In v (equivocating_senders s) -> 
+      forall (v' : V) (about_v' : v <> v'),
+        (* Then we get a protocol state *) 
+        protocol_state (next_equivocation_state s v v') /\
+        (* With increased weight *) 
+        fault_weight_state (next_equivocation_state s v v') =
+        (fault_weight_state s + proj1_sig (weight v))%R. 
+Proof.
+  intros s about_s v H_not_heavy H_notin v' H_neq.
+  split.
+  assert (H_useful := next_equivocation_protocol_state s about_s v v' H_neq H_not_heavy).
+  assumption.
+  (* Enter a series of set_eq based fault_weight_state injectivity results *) 
+Admitted.
 
-Definition not_pivotal (s : pstate) (v : V) :=
-  (fault_weight_state s + proj1_sig (weight v) <= proj1_sig t_full)%R. 
+(* Now we want to add a series of equivocations *) 
+Fixpoint next_equivocation_rec (s : state) (vs : list V) : state :=
+  match vs with
+  | [] => s
+  | hd :: tl => next_equivocation_rec (next_equivocation_state s hd (get_distinct_sender hd)) tl
+  end.
 
-Lemma set_eq_fault_weight :
-  forall s1 s2,
-    set_eq (equivocating_senders s1) (equivocating_senders s2) ->
-    fault_weight_state s1 = fault_weight_state s2. 
-Proof. Admitted.            
+Fixpoint next_equivocation_rec' (s : state) (vs : list V) : state :=
+  match vs with
+  | [] => s
+  | hd :: tl => next_equivocation_state (next_equivocation_rec' s tl) hd (get_distinct_sender hd)
+  end.
 
-(* Now we can actually build a state from the above theorem *)
-(* All we need to know about v is that it's not pivotal - whether or not it is seen, equivocating, or potentially equivocating is irrelevant because we construct fresh equivocations. *) 
-Program Definition next_equivocation (j : pstate) (v v' : V) (about_v : not_pivotal j v) (about_v' : ~ is_seen_validator' j v') (H_neq : v <> v') : pstate :=
-  exist protocol_state
-        (add_in_sorted_fn
-           (* One equivocation partner *)
-           (get_estimate j, v, j)
-           (* First state *) 
-           (add_in_sorted_fn
-              (* Other equivocation partner *) 
-              (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))
-              (* Zero-th state *)
-              (add_in_sorted_fn (get_estimate j, v', j) j)))
-        _.
-Next Obligation. 
-  destruct j as [j about_j]; simpl.
-  apply more_about_equivocating_messages; try assumption. 
-  unfold is_seen_validator' in about_v'.
-  apply (equivocating_senders_single j (get_estimate j) v' j) in about_v'.
-  unfold fault_weight_state. 
-  assert (sum_weights (equivocating_senders (add_in_sorted_fn (get_estimate j, v', j) j)) = sum_weights (equivocating_senders j)).
-  now apply set_eq_fault_weight. 
-  rewrite H. assumption.
-Defined. 
+(* The real point about Olivier's unfold lemmas is that if your definitions use the right left/right fold, they become redundant. *) 
 
-(* Now we want to say that for every validator, there exists a set of validators which are pivotal wrt it *)
-(* We have a definition of potentially_pivotal : *) 
-Print potentially_pivotal.
-Definition potentially_pivotal_wrt (v : V) (lv : list V) :=
-  NoDup lv
-  /\
-  ~ In v lv
-  /\
-  (sum_weights lv <= proj1_sig t_full)%R /\
-  (sum_weights lv + proj1_sig (weight v) > proj1_sig t_full)%R.
+Lemma next_equivocations_add_weights : 
+  forall (s : state),
+    protocol_state s ->
+    forall (vs : list V),
+      (* The sum weight is not over *)
+      (fault_weight_state s + sum_weights vs <= proj1_sig t_full)%R ->
+      (* None of the senders are already equivocating *) 
+      (forall (v : V),
+          In v vs -> ~ In v (equivocating_senders s)) ->
+      (* Then we end up with a protocol state *)
+      protocol_state (next_equivocation_rec' s vs) /\
+      (* And s recursively adds the sums of all the weights in vs *) 
+      fault_weight_state (next_equivocation_rec' s vs) =
+      (fault_weight_state s + sum_weights vs)%R.
+Proof.
+  intros s about_s vs v H_disjoint. 
+  induction vs as [|hd tl IHvs].
+  - (* Base case : no validators to add *)
+    split. assumption. 
+    rewrite Rplus_0_r. reflexivity.
+  - (* Induction step *)
+    spec IHvs.
+    (* Some transitivity of R addition *)
+    admit.
+    spec IHvs.
+    intros. 
+    spec H_disjoint v0. spec H_disjoint. 
+    right; assumption.
+    assumption. 
+    destruct IHvs as [H_prot H_weight].
+    split.
+    + admit.
+    + simpl. admit. 
+Admitted.
 
-Axiom potentially_pivotal_total :
-  forall (v : V), exists (lv : list V), potentially_pivotal_wrt v lv.
+Lemma next_equivocations_keeps_messages :
+  forall (s : state) (vs : list V),
+  forall (msg : message),
+    in_state msg s ->
+    in_state msg (next_equivocation_rec' s vs). 
+Proof.
+  intros s vs msg H_in.
+  induction vs as [|hd tl IHvs].
+  - assumption.
+  - simpl.
+    unfold next_equivocation_state.
+    rewrite in_state_add_in_sorted_iff.
+    right.
+    rewrite in_state_add_in_sorted_iff.
+    right.
+    rewrite in_state_add_in_sorted_iff.
+    right.
+    assumption.
+Qed.
 
-(* So now we can have that for any message sender, there is a complement set of validators that it is potentially pivotal with regards to. *) 
+(* Adding one specific message's equivocating partner *)
+Lemma state_horns :
+  forall (s : state),
+    protocol_state s ->
+    exists (msg1 : message) (s2 : state),
+      protocol_state (add_in_sorted_fn msg1 s) /\ 
+      protocol_state s2 /\ 
+      in_future_trace s s2 /\
+      (exists (msg2 : message), in_state msg2 s2 /\
+                           equivocating_messages_prop msg1 msg2). 
+Proof.       
+  intros s about_s.
+  (* Any random validator will do. *) 
+  destruct (@inhabited V about_V) as [v _].
+  remember (get_distinct_sender v) as v'. 
+  exists (get_estimate s, v, s).
+  exists (add_in_sorted_fn (get_estimate (add_in_sorted_fn (get_estimate s, v', s) s), v, (add_in_sorted_fn (get_estimate s, v', s) s)) (add_in_sorted_fn (get_estimate s, v', s) s)).
+  assert (H_useful := about_equivocating_messages s about_s v v'). 
+  spec H_useful.
+  subst. intro Habsurd. symmetry in Habsurd.
+  now apply get_distinct_sender_correct' in Habsurd. 
+  repeat split.
+  apply copy_protocol_state. 
+  assumption. 
+  apply get_estimate_correct. 
+  apply copy_protocol_state.
+  apply copy_protocol_state.
+  assumption.
+  apply get_estimate_correct.
+  apply get_estimate_correct.
+  red.
+  exists [(get_estimate s, v', s);
+     (get_estimate
+        (add_in_sorted_fn (get_estimate s, v', s) s), v,
+      add_in_sorted_fn (get_estimate s, v', s) s)].
+  unfold add_messages.
+  reflexivity.
+  exists (get_estimate
+            (add_in_sorted_fn (get_estimate s, v', s) s), v,
+     add_in_sorted_fn (get_estimate s, v', s) s).
+  split. rewrite in_state_add_in_sorted_iff.
+  left. reflexivity.
+  tauto. 
+Qed.
 
-(* Using choice for now to get this set out *)
-Axiom choice : forall (X : Type) (P : X -> Prop),
-    (exists x, P x) -> {x | P x}.
-
-Definition get_complement_validators (v : V) : {lv | potentially_pivotal_wrt v lv} :=
-  choice (list V) (potentially_pivotal_wrt v) (potentially_pivotal_total v). 
-
-(* Now we want to refine this equivocation-adding function slightly : *)
-Program Definition next_equivocation'
-        (* Initial protocol state *)
+Program Definition next_protocol_equivocation
         (s : pstate)
-        (* v is our non-pivotal equivocator *)
-        (v : V) (about_v : not_pivotal s v)
-        (* v' is a different validator from v, that's all we need *)
+        (v : V) (about_v : add_weight_under s v) 
         (v' : V) (about_v' : v' <> v)
-  : pstate := exist protocol_state (add_in_sorted_fn
-                                      (* One equivocation partner *)
-                                      (get_estimate s, v, s)
-                                      (* First state *) 
-                                      (add_in_sorted_fn
-                                         (* Other equivocation partner *) 
-                                         (get_estimate (add_in_sorted_fn (get_estimate s, v', s) s), v, (add_in_sorted_fn (get_estimate s, v', s) s))
-                                         (* Zero-th state *)
-                                         (add_in_sorted_fn (get_estimate s, v', s) s)))
+  : pstate := exist protocol_state (next_equivocation_state s v v')
                     _.
 Next Obligation. 
   destruct s as [s about_s]; simpl.
-  apply more_about_equivocating_messages; try assumption. 
-  unfold is_seen_validator' in about_v'.
-  apply (equivocating_senders_single s (get_estimate s) v' s) in about_v'.
-  unfold fault_weight_state. 
-  assert (sum_weights (equivocating_senders (add_in_sorted_fn (get_estimate j, v', j) j)) = sum_weights (equivocating_senders j)).
-  now apply set_eq_fault_weight. 
-  rewrite H. assumption.
+  apply next_equivocation_protocol_state; try assumption. 
+  intro H_not; apply about_v'; symmetry; assumption.
 Defined.
 
-
-(* Equivocation in Prop *) 
-Definition equivocating (msg1 msg2 : message) : Prop :=
-  sender msg1 = sender msg2 /\ ~ in_state msg1 (justification msg2) /\ ~ in_state msg2 (justification msg1). 
-
-(* Equivocation in Prop <-> equivocation in bool *) 
-Theorem equivocating_messages_correct :
-  forall (msg1 msg2 : message),
-    equivocating_messages msg1 msg2 = true <->
-    equivocating msg1 msg2.
-Proof.
-  intros msg1 msg2; split; intros.
-  - repeat split.
-    now apply equivocating_messages_sender.
-    intro H_not.
-    destruct msg1 as [[c1 v1] j1];
-      destruct msg2 as [[c2 v2] j2].
-    assert (H_copy := H).
-    unfold equivocating_messages in H.
-    apply equivocating_messages_sender in H_copy.
-    simpl in H_copy. subst.
-    destruct (compare_eq_dec (c1, v2, j1) (c2, v2, j2)).
-Admitted.
-
-Definition in_past_state (s1 s2 : state) :=
-  exists (msg : message), in_state msg s2 /\ justification msg = s1. 
-
-Lemma past_protocol_state :
-  forall s, protocol_state s -> 
-       forall s', in_past_state s' s ->
-             protocol_state s'. 
-Proof.
-  intros s H_ps s' H_past.
-  destruct H_past as [msg [H_in H_eq]].
-  rewrite <- H_eq. 
-  now apply protocol_state_justification with s.
-Qed.
-
-Definition exists_next (s : pstate) :=
-  exists msg, protocol_state (add_in_sorted_fn msg s). 
-
-(* All protocol states can transition *) 
-Theorem exists_next_state :
-  forall (s : pstate), exists_next s. 
-Proof.
-  intros [s about_s].
-  remember (map sender (get_messages s)) as lv.
-  destruct lv as [|v lv'] eqn:H_lv.
-  subst. symmetry in Heqlv.
-  apply map_eq_nil in Heqlv.
-  apply nil_empty_state in Heqlv.
-  destruct (@inhabited V) as [v about_v].
-  exact about_V.
-  destruct (estimator_total Empty) as [c about_c].
-  exists (c, v, Empty).
-  apply protocol_state_next; try assumption. 
-  constructor.
-  intros m H_absurd; inversion H_absurd.
-  simpl; rewrite Heqlv; apply not_heavy_single.
-  destruct (estimator_total s) as [c about_c].
-  exists (c,v,s). simpl.
-  apply protocol_state_next; try assumption.
-  easy.
-  (* Now... this message is not in s, but the validator has appeared before *)
-  assert (H_useful := copy_protocol_state s about_s c about_c v). apply protocol_state_not_heavy. 
-  assumption.
-Qed.
-
-Definition exists_next_from (s : pstate) (v : V) :=
-  exists msg, sender msg = v /\
-         protocol_state (add_in_sorted_fn msg s).
-
-Definition is_seen_validator (s : pstate) (v : V) :=
-  In v (map sender (get_messages s)).
-
-(* Senders in any state can continue to send messages *) 
-Theorem exists_next_from_seen_validators :
-  forall (s : pstate) (v : V),
-    is_seen_validator s v ->
-    exists_next_from s v.
-Proof.
-  intros [s about_s] v H_seen.
-  destruct (estimator_total s) as [c about_c]. 
-  exists (c, v, s); repeat split.
-  simpl; apply protocol_state_next; try assumption.
-  apply incl_refl.
-  assert (H_useful := copy_protocol_state s about_s c about_c v). apply protocol_state_not_heavy. 
-  assumption.
-Qed.
-
-(* Indeed, any sender can send messages *) 
-Theorem exists_next_from_any_validator :
-  forall (s : pstate) (v : V),
-    exists_next_from s v.  
-Proof. 
-  intros [s about_s] v.
-  destruct (estimator_total s) as [c about_c]. 
-  exists (c, v, s); repeat split.
-  simpl; apply protocol_state_next; try assumption.
-  apply incl_refl.
-  assert (H_useful := copy_protocol_state s about_s c about_c v). apply protocol_state_not_heavy. 
-  assumption.
-Qed.
-
-(* Assuming there are always at least two validators *) 
-Parameter two_senders_proof : two_senders. 
-
-(* Any message contained in a protocol state can have an equivocating partner *)
-Theorem exists_equivocating_partner :
-  forall (s : pstate) (msg : message),
-    in_state msg s ->
-    exists (msg' : message),
-      equivocating_messages msg msg' = true. 
-Proof.
-  intros [s about_s] msg H_in.
-  assert (H_useful := equivocating_messages_exists two_senders_proof).
-  spec H_useful (estimate msg) (sender msg) (justification msg). spec H_useful.
-  now apply protocol_state_justification with s.
-  spec H_useful.
-  now apply protocol_state_valid_estimate with s.
-  destruct H_useful as [j' [c' [H_prot [H_incl [H_good H_equiv]]]]].
-  exists (c', sender msg, j').
-  replace msg with (estimate msg, sender msg, justification msg). assumption.
-  destruct msg as [[c v] j]; easy.
-Qed.
-(* However, this equivocating partner cannot always be sent - this depends on the current fault weight *)
-
-Proposition exists_next_equivocation :
-  forall (s : pstate) (msg : message),
-    in_state msg s ->
-    exists (msg' : message),
-      equivocating_messages msg msg' = true /\
-      ((proj1_sig (weight (sender msg)) + fault_weight_state s <= proj1_sig t_full)%R -> protocol_state (add_in_sorted_fn msg' s)). 
-Proof.
-  intros [s about_s] msg H_in.
-  destruct (equivocating_messages_exists two_senders_proof (estimate msg) (sender msg) (justification msg)) as [s' H_useful]. 
-  now apply protocol_state_justification with s.
-  now apply protocol_state_valid_estimate with s.
-  destruct H_useful as [c' [about_s' [H_incl [H_good H_equiv]]]].
-  exists (c', sender msg, s'); repeat split; try assumption. 
-  destruct msg as [[c v] j]; simpl; assumption.
-  intro H_not_heavy.
-  simpl in *.
-  constructor; try assumption. 
-Abort. 
-
-Theorem no_self_justification :
-  forall j, protocol_state j ->
-       forall c v, in_state (c, v, j) j -> False. 
-Proof.
-  intros j H_prot c v H_in.
-  induction H_prot.
-  - inversion H_in. 
-  - rewrite in_state_add_in_sorted_iff in H_in. 
-    destruct H_in as [H_eq | H_in].
-    + inversion H_eq.
-      subst. apply IHH_prot2. rewrite <- H5 at 2.
-      unfold in_state.
-      assert (H_useful := set_eq_add_in_sorted (c0,v0,j) s).
-      red in H_useful. destruct H_useful as [H_left H_right].
-      spec H_right (c0,v0,j) (in_eq (c0,v0,j) (get_messages s)).
-      assumption.
-    + apply (not_extx_in_x c v (add_in_sorted_fn (c0,v0,j) s) s).
-      red. intros msg H_msg_in.
-      assert (H_useful := set_eq_add_in_sorted (c0,v0,j) s).
-      destruct H_useful as [_ H_useful].
-      spec H_useful msg. spec H_useful.
-      right; assumption. assumption.
-      assumption.
-Qed.
-
-
-Definition all_validators_equivocate (s : pstate) :=
-  forall (v : V), is_seen_validator s v -> In v (equivocating_senders s). 
-
-Definition exists_honest_validator (s : pstate) :=
-  exists (v : V), is_seen_validator s v /\ ~ In v (equivocating_senders s).
-
-Axiom always_exists_honest :
-  forall (s : pstate), exists (v : V), ~ In v (equivocating_senders s).
-(* This is saying that if all validators equivocate, we can't be a protocol state *)
-
-Lemma equivocating_validator_seen :
-  forall (s : pstate) (v : V),
-    In v (equivocating_senders s) -> is_seen_validator s v. 
+Theorem next_protocol_equivocation_adds_weight :
+  forall (s : pstate) (v : V) (about_v : add_weight_under s v)
+    (v' : V) (about_v' : v' <> v),
+    fault_weight_state (proj1_sig (next_protocol_equivocation s v about_v v' about_v')) =
+    (fault_weight_state s + proj1_sig (weight v))%R. 
 Proof.     
-  intros s v H_in. 
-  unfold equivocating_senders in H_in.
-  rewrite set_map_exists in H_in.
-  destruct H_in as [msg [H_in H_sender]].
-  rewrite <- H_sender.
-  red. rewrite in_map_iff.
-  exists msg; split. reflexivity.
-  rewrite filter_In in H_in.
-  destruct H_in; assumption.
-Qed.
-
-Require Import Classical. 
-
-Theorem reach_exists_honest_validator :
-  forall (s : pstate),
-    exists_honest_validator s \/
-    (exists (s' : pstate),
-      next_future s s' /\ exists_honest_validator s'). 
-Proof. 
-  intros s. 
-  destruct (always_exists_honest s) as [v H_v_honest]. 
-  destruct (classic (is_seen_validator s v)).
-  - (* In the case that v has already been seen *)
-    left; exists v; split; assumption.
-  - (* In the case that v hasn't yet been seen *)
-    right.
-    destruct (estimator_total s) as [c H_c_good].
-    destruct s as [s about_s].
-    assert (about_s' : protocol_state (add_in_sorted_fn (c, v, s) s)) by (apply copy_protocol_state; assumption).
-    (* Constructing the next state in which v sends a message *) 
-    exists (exist _ (add_in_sorted_fn (c,v,s) s) about_s').
-    simpl; split.
-    + (* Proving next state obligation *)
-      exists (c,v,s). split; simpl; easy.
-    + exists v. simpl; split.
-      red. rewrite in_map_iff. exists (c,v,s).
-      split. easy.
-      admit. admit. 
-Admitted. 
-
-Theorem case_validator_equivocation :
-  forall (s : pstate),
-    all_validators_equivocate s \/ exists_honest_validator s.
-Proof. (* This is just predicate de Morgan + negating material implication *)
-Admitted.
-
-(* Only a special kind of state can diverge in one minimal transition : one that is dangerously heavy but has room for growth. *)
-Definition verge_state (s : pstate) := 
-  exists (v : V),
-    is_seen_validator s v /\
-    ~ In v (equivocating_senders s) /\
-    (proj1_sig (weight v) + fault_weight_state s > proj1_sig t_full)%R.
-
-Definition heavy (s : state) :=
-  (fault_weight_state s > proj1_sig t_full)%R. 
-
-Definition next_step_diverges (s : pstate) :=
-  exists (msg1 msg2 : message),
-    equivocating_messages msg1 msg2 = true /\
-    protocol_state (add_in_sorted_fn msg1 s) /\
-    heavy (add_in_sorted_fn msg2 s).
-
-Lemma new_equivocator_grows_weight :
-  forall (s : pstate) (msg : message),
-    in_state msg s -> 
-    is_seen_validator s (sender msg) ->
-    ~ In (sender msg) (equivocating_senders s) ->
-    forall (msg' : message),
-      equivocating_messages msg msg' = true ->
-      fault_weight_state (add_in_sorted_fn msg' s) = (fault_weight_state s + (proj1_sig (weight (sender msg))))%R.  
-Proof.
-  intros s msg H_in H_seen H_honest msg' H_equiv.
-  assert (H_useful := set_eq_add_in_sorted msg s).
-  unfold fault_weight_state, equivocating_senders.
+  intros.
+  unfold next_protocol_equivocation.
+  simpl in *.
+  assert (H_useful := add_fault_weight).
+  (* This is not useful because it only reasons about "consecutive" messages *) 
+  clear H_useful. 
+  assert (H_useful := next_equivocation).
+  destruct s as [s about_s]. 
+  spec H_useful (add_in_sorted_fn
+                   (get_estimate (add_in_sorted_fn (get_estimate s, v', s) s), v,
+                    add_in_sorted_fn (get_estimate s, v', s) s)
+                   (add_in_sorted_fn (get_estimate s, v', s) s))
+       (get_estimate s,v,s).
+  simpl in *.
+  (* First premise for equivocating set equality *) 
+  spec H_useful.
+  { intro Hnot.
+    rewrite in_state_add_in_sorted_iff in Hnot.  
+    destruct Hnot as [Heq | Hin].
+    - inversion Heq.
+      assert (H_absurd : in_state (get_estimate s, v', s) s).
+      rewrite H1 at 3.
+      rewrite in_state_add_in_sorted_iff; tauto.
+      apply no_self_justification in H_absurd; auto.
+    - rewrite in_state_add_in_sorted_iff in Hin. 
+      destruct Hin as [Heq' | Hin']. 
+      inversion Heq'.
+      subst; auto.
+      apply no_self_justification in Hin'; auto. }
+  (* Second premise for equivocating set equality *)
+  spec H_useful.
+  { exists (get_estimate (add_in_sorted_fn (get_estimate s, v', s) s), v, (add_in_sorted_fn (get_estimate s, v', s) s)).
+    split.
+    rewrite in_state_add_in_sorted_iff.
+    tauto.
+    apply about_equivocating_messages; try assumption.
+    intro H_absurd; apply about_v'; easy. }
+  (* Now we've discharged both the premises, *)
+  (* We need to perform a series of set equality manipulations *)
   admit. 
 Admitted.
 
-Theorem verge_diverges :
-  forall (s : pstate),
-    verge_state s ->
-    next_step_diverges s. 
-Proof.             
-  intros [s about_s] [v [H_v_seen [H_v_equiv H_danger]]].
-  red in H_v_seen. rewrite in_map_iff in H_v_seen.
-  destruct H_v_seen as [msg [H_sender H_in]].
-  exists msg.
-  assert (H_useful := equivocating_messages_exists two_senders_proof (estimate msg) (sender msg) (justification msg)).
-  spec H_useful.
-  now apply protocol_state_justification with s.
-  spec H_useful.
-  now apply protocol_state_valid_estimate with s. 
-  destruct H_useful as [j' [c' [H_incl [H_good H_equiv]]]].
-  exists (c',v,j'). repeat split.
-  - (* Using injectivity of sender to prove equivocation *)
-    destruct msg as [[c v_copy] j] eqn:H_msg.
-    simpl in *. rewrite <- H_sender. 
-    destruct H_equiv; assumption.
-  - (* Proving the good state *)
-    simpl.
-    assert (H_rewrite := add_in_sorted_ignore msg (exist locally_sorted s (protocol_state_sorted s about_s)) H_in).
-    simpl in *.
-    rewrite H_rewrite. assumption.
-  - (* Proving the bad state *)
-    unfold heavy. 
-    simpl in *.
-    assert (H_rewrite := new_equivocator_grows_weight (exist _ s about_s) msg). simpl in *.
-    spec H_rewrite H_in. 
-    spec H_rewrite. simpl. rewrite H_sender.
-    red. simpl. rewrite in_map_iff. exists msg; split; assumption.
-    spec H_rewrite.
-    rewrite H_sender; assumption.
-    spec H_rewrite (c', sender msg, j').
-    spec H_rewrite.
-    destruct msg as [[c v_same] j].
-    subst; simpl; destruct H_equiv; assumption.
-    rewrite H_sender in H_rewrite.
-    rewrite H_rewrite. rewrite Rplus_comm.
-    assumption. 
-Qed.
+Print exists_pivotal_validator.
+(* This is not strong enough *) 
 
-Definition next_step_cones (s : pstate) :=
-  exists (msg1 msg2 : message),
-    equivocating_messages msg1 msg2 = true /\
-    protocol_state (add_in_sorted_fn msg1 s) /\
-    protocol_state (add_in_sorted_fn msg2 s).
+Definition potentially_pivotal_state (v : V) (s : state) :=
+  ~ In v (equivocating_senders s) /\
+  exists (vs : list V),
+    (forall (v : V), In v vs -> ~ In v (equivocating_senders s)) /\
+    (sum_weights ((equivocating_senders s) ++ vs) <= proj1_sig t_full)%R /\
+    (sum_weights ((equivocating_senders s) ++ vs) >
+     proj1_sig t_full - proj1_sig (weight v))%R. 
 
-Lemma separate_states :
-  forall (s : pstate),
-  exists (s1 s2 : pstate),
-    set_eq (set_union compare_eq_dec (get_messages s1) (get_messages s2)) (get_messages s)
-    /\ set_inter compare_eq_dec (get_messages s1) (get_messages s2) = []. 
-Proof. Admitted.
+(** **** **)
+(* This is a critical lemma *) 
+Lemma all_pivotal_validator :
+  forall (s : state),
+    protocol_state s -> 
+  exists (v : V),
+    potentially_pivotal_state v s. 
+Proof.
+Admitted.
 
-Theorem verge_cones :
-    forall (s : pstate),
-    verge_state s ->
-    next_step_cones s.
-Proof. 
-  intros s [v [H_v_seen [H_v_equiv H_danger]]].
-  destruct (separate_states s) as [s_left [s_right [s_union s_intersect]]]. 
-  destruct (estimator_total s_left) as [c_left about_c_left]. 
-  destruct (estimator_total s_right) as [c_right about_c_right].
-  exists (c_left, v, proj1_sig s_left), (c_right, v, proj1_sig s_right).
+Theorem to_prove_continued : strong_nontriviality. 
+Proof.
+  intros [s1 about_s1].
+  destruct (all_pivotal_validator s1 about_s1) as [v [H_v [vs [H_disjoint [H_under H_over]]]]].
+  destruct (estimator_total s1) as [c about_c]. 
+  exists (exist protocol_state (add_in_sorted_fn (c,v,s1) s1) (copy_protocol_state s1 about_s1 c about_c v)).
+  (* Proving next-step relation is trivial. *) 
+  split.
+  exists (c,v,s1); easy. 
+  (* s3 is the state with equivocations from all the senders in vs recursively added to s1, in addition to (c,v,s1)'s equivocating partner message. *)
+  (* First we add the equivocating partner message *)
+  remember (add_in_sorted_fn (get_estimate (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1), v, (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)) (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)) as s1'.
+  (* Now we are ready to construct s3 from s1' *)
+  (* And if we have set up everything correctly, the premises at this point in the proof are sufficient. *)
+  remember (next_equivocation_rec' s1' vs) as s3.
+  assert (about_s3 : protocol_state s3).
+  { rewrite Heqs3. apply next_equivocations_add_weights.
+    { subst.
+      apply copy_protocol_state; try apply get_estimate_correct; try assumption. 
+      apply copy_protocol_state; try apply get_estimate_correct; try assumption. } 
+    assert (H_s_inter_weight : fault_weight_state s1' = fault_weight_state s1) by admit.
+    rewrite H_s_inter_weight.
+    admit.
+    intros. spec H_disjoint v0 H.
+    assert (H_rewrite : set_eq (equivocating_senders s1) (equivocating_senders s1')) by admit. 
+    destruct H_rewrite as [H_left H_right].
+    spec H_right v0.
+    tauto. } 
+  exists (exist protocol_state s3 about_s3).
   repeat split.
-  rewrite equivocating_messages_correct.
-  red; repeat split. 
-  intros H_not. simpl in H_not.
-  assert (H_useful := message_subset_correct (proj1_sig s_right)).
-  destruct s_right as [s_right about_s_right].
-  spec H_useful about_s_right.
-  spec H_useful (c_left, v, proj1_sig s_left) H_not.
-  simpl in *. red in H_useful.
-  admit.
-  intros H_not. simpl in H_not.
-  assert (H_useful := message_subset_correct (proj1_sig s_left)).
-  destruct s_left as [s_left about_s_left].
-  spec H_useful about_s_left.
-  spec H_useful (c_right, v, proj1_sig s_right) H_not.
-  simpl in *. red in H_useful.
-  admit.
-  destruct s as [s about_s]. 
-  constructor; simpl; try assumption.
-  destruct s_left as [s_left about_s_left]; assumption. intros x H_in. destruct s_union.
-  spec H x.  spec H.
-  rewrite set_union_iff. left; assumption.
-  assumption. admit.
-  destruct s as [s about_s];
-    constructor; try assumption.
-  destruct s_right as [s_right about_s_right].
-  simpl. assumption.
-  admit. admit.
+  - (* Proving that s1 and s3 share a common future *)
+    red. exists (exist protocol_state s3 about_s3).
+    split. simpl. red.
+    red. subst.
+    intros m0 H_in.
+    (* Need to prove that next_equivocation_rec' doesn't drop messages *) 
+    admit.
+    apply incl_refl.
+  - (* Proving that s2 and s3 don't share a common future *)
+    red. intros.
+    destruct H as [H_in2 H_in3].
+    unfold in_future, syntactic_state_inclusion in H_in2, H_in3.
+    (* Now we get a message we know is in s2 and prove a contradiction. *)
+    spec H_in2 (c,v,s1). spec H_in2. 
+    apply in_state_add_in_sorted_iff.
+    tauto.
+    spec H_in3 (get_estimate
+                (add_in_sorted_fn
+                   (get_estimate s1, get_distinct_sender v, s1) s1), v,
+             add_in_sorted_fn
+               (get_estimate s1, get_distinct_sender v, s1) s1).
+    spec H_in3.
+    { (* Proving that this message is in s3 *)
+      assert (H_obv : in_state (get_estimate
+       (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1)
+          s1), v,
+                                add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1) s1').
+      { subst. rewrite in_state_add_in_sorted_iff.
+        left. reflexivity. }
+      apply (next_equivocations_keeps_messages s1' vs _) in H_obv.
+      subst; assumption. }
+    (* Now we prove a huge contradiction *)
+    destruct s as [s about_s].
+    simpl in *.
+    (* Because s is a protocol state, it can't be overweight *) 
+    apply protocol_state_not_heavy in about_s.
+    red in about_s.
+    (* We need to establish that these two messages are equivocating *) 
+    assert (H_equiv : equivocating_messages_prop (c,v,s1)
+                                                 (get_estimate
+               (add_in_sorted_fn
+                  (get_estimate s1, get_distinct_sender v, s1) s1), v,
+            add_in_sorted_fn
+              (get_estimate s1, get_distinct_sender v, s1) s1)).
+    { admit. (* Need to slightly tweak about_equivocating_messages to get this *) }
+    (* Now we know that these two messages are equivocating *)
+    (* We have to say that v's fault weight will be inside s *)
 Admitted.
-
-(* However, we cannot show that all states can reach such verge states. *)
-(* Suppose that this were true *)
-Proposition to_be_shown :
-  forall (s : pstate),
-    exists (s' : pstate),
-      in_past_trace s s' /\ verge_state s'. 
-Proof.
-  intros [s about_s]. 
-  assert (H_ind := about_s).
-  induction H_ind.
-  Print verge_state. 
-Admitted.
-
-(* Then we can indeed show that every infinite path contains a non-confluent state. *) 
-Theorem verge_state_reachable :
-  forall (s : pstate),
-  exists (s' : pstate),
-    in_past_trace s s' /\ next_step_diverges s'. 
-Proof.     
-  intro s.
-  destruct (to_be_shown s) as [s_future [H_history H_verge]].
-  assert (H_useful := verge_diverges s_future H_verge).
-  exists s_future; split; assumption.
-Qed.
-
-(* Can we show that to_be_shown is false? *)
-Proposition cannot_be_shown :
-  (forall (s : pstate),
-      exists (s' : pstate),
-        in_past_trace s s' /\ verge_state s') -> False. 
-Proof. Abort. 
-
-(* This however, should be true : *) 
-Theorem construct_equivocating_messages :
-  forall (s : pstate),
-  exists (msg msg' : message),
-    equivocating_messages msg msg' = true /\
-    (not_heavy (add_in_sorted_fn msg s) ->
-     protocol_state (add_in_sorted_fn msg s) /\
-     protocol_state (add_in_sorted_fn msg' s)).
-Proof.
-  intros [s about_s].
-  assert (H_useful := equivocating_messages_exists two_senders_proof).
-  destruct (estimator_total s) as [c about_c].
-  destruct (@inhabited V about_V) as [v _].
-  spec H_useful c v s about_s about_c.
-  destruct H_useful as [s' [c' [H_prot [H_incl [H_good H_equiv]]]]]. 
-  exists (c,v,s), (c',v,s').
-  simpl; repeat split.
-  assumption.
-  (* Proving that adding the first message gives a protocol state *) 
-  constructor; try assumption; apply incl_refl.
-  (* Proving that adding the second message gives a protocol state *)
-  constructor; try assumption.
-Abort.
-
-
+(* ******  end  ****** *)
