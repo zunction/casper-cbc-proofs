@@ -1,4 +1,4 @@
-Require Import Reals Bool Relations RelationClasses List ListSet.
+Require Import Reals Bool Relations RelationClasses List ListSet EqdepFacts ChoiceFacts.
 Import ListNotations.
 
 Tactic Notation "spec" hyp(H) := 
@@ -17,6 +17,8 @@ Tactic Notation "spec" hyp(H) constr(a) constr(b) constr(c) constr(d) constr(e) 
   (generalize (H a b c d e); clear H; intro H).
 
 (** Logic library **)
+Axiom choice : forall (X : Type), ConstructiveIndefiniteDescription_on X.
+
 Lemma or_and_distr_left : forall A B C, (A /\ B) \/ C <-> (A \/ C) /\ (B \/ C).
 Proof.
   intros; split; intro.
@@ -38,8 +40,19 @@ Proof.
     reflexivity.
 Qed.
 
-
-
+Theorem mirror_reflect_curry :
+  forall (X Y : Type) (f : X -> Y -> bool) (P : X -> Y -> Prop),
+    (forall x y, f x y = true <-> P x y) ->
+    (forall x y, f x y = false <-> ~ P x y). 
+Proof.
+  intros.
+  split; intros.
+  intro H_absurd. apply H in H_absurd.
+  rewrite H0 in H_absurd; discriminate.
+  apply not_true_is_false.
+  intro H_not. apply H in H_not.
+  contradiction.
+Qed.
 
 Lemma eq_dec_if_true {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
   x = y -> (if eq_dec x y then t else e) = t.
@@ -421,6 +434,30 @@ Proof.
     destruct H_in as [cat | dog];
     tauto.
 Qed.
+
+Lemma add_remove_inverse {X} `{StrictlyComparable X}:
+  forall (lv : list X) (v : X),
+    ~ In v lv -> 
+    set_remove compare_eq_dec v (set_add compare_eq_dec v lv) = lv. 
+Proof.
+  induction lv as [|hd tl IHlv]; intros.
+  - compute.
+    destruct (compare_eq_dec v v). 
+    reflexivity. contradiction.
+  - destruct (compare_eq_dec v hd).
+    subst. exfalso; apply H0.
+    apply in_eq.
+    spec IHlv v. spec IHlv.
+    intro Habsurd. apply H0.
+    right; assumption.
+    rewrite <- IHlv at 2.
+    simpl.
+    destruct (compare_eq_dec v hd).
+    contradiction.
+    simpl. destruct (compare_eq_dec v hd).
+    contradiction. reflexivity.
+Qed.
+
 
 
 
