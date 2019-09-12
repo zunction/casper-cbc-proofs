@@ -1,52 +1,68 @@
-Require Import Coq.Bool.Bool.
-Require Import Coq.Reals.Reals.
-Require Import List.
+Require Import Bool Reals List ListSet.
 Import ListNotations.
-Require Import Coq.Lists.ListSet.
+From Casper
+Require Import preamble ListSetExtras protocol_eq fullnode_eq.
 
-Require Import Casper.preamble.
-Require Import Casper.ListSetExtras.
+Section Protocol. 
+  Variables (C V : Type). 
+  Context (about_C : `{StrictlyComparable C})
+          (about_V : `{StrictlyComparable V}).
 
-Require Import Casper.FullStates.consensus_values.
-Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.estimator.
-Require Import Casper.FullStates.fault_weights.
-Require Import Casper.FullStates.threshold.
-Require Import Casper.FullStates.consistent_decisions_prop_protocol_states.
+  Definition state := state C V. 
 
-
-Module Non_triviality_Properties_Protocol_States
-        (PCons : Consensus_Values) 
-        (PVal : Validators)
-        (PVal_Weights : Validators_Weights PVal)
-        (PEstimator : Estimator PCons PVal PVal_Weights)
-        (PThreshold : Threshold PVal PVal_Weights)
-        .
-
-Import PCons.
-Import PVal.
-Import PVal_Weights.
-Import PThreshold.
-Import PEstimator.
-
-Module PProperties_Protocol_States := Properties_Protocol_States PCons PVal PVal_Weights PEstimator PThreshold.
-Export PProperties_Protocol_States.
-
-Definition non_trivial_state (p : state -> Prop) :=
-  (exists sigma1, protocol_state sigma1 /\ decided_state p sigma1)
+  Definition non_trivial_state (p : state -> Prop) :=
+  (exists sigma1, prot_state sigma1 /\ decided sigma1 p)
   /\
-  (exists sigma2, protocol_state sigma2 /\ decided_state (predicate_not p) sigma2).
+  (exists sigma2, prot_state sigma2 /\ decided sigma2 (predicate_not p)).
 
-Definition potentially_pivotal (v : V) : Prop :=
-    exists (vs : list V),
+Definition potentially_pivotal (v : validators) : Prop :=
+    exists (vs : list validators),
       NoDup vs /\
       ~In v vs /\
-      (sum_weights vs <= t)%R /\
-      (sum_weights vs > t - weight v)%R
-      .
+      (sum_weight_state vs <= t)%R /\
+      (sum_weights vs > t - weight v)%R.
 
 Definition at_least_two_validators : Prop :=
-  forall v1 : V, exists v2 : V, v1 <> v2.
+  forall v1 : validators, exists v2 : validators, v1 <> v2.
+
+Lemma sufficient_validators_pivotal_ind : forall vss,
+  NoDup vss ->
+  (sum_weights vss > t)%R ->
+  exists (vs : list V),
+  NoDup vs /\
+  incl vs vss /\
+  (sum_weights vs > t)%R /\
+  exists v,
+    In v vs /\
+    (sum_weights (set_remove v_eq_dec v vs) <= t)%R.
+Proof.
+  induction vss; intros.
+  simpl in H0.
+  - exfalso. apply (Rge_gt_trans t) in H0; try apply threshold_nonnegative.
+    apply Rgt_not_eq in H0. apply H0. reflexivity.
+  - simpl in H0. destruct (Rtotal_le_gt (sum_weights vss) t).
+    + exists (a :: vss). repeat split; try assumption.
+      * apply incl_refl.
+      * exists a. split; try (left; reflexivity).
+        simpl. rewrite eq_dec_if_true; try reflexivity. assumption.
+    + apply NoDup_cons_iff in H. destruct H as [Hnin Hvss]. apply IHvss in H1; try assumption.
+      destruct H1 as [vs [Hvs [Hincl H]]].
+      exists vs. repeat (split;try assumption). apply incl_tl. assumption.
+Qed.
+
+Lemma sufficient_validators_pivotal :
+  exists (vs : list V),
+    NoDup vs /\
+    (sum_weights vs > t)%R /\
+    exists v,
+      In v vs /\
+      (sum_weights (set_remove v_eq_dec v vs) <= t)%R.
+Proof.
+  destruct sufficient_validators_condition as [vs [Hvs Hweight]].
+  apply (sufficient_validators_pivotal_ind vs Hvs) in  Hweight.
+  destruct Hweight as [vs' [Hnd [Hincl H]]].
+  exists vs'. repeat (split; try assumption).
+Qed.
 
 Lemma exists_pivotal_message : exists v, potentially_pivotal v.
 Proof.
@@ -65,7 +81,7 @@ Proof.
     assumption.
 Qed.
 
-Definition valid_protocol_state (sigma : state) (csigma cempty : C) (vs : list V) : state :=
+Definition valid_protocol_state (sigma : state) (csigma cempty : consensus_values) (vs : list validators) : state :=
   fold_right
     (fun v sigma' =>
       add_in_sorted_fn (csigma, v, sigma) (add_in_sorted_fn (cempty, v, Empty) sigma'))

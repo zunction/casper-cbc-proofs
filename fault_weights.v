@@ -1,50 +1,52 @@
-Require Import Coq.Bool.Bool.
-Require Import Coq.Reals.Reals.
-Require Import List.
-Require Import Coq.Lists.ListSet.
+Require Import Bool Reals List ListSet.
 Import ListNotations.
+From Casper 
+Require Import preamble ListExtras ListSetExtras locally_sorted.
 
-Require Import Casper.preamble.
-Require Import Casper.ListExtras.
-Require Import Casper.ListSetExtras.
+(** Abstract consensus values **)
+Parameters (C : Type)
+           (C_inhabited : exists (c : C), True)
+           (C_compare : C -> C -> comparison)
+           (C_compare_strictorder : CompareStrictOrder C_compare). 
 
-Require Import Casper.FullStates.consensus_values.
-Require Import Casper.FullStates.validators.
-Require Import Casper.FullStates.estimator.
-Require Import Casper.FullStates.locally_sorted.
+Instance C_type : StrictlyComparable C :=
+  { inhabited := C_inhabited; 
+    compare := C_compare;
+    compare_strictorder := C_compare_strictorder; }. 
 
+(** Abstract validators **) 
+Parameters (V : Type)
+           (V_inhabited : exists (v : V), True)
+           (V_compare : V -> V -> comparison)
+           (V_compare_strictorder : CompareStrictOrder V_compare). 
 
-Module Fault_Weights
-        (PCons : Consensus_Values) 
-        (PVal : Validators)
-        (PVal_Weights : Validators_Weights PVal)
-        (PEstimator : Estimator PCons PVal PVal_Weights)
-        .
+Instance V_type : StrictlyComparable V :=
+  { inhabited := V_inhabited;
+    compare := V_compare;
+    compare_strictorder := V_compare_strictorder; }.  
 
-Import PCons.
-Import PVal.
-Import PVal_Weights.
-Import PEstimator.
+(** Parameter weight **)
+Parameter weight_full : V -> {r : R | (r > 0)%R}.
+Definition sum_weight_senders (l : list V) : R :=
+  fold_right (fun v r => (proj1_sig (weight_full v) + r)%R) 0%R l. 
 
-Module PLocally_Sorted := Locally_Sorted PCons PVal PVal_Weights PEstimator.
-Export PLocally_Sorted.
+(** Parameter threshold **)
+Parameters (t_full : {r | (r >= 0)%R})
+           (suff_val_full : exists (vs : list V), NoDup vs /\
+                                             (sum_weight_senders vs > proj1_sig t_full)%R).
 
+Definition full_state : Type := state C V.
 
-(****************************)
-(** Fault Weight of States **)
-(****************************)
+Definition full_message : Type := message C V.
 
-(*************************)
-(* equivocating_messages *)
-(*************************)
+Definition full_in_state_fn := in_state_fn C V C_type V_type message_compare about_message.
 
-
-Definition equivocating_messages (msg1 msg2 : message) : bool :=
-  match message_eq_dec msg1 msg2 with
+Definition equivocating_messages (msg1 msg2 : full_message) : bool :=
+  match compare_eq_dec msg1 msg2 with
   | left _ => false
   | _ => match msg1, msg2 with (c1, v1, j1), (c2, v2, j2) =>
-      match v_eq_dec v1 v2 with
-      | left _ => negb (in_state_fn msg1 j2) && negb (in_state_fn msg2 j1)
+      match compare_eq_dec v1 v2 with
+      | left _ => negb (full_in_state_fn msg1 j2) && negb (full_in_state_fn msg2 j1)
       | right _ => false
       end
     end
@@ -290,5 +292,22 @@ Proof.
   intros. apply sum_weights_incl; try apply equivocating_senders_nodup.
   apply equivocating_senders_incl. assumption.
 Qed.
+
+(** Proof obligations from CBC_protocol **)
+Lemma equivocation_weight_compat : forall (s1 s2 : sorted_state), (fault_weight_state s1 <= fault_weight_state (state_union s2 s1))%R. 
+Proof. 
+  intros s1 s2.
+  assert (H_useful := fault_weight_state_incl s1 (state_union s1 s2)).
+  spec H_useful.
+  red. unfold state_union.
+  assert (H_useful' := list_to_state_iff (messages_union (get_messages s1) (get_messages s2))).
+  destruct H_useful' as [_ useful]. intros x H_in.
+  spec useful x. spec useful. unfold messages_union.
+  rewrite in_app_iff. tauto.
+  assumption.
+  replace (state_union s2 s1) with (state_union s1 s2) by apply state_union_comm.
+  assumption. 
+Qed.
+
 
 End Fault_Weights.

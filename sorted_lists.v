@@ -1,13 +1,7 @@
-Require Import Coq.Bool.Bool.
-Require Import List.
-Require Import Coq.Sorting.Sorted.
-Require Import Coq.Classes.RelationClasses.
-Require Import Coq.Relations.Relation_Definitions.
-Require Import Coq.Structures.Orders.
+Require Import List Bool Sorting RelationClasses Relations Orders ListSet.
 Import ListNotations.
-
-Require Import Casper.preamble.
-Require Import Casper.ListSetExtras.
+From Casper
+Require Import preamble. 
 
 (** Sorted Lists **)
 
@@ -34,34 +28,31 @@ Fixpoint Inb {A} (compare : A -> A -> comparison) (a : A) (l : list A) : bool :=
     end
   end.
 
-Lemma compare_in : forall A (compare : A -> A -> comparison),
-  CompareStrictOrder compare ->
+Lemma compare_in {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : 
   PredicateFunction2 (@In A) (Inb compare).
 Proof.
-  intros A compare H a l.
+  intros a l.
   induction l; intros; split; intros.
   - inversion H0.
   - discriminate.
   - inversion H0; subst.
-    + simpl. rewrite compare_eq_refl; try apply (proj1 H). reflexivity.
+    + simpl. rewrite compare_eq_refl; reflexivity.
     + simpl. apply IHl in H1; try assumption. rewrite H1.
       destruct (compare a a0); reflexivity.
   - simpl in H0. destruct (compare a a0) eqn:Hcmp.
-    + left. symmetry. apply (proj1 H). assumption.
+    + left. symmetry. now apply StrictOrder_Reflexive. 
     + right. apply IHl; try assumption.
     + right. apply IHl; try assumption.
 Qed.
 
-Lemma compare_not_in : forall A (compare : A -> A -> comparison),
-  CompareStrictOrder compare ->
+Lemma compare_not_in {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : 
   forall a l, not (In a l) <-> Inb compare a l = false.
 Proof.
-  intros. rewrite (compare_in _ compare H a l).
+  intros. rewrite (compare_in a l).
   apply not_true_iff_false.
 Qed.
 
-Lemma list_compare_strict_order : forall A (compare : A -> A -> comparison),
-  CompareStrictOrder compare ->
+Instance list_compare_strict_order {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : 
   CompareStrictOrder (@list_compare A compare).
 Proof.
   intros. destruct H as [R T].
@@ -83,14 +74,13 @@ Proof.
     ; try (simpl; rewrite Ha1; rewrite H2; reflexivity)
     ; try (apply R in Ha1; subst; simpl;  rewrite Ha0; rewrite H1; reflexivity)
     .
-Qed.
+Defined. 
 
-Lemma list_compare_eq_dec : forall A (compare : A -> A -> comparison),
-  CompareStrictOrder compare ->
+Lemma list_compare_eq_dec {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} :  
   (forall x y : list A, {x = y} + {x <> y}).
 Proof.
-  intros A compare H. apply compare_eq_dec with (@list_compare A compare).
-  apply list_compare_strict_order. assumption.
+  intros. 
+  apply compare_eq_dec.
 Qed.
 
 Fixpoint add_in_sorted_list_fn {A} (compare : A -> A -> comparison) (x : A) (l : list A) : list A :=
@@ -112,8 +102,7 @@ Proof.
   - destruct (compare msg a); inversion H.
 Qed.
 
-Lemma add_in_sorted_list_in {A} (compare : A -> A -> comparison) : forall msg msg' sigma,
-  CompareStrictOrder compare ->
+Lemma add_in_sorted_list_in {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg msg' sigma,
   In msg' (add_in_sorted_list_fn compare msg sigma) ->
   msg = msg' \/ In msg' sigma.
 Proof. 
@@ -121,7 +110,7 @@ Proof.
   ; try (destruct H0 as [H0 | H0]; subst; try inversion H0; left; reflexivity)
   .
   - destruct (compare msg a) eqn:Hcmp.
-    + apply (proj1 H) in Hcmp; subst. right. assumption.
+    + apply StrictOrder_Reflexive in Hcmp; subst. right. assumption.
     + destruct H0 as [Heq | Hin]; subst.
       * left; reflexivity.
       * right; assumption.
@@ -131,8 +120,7 @@ Proof.
         right. right. assumption.
 Qed.
 
-Lemma add_in_sorted_list_in_rev {A} (compare : A -> A -> comparison) : forall msg msg' sigma,
-  CompareStrictOrder compare ->
+Lemma add_in_sorted_list_in_rev {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg msg' sigma,
   msg = msg' \/ In msg' sigma ->
   In msg' (add_in_sorted_list_fn compare msg sigma).
 Proof. 
@@ -143,7 +131,7 @@ Proof.
   destruct H0 as [HI | Heq].
   - apply IHsigma in HI. apply add_in_sorted_list_in in HI; try assumption.
     destruct HI as [Heq | Hin]; simpl; destruct (compare msg a) eqn:Hcmp
-    ; try apply (proj1 H) in Hcmp; subst; try (left; reflexivity).
+    ; try apply StrictOrder_Reflexive in Hcmp; subst; try (left; reflexivity).
     + right. apply IHsigma. left; reflexivity.
     + right. assumption.
     + right; right; assumption.
@@ -152,9 +140,7 @@ Proof.
     right; left; reflexivity.
 Qed.
 
-Lemma add_in_sorted_list_iff {A} (compare : A -> A -> comparison) :
-  CompareStrictOrder compare ->
-  forall msg msg' sigma,
+Lemma add_in_sorted_list_iff {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg msg' sigma,
   In msg' (add_in_sorted_list_fn compare msg sigma) <->
   msg = msg' \/ In msg' sigma.
 Proof.
@@ -163,31 +149,25 @@ Proof.
   - apply add_in_sorted_list_in_rev; assumption.
 Qed.
 
-Lemma add_in_sorted_list_head {A} (compare : A -> A -> comparison) :
-  CompareStrictOrder compare ->
-  forall msg sigma,
+Lemma add_in_sorted_list_head {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg sigma,
   In msg (add_in_sorted_list_fn compare msg sigma).
 Proof.
   intros.
   apply add_in_sorted_list_iff; try assumption. left; reflexivity.
 Qed.
 
-Lemma add_in_sorted_list_tail {A} (compare : A -> A -> comparison) :
-  CompareStrictOrder compare ->
-  forall msg sigma,
+Lemma add_in_sorted_list_tail {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg sigma,
   incl sigma (add_in_sorted_list_fn compare msg sigma).
 Proof.
   intros. intros x Hin.
   apply add_in_sorted_list_iff; try assumption. right. assumption.
 Qed.
 
-Lemma add_in_sorted_list_sorted  {A} (compare : A -> A -> comparison) :
-  CompareStrictOrder compare ->
-  forall msg sigma,
-  LocallySorted (compare_lt compare) sigma ->
+Lemma add_in_sorted_list_sorted {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg sigma,
+    LocallySorted (compare_lt compare) sigma ->
   LocallySorted (compare_lt compare) (add_in_sorted_list_fn compare msg sigma).
 Proof.
-  intros. apply compare_asymmetric_intro in H as Hasymm.
+  intros. apply (@compare_asymmetric_intro _) in H as Hasymm.
   induction H0; simpl; try constructor; destruct (compare msg a) eqn:Hcmpa.
   - constructor.
   - constructor; try assumption. constructor.
@@ -196,84 +176,87 @@ Proof.
   - constructor; try assumption. constructor; assumption.
   - apply Hasymm in Hcmpa.
     simpl in IHLocallySorted. destruct (compare msg b) eqn:Hcmpb.
-    + apply (proj1 H) in Hcmpb. subst. constructor; assumption.
+    + apply StrictOrder_Reflexive in Hcmpb. subst. constructor; assumption.
     + constructor; assumption.
     + apply Hasymm in Hcmpb. constructor; assumption.
 Qed.
 
 (** Sorted lists as sets **)
-Lemma set_In {A}  (lt : relation A) :
-  StrictOrder lt ->
+Lemma set_In {A} {lt : relation A} `{StrictOrder A lt} :
   forall x y s,
   LocallySorted lt (y :: s) ->
   In x s ->
   lt y x.
 Proof.
-  intros SO x y s LS IN. generalize dependent x. generalize dependent y.
-  destruct SO as [_ HT]. unfold Transitive in HT.
+  intros x y s LS IN. generalize dependent x. generalize dependent y.
   induction s.
   - intros y LS x IN. inversion IN.
   - intros y LS x IN.
     inversion LS; subst.
     inversion IN; subst.
     + assumption.
-    + apply (IHs a H1 x) in H.
-      apply (HT y a x H3 H).
+    + spec IHs a H2 x H0.
+      destruct H as [_ H]; red in H. 
+      apply (H y a x H4 IHs). 
 Qed.
 
-Lemma set_eq_first_equal {A}  (lt : relation A) :
-  StrictOrder lt ->
+Definition set_eq {A : Type} := fun (s1 s2 : set A) => incl s1 s2 /\ incl s2 s1. 
+
+Lemma set_eq_first_equal {A}  {lt : relation A} `{StrictOrder A lt} :
   forall x1 x2 s1 s2,
   LocallySorted lt (x1 :: s1) ->
   LocallySorted lt (x2 :: s2) ->
   set_eq (x1 :: s1) (x2 :: s2) ->
-  x1 = x2 /\ set_eq s1 s2.
+  x1 = x2 /\ set_eq s1 s2. 
 Proof.
-  intros SO x1 x2 s1 s2 LS1 LS2 SEQ. destruct SEQ as [IN1 IN2].
-  assert (SO' := SO). destruct SO' as [IR TR].
+  intros x1 x2 s1 s2 LS1 LS2 [IN1 IN2]. 
   assert (x12 : x1 = x2).
   {
-    unfold incl in *. destruct (IN1 x1). { simpl. left. reflexivity. }
+    destruct (IN1 x1). { simpl. left. reflexivity. }
     - subst. reflexivity.
-    - apply (set_In lt SO x1 x2 s2 LS2) in H.
+    - apply (set_In x1 x2 s2 LS2) in H0.
       destruct (IN2 x2). { simpl. left. reflexivity. }
-      * subst. apply IR in H. inversion H.
-      * apply (set_In lt SO x2 x1 s1 LS1) in H0.
-        apply (TR x1 x2 x1 H0) in H. apply IR in H. inversion H.
-  }
+      * subst. apply StrictOrder_Irreflexive in H0. inversion H0.
+      * apply (set_In x2 x1 s1 LS1) in H1.
+        assert (H_copy := H).
+        destruct H as [_ H].
+        spec H x1 x2 x1 H1 H0.
+        apply StrictOrder_Irreflexive in H. tauto. 
+        } 
   subst.
-  split; try reflexivity.
+  split. reflexivity. 
   split; unfold incl.
-  - intros. assert (INa1 := H).
-    apply (set_In lt SO _ _ _ LS1) in H. 
+  - intros. assert (INa1 := H0).
+    apply (set_In _ _ _ LS1) in H0. 
     destruct (IN1 a).
     { simpl. right. assumption. }
-    + subst. apply IR in H. inversion H.
+    + subst. apply StrictOrder_Irreflexive in H0. inversion H0.
     + assumption.
-  - intros. assert (INa2 := H).
-    apply (set_In lt SO _ _ _ LS2) in H. 
+  - intros. assert (INa2 := H0).
+    apply (set_In _ _ _ LS2) in H0. 
     destruct (IN2 a).
     { simpl. right. assumption. }
-    + subst. apply IR in H. inversion H.
+    + subst. apply StrictOrder_Irreflexive in H0. inversion H0.
     + assumption.
 Qed.
 
-Lemma set_equality_predicate {A}  (lt : relation A) :
-  StrictOrder lt ->
+
+Lemma set_equality_predicate {A}  {lt : relation A} `{StrictOrder A lt} :
   forall s1 s2,
   LocallySorted lt s1 ->
   LocallySorted lt s2 ->
   set_eq s1 s2 <-> s1 = s2.
 Proof.
-  intros SO s1 s2 LS1 LS2 . assert (SO' := SO). destruct SO' as [IR TR].
+  intros s1 s2 LS1 LS2 . rename H into SO.
+  assert (SO' := SO). destruct SO' as [IR TR].
   split. 
   - generalize dependent s2. induction s1; destruct s2.
     + intros. reflexivity.
     + intros. destruct H. exfalso. apply (H0 a). simpl. left. reflexivity.
     + intros. destruct H. exfalso. apply (H a). simpl. left. reflexivity.
-    + intros. apply (set_eq_first_equal lt SO  a a0 s1 s2 LS1 LS2) in H. destruct H; subst.
+    + intros. apply (set_eq_first_equal a a0 s1 s2 LS1 LS2) in H. destruct H; subst.
       apply Sorted_LocallySorted_iff in LS1. apply Sorted_inv in LS1. destruct LS1 as [LS1 _]. apply Sorted_LocallySorted_iff in LS1.
       apply Sorted_LocallySorted_iff in LS2. apply Sorted_inv in LS2. destruct LS2 as [LS2 _]. apply Sorted_LocallySorted_iff in LS2.
       apply (IHs1 LS1 s2 LS2) in H0. subst. reflexivity.
-  - intros. subst. apply set_eq_refl.
+  - intros. subst. easy. 
 Qed.

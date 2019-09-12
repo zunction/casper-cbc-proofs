@@ -1,0 +1,16 @@
+preamble.vo preamble.glob preamble.v.beautified: preamble.v
+preamble.vio: preamble.v
+ListExtras.vo ListExtras.glob ListExtras.v.beautified: ListExtras.v
+ListExtras.vio: ListExtras.v
+ListSetExtras.vo ListSetExtras.glob ListSetExtras.v.beautified: ListSetExtras.v
+ListSetExtras.vio: ListSetExtras.v
+RealsExtras.vo RealsExtras.glob RealsExtras.v.beautified: RealsExtras.v
+RealsExtras.vio: RealsExtras.v
+sorted_lists.vo sorted_lists.glob sorted_lists.v.beautified: sorted_lists.v
+sorted_lists.vio: sorted_lists.v
+locally_sorted.vo locally_sorted.glob locally_sorted.v.beautified: locally_sorted.v
+locally_sorted.vio: locally_sorted.v
+fault_weights.vo fault_weights.glob fault_weights.v.beautified: fault_weights.v
+fault_weights.vio: fault_weights.v
+protocol_states.vo protocol_states.glob protocol_states.v.beautified: protocol_states.v
+protocol_states.vio: protocol_states.v

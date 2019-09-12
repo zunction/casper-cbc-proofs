@@ -182,4 +182,62 @@ Proof.
   repeat (split; try assumption). apply incl_tran with (get_messages sigma2); assumption.
 Qed.
 
+(** Proof obligations from CBC_protocol **)
+Definition prot_state : Type :=
+  { s : state | protocol_state s}. 
+
+Definition prot_state_proj1 (s : prot_state) := proj1_sig s. 
+Coercion prot_state_proj1 : prot_state >-> state.
+
+Definition reach := syntactic_state_inclusion. 
+
+Lemma reach_trans :
+  forall (s1 s2 s3 : prot_state), reach s1 s2 -> reach s2 s3 -> reach s1 s3. 
+Proof.
+  intros s1 s2 s3 H_12 H_23. 
+  intros x H_in.
+  spec H_12 x H_in.
+  spec H_23 x H_12.
+  assumption.
+Qed.
+
+Lemma reach_union :
+  forall (s1 s2 : prot_state), reach s1 (state_union s1 s2).
+Proof.   
+  intros s1 s2. unfold state_union. 
+  intros x H_in.
+  assert (H_incl := list_to_state_iff (messages_union (get_messages s1) (get_messages s2))).
+  destruct H_incl as [_ useful]. 
+  spec useful x. spec useful.
+  apply in_app_iff. tauto.
+  assumption.
+Qed. 
+
+Lemma reach_morphism :
+  forall s1 s2 s3, reach s1 s2 -> s2 = s3 -> reach s1 s3. 
+Proof. 
+  intros; subst; assumption. 
+Qed.
+
+(** After cycling to fault_weights for a bit, **)
+
+Lemma about_prot_state :
+  forall (s1 s2 : sorted_state),
+    protocol_state s1 ->
+    protocol_state s2 ->
+    (fault_weight_state (state_union s1 s2) <= t)%R ->
+    protocol_state (state_union s1 s2). 
+Proof. 
+  intros s1 s2 H_s1 H_s2 H_weight. 
+  unfold state_union.
+  inversion H_s1. subst.
+  simpl. rewrite list_to_state_sorted; try assumption.
+  destruct s2; simpl in *; assumption.
+  remember (messages_union (get_messages s1) (get_messages s2)) as lm. 
+  induction (get_messages s1) as [|hd tl IHlm].
+  - simpl. simpl in Heqlm. rewrite Heqlm.
+    admit.
+  - apply protocol_state_empty.
+  - simpl. destruct hd. destruct p.
+    apply protocol_state_next. apply protocol_state_singleton. (msplit. 
 End Protocol_States.

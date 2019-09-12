@@ -4,3 +4,8 @@
 *.vo
 *.v.d
 Makefile.coq
+.coqdeps.d
+.dep
+.depend
+*.v~
+*_eq.v

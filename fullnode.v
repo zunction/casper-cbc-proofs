@@ -68,6 +68,7 @@ Qed.
 Parameters (t_full : {r | (r >= 0)%R})
            (suff_val_full : exists vs, NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t_full))%R).
 
+<<<<<<< HEAD
 Definition all_validators : list V :=
   proj1_sig (choice (list V) (fun vs => NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t_full))%R) suff_val_full). 
 
@@ -78,6 +79,8 @@ Proof.
   exact (proj2_sig (choice (list V) (fun vs => NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t_full))%R) suff_val_full)).
 Qed.
 
+=======
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
 Inductive state : Type :=
   | Empty : state
   | Next : C ->  V -> state -> state -> state.
@@ -2026,6 +2029,7 @@ Proof.
     assumption.
 Qed.
 
+<<<<<<< HEAD
 Lemma set_eq_empty :
   forall (lv : list V),
     set_eq lv [] -> lv = [].
@@ -2127,15 +2131,26 @@ Proof.
   now apply Rle_antisym. 
 Qed.
 
+=======
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
 Lemma equivocating_senders_fault_weight_eq :
   forall s1 s2,
     set_eq (equivocating_senders s1) (equivocating_senders s2) ->
     fault_weight_state s1 = fault_weight_state s2. 
 Proof.
+<<<<<<< HEAD
   intros s1 s2 H_eq. 
   apply set_eq_nodup_sum_weight_eq; try apply set_map_nodup.
   assumption.
 Qed.
+=======
+  intros s1 s2 H_eq.
+  unfold fault_weight_state, sum_weights.
+  assert (H_s1_nodup : NoDup (equivocating_senders s1)) by apply (set_map_nodup compare_eq_dec sender (filter (fun msg : message => equivocating_in_state msg s1) (get_messages s1))).
+  assert (H_s2_nodup : NoDup (equivocating_senders s2)) by apply (set_map_nodup compare_eq_dec sender (filter (fun msg : message => equivocating_in_state msg s2) (get_messages s2))).
+  admit. 
+Admitted.
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
 
 Lemma messages_fault_weight_eq :
   forall s1 s2,
@@ -3671,6 +3686,7 @@ Definition potentially_pivotal_state (v : V) (s : state) :=
     (* That are all not already equivocating in s *) 
     (forall (v : V), In v vs -> ~ In v (equivocating_senders s)) /\
     (* That tip over s's fault weight but only with the help of v *) 
+<<<<<<< HEAD
     (sum_weights (equivocating_senders s) + sum_weights vs <= proj1_sig t_full)%R /\
     (sum_weights (equivocating_senders s) + sum_weights vs >
      proj1_sig t_full - proj1_sig (weight v))%R. 
@@ -3678,6 +3694,12 @@ Definition potentially_pivotal_state (v : V) (s : state) :=
 (* I think this is needed to prove all_pivotal_validator *) 
 Parameter additionally_about_all_validators : forall (s : state), protocol_state s -> incl (equivocating_senders s) all_validators. 
 
+=======
+    (sum_weights ((equivocating_senders s) ++ vs) <= proj1_sig t_full)%R /\
+    (sum_weights ((equivocating_senders s) ++ vs) >
+     proj1_sig t_full - proj1_sig (weight v))%R. 
+
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
 (* This is a critical lemma *) 
 Lemma all_pivotal_validator :
   forall (s : state),
@@ -3685,6 +3707,7 @@ Lemma all_pivotal_validator :
   exists (v : V),
     potentially_pivotal_state v s. 
 Proof.
+<<<<<<< HEAD
   intros s about_s. 
   assert (H_nodup_ls : NoDup (equivocating_senders s)) by (subst; apply set_map_nodup).
   destruct (exists_pivotal_validator) as [v [vs [H_nodup [H_notin [H_under H_over]]]]].
@@ -3712,10 +3735,14 @@ Proof.
   (* In the case that v is already equivocating in s *)
   (* Because s is not overweight, there must be another pivotal validator available. *) 
   apply protocol_state_not_heavy in about_s.
+=======
+  intros s about_s.
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
 Admitted.
 
 Theorem to_prove_continued : strong_nontriviality. 
 Proof.
+<<<<<<< HEAD
   intros [s1 about_s1]. 
   destruct (all_pivotal_validator s1 about_s1) as [v [H_v [vs [H_nodup [H_v_notin [H_disjoint [H_under H_over]]]]]]].
   exists (exist protocol_state (add_in_sorted_fn (get_estimate s1,v,s1) s1) (copy_protocol_state s1 about_s1  (get_estimate s1) (get_estimate_correct s1) v)).
@@ -3734,6 +3761,18 @@ Proof.
     apply set_eq_comm. apply equivocating_senders_sorted_extend. }
   assert (H_s_inter_weight : fault_weight_state s1' = fault_weight_state s1).
   { apply equivocating_senders_fault_weight_eq; assumption. }
+=======
+  intros [s1 about_s1].
+  destruct (all_pivotal_validator s1 about_s1) as [v [H_v [vs [H_nodup [H_v_notin [H_disjoint [H_under H_over]]]]]]].
+  destruct (estimator_total s1) as [c about_c]. 
+  exists (exist protocol_state (add_in_sorted_fn (c,v,s1) s1) (copy_protocol_state s1 about_s1 c about_c v)).
+  (* Proving next-step relation is trivial. *) 
+  split.
+  exists (c,v,s1); easy. 
+  (* s3 is the state with equivocations from all the senders in vs recursively added to s1, in addition to (c,v,s1)'s equivocating partner message. *)
+  (* First we add the equivocating partner message *)
+  remember (add_in_sorted_fn (get_estimate (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1), v, (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)) (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)) as s1'.
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
   (* Now we are ready to construct s3 from s1' *)
   (* And if we have set up everything correctly, the premises at this point in the proof are sufficient. *)
   remember (next_equivocation_rec' s1' vs v) as s3.
@@ -3743,6 +3782,7 @@ Proof.
       apply copy_protocol_state; try apply get_estimate_correct; try assumption. 
       apply copy_protocol_state; try apply get_estimate_correct; try assumption. } 
     assumption.
+<<<<<<< HEAD
     rewrite H_s_inter_weight.
     assumption. 
     intros. spec H_disjoint v0 H.
@@ -3750,6 +3790,16 @@ Proof.
     spec H_right v0.
     split. intro H_absurd. spec H_left v0 H_absurd.
     contradiction. intro H_absurd. subst. contradiction. } 
+=======
+    assert (H_s_inter_weight : fault_weight_state s1' = fault_weight_state s1) by admit.
+    rewrite H_s_inter_weight.
+    admit.
+    intros. spec H_disjoint v0 H.
+    assert (H_rewrite : set_eq (equivocating_senders s1) (equivocating_senders s1')) by admit. 
+    destruct H_rewrite as [H_left H_right].
+    spec H_right v0.
+    split. tauto. admit. } 
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
   exists (exist protocol_state s3 about_s3).
   repeat split.
   - (* Proving that s1 and s3 share a common future *)
@@ -3763,6 +3813,7 @@ Proof.
     assumption. 
     apply incl_refl.
   - (* Proving that s2 and s3 don't share a common future *)
+<<<<<<< HEAD
     (* Arbitrary state in both s2 and s3 leads to a contradiction *) 
     red. intros [s about_s] H.  
     destruct H as [H_in2 H_in3].
@@ -3771,6 +3822,13 @@ Proof.
     unfold in_future, syntactic_state_inclusion in H_in2, H_in3.
     (* Now we get a message we know is in s2 and prove a contradiction. *)
     spec H_in2 (get_estimate s1,v,s1). spec H_in2. 
+=======
+    red. intros.
+    destruct H as [H_in2 H_in3].
+    unfold in_future, syntactic_state_inclusion in H_in2, H_in3.
+    (* Now we get a message we know is in s2 and prove a contradiction. *)
+    spec H_in2 (c,v,s1). spec H_in2. 
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
     apply in_state_add_in_sorted_iff.
     tauto.
     spec H_in3 (get_estimate
@@ -3780,17 +3838,30 @@ Proof.
                (get_estimate s1, get_distinct_sender v, s1) s1).
     spec H_in3.
     { (* Proving that this message is in s3 *)
+<<<<<<< HEAD
       assert (H_obv : in_state (get_estimate (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1), v, add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1) s1').
+=======
+      assert (H_obv : in_state (get_estimate
+       (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1)
+          s1), v,
+                                add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1) s1').
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
       { subst. rewrite in_state_add_in_sorted_iff.
         left. reflexivity. }
       apply (next_equivocations_keeps_messages s1' vs v) in H_obv.
       subst; assumption. }
+<<<<<<< HEAD
     (* Now we prove a huge contradiction *) 
+=======
+    (* Now we prove a huge contradiction *)
+    destruct s as [s about_s].
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
     simpl in *.
     (* Because s is a protocol state, it can't be overweight *) 
     apply protocol_state_not_heavy in about_s.
     red in about_s.
     (* We need to establish that these two messages are equivocating *) 
+<<<<<<< HEAD
     assert (H_equiv : equivocating_messages_prop (get_estimate s1,v,s1)
                                                  (get_estimate (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1), v, add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)).
     apply about_equivocating_messages. 
@@ -3825,4 +3896,16 @@ Proof.
     rewrite H_s3_weight in H_weights3.
     clear H_s3_weight. 
 Admitted. 
+=======
+    assert (H_equiv : equivocating_messages_prop (c,v,s1)
+                                                 (get_estimate
+               (add_in_sorted_fn
+                  (get_estimate s1, get_distinct_sender v, s1) s1), v,
+            add_in_sorted_fn
+              (get_estimate s1, get_distinct_sender v, s1) s1)).
+    { admit. (* Need to slightly tweak about_equivocating_messages to get this *) }
+    (* Now we know that these two messages are equivocating *)
+    (* We have to say that v's fault weight will be inside s *)
+Admitted.
+>>>>>>> 42bed88707dd08881ac97eeb8eb97b7f57b4d1fb
 (* ******  end  ****** *)
