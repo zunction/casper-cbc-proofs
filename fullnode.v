@@ -2043,8 +2043,6 @@ Proof.
   simpl. reflexivity.
 Qed.
 
-Require Import Classical. 
-
 Lemma equivocating_senders_extend' :
   forall (s : state) (c : C) (v : V) (j : state),
     In v (equivocating_senders s) ->
