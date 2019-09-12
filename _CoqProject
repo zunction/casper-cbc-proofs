@@ -1,4 +1,4 @@
--R . Casper
+-Q . Casper
 preamble.v
 ListExtras.v
 ListSetExtras.v
@@ -13,37 +13,3 @@ binary_full_eq.v
 binary_light_eq.v
 shapeshifters.v
 
-theories/FullStates/threshold.v
-theories/FullStates/states.v
-theories/FullStates/common_futures.v
-theories/FullStates/consistent_decisions_prop_protocol_states.v
-theories/FullStates/consistent_decisions_prop_consensus_values.v
-theories/FullStates/non_triviality_decisions_prop_protocol_states.v
-theories/FullStates/binary_consensus_protocol.v
-
-theories/FullStates/adequacy/add_in_sorted_extras.v
-theories/FullStates/adequacy/sort.v
-theories/FullStates/adequacy/sorted_subset.v
-theories/FullStates/adequacy/state_eq.v
-theories/FullStates/adequacy/state_inclusion.v
-
-
-theories/LightStates/consensus_values.v
-theories/LightStates/validators.v
-theories/LightStates/hashes.v
-theories/LightStates/justifications.v
-theories/LightStates/messages.v
-theories/LightStates/hash_function.v
-theories/LightStates/states.v
-theories/LightStates/estimator.v
-theories/LightStates/protocol_states.v
-theories/LightStates/hash_state.v
-theories/LightStates/threshold.v
-theories/LightStates/fault_weights.v
-theories/LightStates/common_futures.v
-theories/LightStates/consistent_decisions_prop_protocol_states.v
-theories/LightStates/consistent_decisions_prop_consensus_values.v
-theories/LightStates/non_triviality_decisions_prop_protocol_states.v
-theories/LightStates/binary_consensus_protocol.v
-
-dependency_graph.v
