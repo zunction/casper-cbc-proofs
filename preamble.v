@@ -17,6 +17,16 @@ Tactic Notation "spec" hyp(H) constr(a) constr(b) constr(c) constr(d) constr(e) 
   (generalize (H a b c d e); clear H; intro H).
 
 (** Logic library **)
+Lemma or_and_distr_left : forall A B C, (A /\ B) \/ C <-> (A \/ C) /\ (B \/ C).
+Proof.
+  intros; split; intro.
+  - split; destruct H as [[HA HB] | HC]; (left; assumption) || right; assumption.
+  - destruct H as [Hac Hbc].
+    destruct Hac as [Ha | Hc]; try (right; assumption).
+    destruct Hbc as [Hb | Hc]; try (right; assumption).
+    left. split; assumption.
+Qed.
+
 Lemma mirror_reflect: forall X (f : X -> bool) (P : X -> Prop),
   (forall x : X, f x = true <-> P x) ->
   (forall x : X, f x = false <-> ~P x).
@@ -27,6 +37,9 @@ Proof.
     exfalso. apply H0. rewrite <- H. reflexivity.
     reflexivity.
 Qed.
+
+
+
 
 Lemma eq_dec_if_true {A B: Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) : forall (x y : A) (t e : B),
   x = y -> (if eq_dec x y then t else e) = t.

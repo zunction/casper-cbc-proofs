@@ -131,6 +131,41 @@ Proof.
     intros. apply H. right. assumption.
 Qed.
 
+Lemma append_nodup_left {A}:
+  forall (l1 l2 : list A), NoDup (l1 ++ l2) -> NoDup l1.
+Proof.
+  induction l1; intros.
+  - constructor.
+  - inversion H. apply IHl1 in H3. constructor; try assumption. intro. apply H2.
+    apply in_app_iff. left. assumption.
+Qed.
+
+Lemma append_nodup_right {A}:
+  forall (l1 l2 : list A), NoDup (l1 ++ l2) -> NoDup l2.
+Proof.
+  induction l1; intros.
+  - simpl in H. assumption.
+  - simpl in H. inversion H. apply IHl1 in H3. assumption.
+Qed.
+
+Lemma nodup_append {A} : forall (l1 l2 : list A),
+  NoDup l1 ->
+  NoDup l2 ->
+  (forall a, In a l1 -> ~ In a l2) ->
+  (forall a, In a l2 -> ~ In a l1) ->
+  NoDup (l1 ++ l2).
+Proof.
+  induction l1; simpl; intros; try assumption.
+  inversion H; subst; clear H. constructor.
+  - intro. apply in_app_iff in H. destruct H as [Inl1 | InL2].
+    + apply H5. assumption.
+    + apply (H1 a); try assumption.
+      left. reflexivity.
+  - apply IHl1; try assumption; intros.
+    + apply H1. right. assumption.
+    + apply H2 in H. intro. apply H. right. assumption.
+Qed.
+
 (**
 
 

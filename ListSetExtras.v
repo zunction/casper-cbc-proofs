@@ -343,6 +343,14 @@ Proof.
     rewrite (IHs H0). reflexivity.
 Qed.
 
+Lemma set_remove_elim {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s,
+  NoDup s -> ~ In x (set_remove Aeq_dec x s).
+Proof.
+  intros. intro. apply set_remove_iff in H0; try assumption.
+  destruct H0. apply H1. reflexivity.
+Qed.
+
+
 Lemma set_remove_first {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x y s,
   x = y -> set_remove Aeq_dec x (y::s) = s.
 Proof.
@@ -444,6 +452,20 @@ Proof.
     destruct H2; try (left; assumption).
     right. apply set_remove_iff; try assumption.
     split; assumption.
+Qed.
+
+
+Lemma diff_app_nodup {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall s1 s2,
+  NoDup s1 ->
+  NoDup s2 ->
+  NoDup ((set_diff Aeq_dec s1 s2) ++ s2).
+Proof.
+  intros.
+  apply nodup_append; try assumption.
+  - apply set_diff_nodup; try assumption.
+  - intros. apply (set_diff_elim2 Aeq_dec a s1); assumption.
+  - intros. intro. apply set_diff_iff in H2. destruct H2.
+    apply H3. assumption.
 Qed.
 
 Unset Implicit Arguments.

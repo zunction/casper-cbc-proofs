@@ -66,7 +66,7 @@ Proof.
 Qed.
 
 Parameters (t_full : {r | (r >= 0)%R})
-           (suff_val_full : exists vs, NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t_full))%R).
+           (suff_val_full : exists vs, NoDup vs /\ (sum_weights vs > (proj1_sig t_full))%R).
 
 Inductive state : Type :=
   | Empty : state
@@ -1675,6 +1675,14 @@ Proof.
       * rewrite <- Rplus_0_l at 1. apply Rplus_le_compat_r. left. destruct weight. simpl. auto. 
 Qed.
 
+Lemma sum_weights_app : forall vs vs',
+  sum_weights (vs ++ vs') = (sum_weights vs + sum_weights vs')%R.
+Proof.
+  induction vs; intros; simpl.
+  - rewrite Rplus_0_l. reflexivity.
+  - rewrite IHvs. rewrite Rplus_assoc. reflexivity.
+Qed.
+
 Lemma fault_weight_state_incl : forall sigma sigma',
   syntactic_state_inclusion sigma sigma' ->
   (fault_weight_state sigma <= fault_weight_state sigma')%R.
@@ -2363,6 +2371,38 @@ Instance FullNode_syntactic : CBC_protocol :=
  
 Check @level0 FullNode_syntactic.
 
+
+(* From threshold.v *)
+Lemma pivotal_validator_extension : forall vsfix vss,
+  NoDup vsfix ->
+  (* and whose added weight does not pass the threshold *)
+  (sum_weights vsfix <= proj1_sig t_full)%R ->
+  NoDup (vss ++ vsfix) ->
+  (sum_weights (vss ++ vsfix) > proj1_sig t_full)%R ->
+  exists (vs : list V),
+  NoDup vs /\
+  incl vs vss /\
+  (sum_weights (vs ++ vsfix) > proj1_sig t_full)%R /\
+  exists v,
+    In v vs /\
+    (sum_weights ((set_remove compare_eq_dec v vs) ++ vsfix) <= proj1_sig t_full)%R.
+Proof.
+  destruct t_full as [t about_t]; simpl in *.
+  intro.  induction vss; intros.
+  - simpl in H2. exfalso. apply (Rge_gt_trans t) in H2; try (apply Rle_ge; assumption).
+    apply Rgt_not_eq in H2. apply H2. reflexivity.
+  - simpl in H2. destruct (Rtotal_le_gt (sum_weights (vss ++ vsfix)) t).
+    + exists (a :: vss). repeat split; try assumption.
+      * apply append_nodup_left in H1. assumption.
+      * apply incl_refl.
+      * exists a. split; try (left; reflexivity).
+        simpl. rewrite eq_dec_if_true; try reflexivity. assumption.
+    + simpl in H1. apply NoDup_cons_iff in H1. destruct H1 as [Hnin Hvss]. apply IHvss in H3; try assumption.
+      destruct H3 as [vs [Hvs [Hincl Hex]]].
+      exists vs. repeat (split;try assumption). apply incl_tl. assumption.
+Qed.
+
+
 (* From threshold.v *)
 Lemma sufficient_validators_pivotal_ind : forall vss,
   NoDup vss ->
@@ -2375,20 +2415,16 @@ Lemma sufficient_validators_pivotal_ind : forall vss,
     In v vs /\
     (sum_weights (set_remove compare_eq_dec v vs) <= proj1_sig t_full)%R.
 Proof.
-  destruct t_full as [t about_t]; simpl in *. 
-  induction vss; intros.
-  simpl in H0.
-  - exfalso. apply (Rge_gt_trans t) in H0; try apply threshold_nonnegative.
-    apply Rgt_not_eq in H0. apply H0. reflexivity.
-    destruct t_full; easy. 
-  - simpl in H0. destruct (Rtotal_le_gt (sum_weights vss) t).
-    + exists (a :: vss). repeat split; try assumption.
-      * apply incl_refl.
-      * exists a. split; try (left; reflexivity).
-        simpl. rewrite eq_dec_if_true; try reflexivity. assumption.
-    + apply NoDup_cons_iff in H. destruct H as [Hnin Hvss]. apply IHvss in H1; try assumption.
-      destruct H1 as [vs [Hvs [Hincl H]]].
-      exists vs. repeat (split;try assumption). apply incl_tl. assumption.
+  intros.
+  rewrite <- (app_nil_r vss) in H.   rewrite <- (app_nil_r vss) in H0.
+  apply (pivotal_validator_extension [] vss) in H0; try assumption.
+  - destruct H0 as [vs [NoDupvs [Inclvs [Gt [v [Inv Lt]]]]]].
+    rewrite app_nil_r in Lt. rewrite app_nil_r in Gt.
+    exists vs. repeat (split; try assumption).
+    exists v. repeat (split; try assumption).
+  - constructor.
+  - destruct t_full as [t about_t]; simpl in *.
+    apply Rge_le; assumption.
 Qed.
 
 Lemma sufficient_validators_pivotal :
@@ -3546,9 +3582,6 @@ Proof.
       tauto. 
 Qed. 
 
-Print exists_pivotal_validator.
-(* This is not strong enough *) 
-
 Definition potentially_pivotal_state (v : V) (s : state) :=
   (* We say that v is a pivotal validator for some state s iff : *)
   (* v is not already equivocating in s *) 
@@ -3574,7 +3607,47 @@ Lemma all_pivotal_validator :
     potentially_pivotal_state v s. 
 Proof.
   intros s about_s.
-Admitted.
+  destruct suff_val as [vs [Hvs Hweight]].
+  remember (equivocating_senders s) as eqv_s.
+  remember (set_diff compare_eq_dec vs eqv_s) as vss.
+  assert (sum_weights (vss ++ eqv_s) > proj1_sig t_full)%R.
+  { apply Rge_gt_trans with (sum_weights vs); try assumption.
+    apply Rle_ge. apply sum_weights_incl; try assumption.
+    - rewrite Heqvss. apply diff_app_nodup; try assumption.
+      subst. unfold equivocating_senders. apply set_map_nodup.
+    - rewrite Heqvss. intros a Hin. apply in_app_iff.
+      rewrite set_diff_iff. apply or_and_distr_left.
+      split; try (left; assumption).
+      destruct (in_dec compare_eq_dec a eqv_s); (left; assumption) || (right; assumption).
+  }
+  apply pivotal_validator_extension in H.
+  - destruct H as [vs' [Hnodup_vs' [Hincl_vs' [Hgt [v [Hin_v Hlt]]]]]].
+    exists v. split.
+    + subst. apply Hincl_vs' in Hin_v. apply set_diff_elim2 in Hin_v. assumption.
+    + exists (set_remove compare_eq_dec v vs').
+      assert (NoDup (set_remove compare_eq_dec v vs')) as Hnodup_remove
+      ; try apply set_remove_nodup; try assumption.
+      repeat split.
+      * assumption.
+      * try apply set_remove_elim; try assumption.
+      * intros. apply set_remove_1 in H. apply Hincl_vs' in H. subst.
+        apply set_diff_elim2 in H. assumption.
+      * subst. rewrite sum_weights_app in *. rewrite Rplus_comm in Hlt.
+        assumption.
+      * apply Rlt_gt. apply Rplus_lt_reg_r with (proj1_sig (weight v)).
+        unfold Rminus. rewrite Rplus_assoc. rewrite Rplus_opp_l.
+        rewrite Rplus_0_r. apply Rgt_lt.
+        apply Rge_gt_trans with (sum_weights (vs' ++ eqv_s)); try assumption.
+        unfold Rge. right. rewrite Rplus_comm.
+        rewrite sum_weights_app. rewrite (Rplus_comm (sum_weights (equivocating_senders s))) .
+        rewrite <- Rplus_assoc. rewrite sum_weights_app. subst.
+        apply Rplus_eq_compat_r.
+        symmetry. apply sum_weights_in; try assumption.
+  - subst. apply set_map_nodup.
+  - subst. apply protocol_state_not_heavy. assumption.
+  - subst. apply diff_app_nodup; try assumption.
+    apply set_map_nodup.
+Qed.
 
 Theorem to_prove_continued : strong_nontriviality. 
 Proof.
