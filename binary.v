@@ -1,7 +1,7 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
 Import ListNotations.    
 From Casper 
-Require Import preamble ListExtras ListSetExtras sorted_lists protocol_eq.
+Require Import preamble ListExtras ListSetExtras sorted_lists protocol.
 
 (** Building blocks for instancing CBC_protocol_eq with a concrete binary consensus protocol **) 
 (** Set equality on states **) 
@@ -94,6 +94,8 @@ Section States.
 
   Definition state0 : state := [].
 
+  Parameter about_state : StrictlyComparable state. 
+
   Definition state_eq (s1 s2 : state) := incl s1 s2 /\ incl s2 s1.
 
   Definition state_union (s1 s2 : state) : state := set_union compare_eq_dec s1 s2. 
@@ -141,6 +143,9 @@ Section States.
     fold_right Rplus R0 (map posR_proj1 (map weight (validators_latest_estimates c sigma))).
 
  Definition reach (s1 s2 : state) := incl s1 s2.
+
+ Lemma reach_refl : forall s, reach s s.
+ Proof. apply incl_refl. Qed. 
 
  Lemma reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3. 
  Proof. apply incl_tran. Qed.
@@ -411,11 +416,13 @@ Section States.
      t := t_full;
      suff_val := suff_val_full;
      state := state;
+     about_state := about_state;
      state0 := state0;
      state_eq := state_eq;
      state_union := state_union;
      state_union_comm := state_union_comm;
-     reach := reach; 
+     reach := reach;
+     reach_refl := reach_refl;
      reach_trans := reach_trans;
      reach_union := reach_union;
      reach_morphism := reach_morphism;

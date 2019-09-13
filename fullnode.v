@@ -125,7 +125,6 @@ Qed.
 Lemma reachable_morphism : forall s1 s2 s3, reachable s1 s2 -> s2 = s3 -> reachable s1 s3.  
 Proof. intros; subst; assumption. Qed. 
 
-
 (** Proof obligations from CBC_protocol **)
 Lemma equivocation_weight_compat : forall (s1 s2 : sorted_state), (fault_weight_state s1 <= fault_weight_state (state_union s2 s1))%R. 
 Proof. 
@@ -159,7 +158,15 @@ Proof.
   now apply union_protocol_states.
 Qed.
 
-Instance FullNode_syntactic : CBC_protocol :=
+Lemma reach_morphism :
+  forall (s1 s2 s3 : sorted_state),
+    reachable s1 s2 -> s2 = s3 -> reachable s1 s3. 
+Proof.
+  intros s1 s2 s3 H_12 H_eq.
+  subst. easy.
+Qed.
+
+Instance FullNode_syntactic : CBC_protocol_eq :=
   { consensus_values := definitions.C;  
     about_consensus_values := definitions.about_C;
     validators := definitions.V;
@@ -167,14 +174,16 @@ Instance FullNode_syntactic : CBC_protocol :=
     weight := weight;
     t := t_full;
     suff_val := suff_val_full;
+    state := sorted_state;
+    about_state := sorted_state_type;
+    state0 := sorted_state0;
+    state_eq := eq;
+    state_union_comm := sorted_state_sorted_union_comm;
     reach := reachable;
     reach_refl := reachable_refl;
     reach_trans := reachable_trans;
     reach_union := reach_union;
-    state := sorted_state;
-    about_state := sorted_state_type;
-    state0 := sorted_state0;
-    state_union_comm := sorted_state_sorted_union_comm;
+    reach_morphism := reach_morphism;
     E := estimator;
     estimator_total := estimator_total; 
     prot_state := protocol_state;
@@ -507,7 +516,6 @@ Proof.
 Qed.
 
 (* Removing the existential from the above theorem *)
-(* Replacing all occurrences of equivocation in bool with equivocation in Prop *)
 (* This lemma doesn't care whether you're a protocol state or not *) Lemma about_equivocating_messages :
   forall j v v',
       v <> v' ->  
@@ -515,7 +523,6 @@ Qed.
                                  (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j). 
 Proof.
   intros j v v' H_neq.
-  (* Being lazy here to reuse the other bool-based proof for now *) 
   rewrite <- equivocating_messages_correct. 
   unfold equivocating_messages.
   rewrite eq_dec_if_false.
@@ -1147,7 +1154,7 @@ Proof.
     apply set_map_nodup.
 Qed.
 
-Theorem to_prove_continued : strong_nontriviality.  
+Theorem strong_nontriviality_full : strong_nontriviality.  
 Proof.
   intros [s1 about_s1]. 
   destruct (all_pivotal_validator s1 about_s1) as [v [H_v [vs [H_nodup [H_v_notin [H_disjoint [H_under H_over]]]]]]].

@@ -1,24 +1,13 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
 Import ListNotations.    
 From Casper 
-Require Import preamble ListExtras ListSetExtras sorted_lists protocol_eq.
+Require Import preamble ListExtras ListSetExtras sorted_lists protocol definitions.
 
 (** Building blocks for instancing CBC_protocol with light node version **)
 (** Set equality on states **) 
 
-Section States. 
-
-Variables C V H : Type. 
-Context (about_C : `{StrictlyComparable C})
-        (about_V : `{StrictlyComparable V})
-        (about_H : `{StrictlyComparable H}). 
-
-Parameter weight : V -> {r : R | (r > 0)%R}.
-Definition sum_weights (l : list V) : R :=
-  fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R l. 
-
-Parameters (t_full : {r | (r >= 0)%R})
-           (suff_val_full : exists vs, NoDup vs /\ ((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs > (proj1_sig t_full))%R).
+Variable H: Type.
+Variable (about_H : `{StrictlyComparable H}). 
 
 (* Additional types for defining light node states *) 
 Definition justification_type : Type := list H. 
@@ -34,14 +23,14 @@ Instance about_justification_type : StrictlyComparable justification_type :=
     compare_strictorder := list_compare_strict_order;
   }. 
 
-Definition message : Type := C * V * justification_type.
+Definition message : Type := definitions.C * definitions.V * justification_type.
 
-Definition message_type := TripleStrictlyComparable C V justification_type.
+Definition message_type := TripleStrictlyComparable definitions.C definitions.V justification_type.
 
-Definition estimate (msg : message) : C :=
+Definition estimate (msg : message) : definitions.C :=
   match msg with (c, _, _) => c end.
 
-Definition sender (msg : message) : V :=
+Definition sender (msg : message) : definitions.V :=
   match msg with (_, v, _) => v end.
 
 Definition justification (msg : message) : justification_type :=
@@ -51,6 +40,8 @@ Definition justification (msg : message) : justification_type :=
 Definition state := set message.
 
 Definition state0 : state := [].
+
+Parameter about_state : StrictlyComparable state. 
 
 Definition state_eq (s1 s2 : state) := incl s1 s2 /\ incl s2 s1.
 
@@ -65,6 +56,9 @@ Qed.
 
 Definition reach (s1 s2 : state) := incl s1 s2.
 
+Lemma reach_refl : forall s, reach s s. 
+Proof. apply incl_refl. Qed.
+
 Lemma reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3. 
 Proof. apply incl_tran. Qed.
 
@@ -75,13 +69,10 @@ Lemma reach_morphism : forall s1 s2 s3, reach s1 s2 -> state_eq s2 s3 -> reach s
 Proof. intros s1 s2 s3 H_reach H_eq x H_in. spec H_reach x H_in.
        destruct H_eq as [H_eq _]. spec H_eq x H_reach; assumption. Qed. 
 
-Parameters (estimator : state -> C -> Prop)
-           (estimator_total : forall s : state, exists c : C, estimator s c).
-
 (* Defining protocol_state as a predicate *)
 Parameters (hash : message -> H)
            (hash_injective : Injective hash).
-
+ 
 Definition equivocating_messages (msg1 msg2 : message) : bool :=
   match compare_eq_dec msg1 msg2 with
   | left _  => false
@@ -108,7 +99,7 @@ Proof.
   apply H0. assumption.
 Qed.
 
-Definition equivocating_senders (sigma : state) : set V :=
+Definition equivocating_senders (sigma : state) : set definitions.V :=
   set_map compare_eq_dec sender (filter (fun msg => equivocating_message_state msg sigma) sigma).
 
 Lemma equivocating_senders_nodup : forall sigma,
@@ -205,7 +196,17 @@ Proof.
   assumption.
 Qed.
 
-Definition valid_estimate_condition (c : C) (sigma : state) : Prop :=
+(* Defining the estimator function as a relation *) 
+Parameters (estimator : state -> definitions.C -> Prop)
+           (estimator_total : forall s : state, exists c : definitions.C, estimator s c). 
+
+Definition get_estimate (s : state) :=
+  proj1_sig (choice definitions.C (estimator s) (estimator_total s)).
+
+Definition get_estimate_correct (s : state) :=
+  proj2_sig (choice definitions.C (estimator s) (estimator_total s)). 
+
+Definition valid_estimate_condition (c : definitions.C) (sigma : state) : Prop :=
   estimator sigma c.
 
 Definition fault_tolerance_condition (sigma : state) : Prop :=
@@ -216,7 +217,7 @@ Definition hash_state (sigma : state) : justification_type := map hash sigma.
 
 Inductive protocol_state : state -> Prop :=
   | protocol_state_nil : protocol_state state0
-  | protocol_state_cons : forall c v j sigma',
+  | protocol_state_cons : forall (c : definitions.C) (v : definitions.V) (j sigma' : state),
       protocol_state j -> 
       valid_estimate_condition c j ->  
       In (c, v, hash_state j) sigma' ->
@@ -310,22 +311,24 @@ Proof.
 Qed.
 
 Instance LightNode_seteq : CBC_protocol_eq :=
-  { consensus_values := C;  
-    about_consensus_values := about_C;
-    validators := V;
-    about_validators := about_V;
+  { consensus_values := definitions.C;  
+    about_consensus_values := definitions.about_C;
+    validators := definitions.V;
+    about_validators := definitions.about_V;
     weight := weight;
     t := t_full;
     suff_val := suff_val_full;
     state := state;
     state0 := state0;
-    (* >> *) state_eq := state_eq;
+    state_eq := set_eq;
+    about_state := about_state;
     state_union := state_union;
     state_union_comm := state_union_comm;
-    reach := reach; 
+    reach := reach;
+    reach_refl := reach_refl;
     reach_trans := reach_trans;
     reach_union := reach_union;
-    (* >> *) reach_morphism := reach_morphism;
+    reach_morphism := reach_morphism;
     E := estimator;
     estimator_total := estimator_total; 
     prot_state := protocol_state;
@@ -335,7 +338,7 @@ Instance LightNode_seteq : CBC_protocol_eq :=
     about_prot_state := about_prot_state;
   }.
   
-End States.
+
 
 
 
