@@ -447,76 +447,8 @@ Definition strong_nontriviality :=
       (* But s2 and s3 don't. *) 
       no_common_future s2 s3. 
 
-Theorem equivocating_messages_exists :
-  forall c v j,
-    protocol_state j ->
-    estimator j c ->
-    exists j' c',
-      protocol_state j' /\
-      incl_messages j j' /\
-      estimator j' c' /\
-      equivocating_messages (c, v, j) (c', v, j') = true.
-Proof.
-  intros c v j H0 Hestj.
-  remember (get_distinct_sender v) as v'.
-  assert (about_v' := get_distinct_sender_correct v).
-  exists (add_in_sorted_fn (c, v', j) j).
-  remember (add_in_sorted_fn (c, v', j) j) as j'.
-  destruct (estimator_total j') as [c' Hest].
-  exists c'.
-  repeat split; try assumption. 
-  - (* Proving that the conflicting justification is also a valid protocol state *) 
-    subst.
-    constructor; try assumption; try apply incl_refl.
-    (* Proving that the conflicting justification/future state is not heavy *)
-    unfold not_heavy. unfold fault_weight_state.
-    apply protocol_state_not_heavy in H0.
-    unfold not_heavy in H0.
-    apply Rle_trans with (fault_weight_state j); try assumption.
-    apply sum_weights_incl; try apply set_map_nodup.
-    unfold equivocating_senders. apply set_map_incl.
-    intros msg Hin.
-      apply filter_In in Hin. apply filter_In. destruct Hin.
-      apply in_state_add_in_sorted_iff in H. destruct H as [Heq | Hin].
-      + subst. exfalso. unfold equivocating_in_state in H1.
-        rewrite existsb_exists in H1. destruct H1 as [msg [Hin Hequiv]].
-        apply in_state_add_in_sorted_iff in Hin.
-        destruct Hin as [Heq | Hin].
-        * subst. unfold equivocating_messages in Hequiv. rewrite eq_dec_if_true in Hequiv; try reflexivity.
-          inversion Hequiv.
-        * rewrite equivocating_messages_comm in Hequiv. rewrite non_equivocating_messages_extend in Hequiv
-                                                        ; try assumption. inversion Hequiv.
-    + split; try assumption.
-      unfold equivocating_in_state in H1. apply existsb_exists in H1.
-      destruct H1 as [msg' [Hin' Hequiv]].
-      apply existsb_exists. exists msg'. split; try assumption.
-      apply in_state_add_in_sorted_iff in Hin'.
-      destruct Hin'; try assumption; subst.
-      exfalso. rewrite non_equivocating_messages_extend in Hequiv; try assumption. inversion Hequiv.
-  - subst.
-      intros msg Hin; apply in_state_add_in_sorted_iff; right; assumption.
-  - unfold equivocating_messages.
-      rewrite eq_dec_if_false.
-      + rewrite eq_dec_if_true; try reflexivity.
-        rewrite andb_true_iff.
-        split; rewrite negb_true_iff
-        ; unfold in_state_fn; rewrite in_state_dec_if_false; try reflexivity
-        ; intro.
-        * subst. apply in_state_add_in_sorted_iff in H.
-          { destruct H.
-            - inversion H. subst. apply about_v'; auto.
-            - apply (not_extx_in_x c v j j); try assumption.
-              apply incl_refl.
-          }
-        * apply (not_extx_in_x c' v j' j); try assumption. subst.
-          intros msg Hin. apply in_state_add_in_sorted_iff. right. assumption.
-      + intro. inversion H; subst; clear H.
-        apply (not_extx_in_x c' (get_distinct_sender v) j j); try apply incl_refl. rewrite H3 at 2.
-        apply in_state_add_in_sorted_iff. left. reflexivity.
-Qed.
-
-(* Removing the existential from the above theorem *)
-(* This lemma doesn't care whether you're a protocol state or not *) Lemma about_equivocating_messages :
+(* Here's how to construct an equivocation *) 
+Lemma about_equivocating_messages :
   forall j v v',
       v <> v' ->  
       equivocating_messages_prop (get_estimate j, v, j)

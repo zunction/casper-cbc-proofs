@@ -1,11 +1,12 @@
-.DS_Store
+*.DS_Store
 *.aux
 *.glob
 *.vo
-*.v.d
+*.d
 Makefile.coq
-.coqdeps.d
-.dep
-.depend
+Makefile.coq.conf
+*.coqdeps.d
+*.dep
+*.depend
 *.v~
 *_eq.v
