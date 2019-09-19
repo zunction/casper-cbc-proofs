@@ -2276,7 +2276,7 @@ Qed.
 
 
 (* From threshold.v *)
-Lemma sufficient_validators_pivotal_ind : forall vss,
+Lemma validators_pivotal_ind : forall vss,
   NoDup vss ->
   (sum_weights vss > proj1_sig t_full)%R ->
   exists (vs : list V),
@@ -2308,7 +2308,7 @@ Lemma sufficient_validators_pivotal :
       (sum_weights (set_remove compare_eq_dec v vs) <= proj1_sig t_full)%R.
 Proof.
   destruct suff_val_full as [vs [Hvs Hweight]].
-  apply (sufficient_validators_pivotal_ind vs Hvs) in Hweight.
+  apply (validators_pivotal_ind vs Hvs) in Hweight.
   destruct Hweight as [vs' [Hnd [Hincl H]]].
   destruct t_full as [t about_t]; simpl in *.
   exists vs'. repeat (split; try assumption).

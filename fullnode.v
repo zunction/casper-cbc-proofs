@@ -1057,7 +1057,7 @@ Proof.
       split; try (left; assumption).
       destruct (in_dec compare_eq_dec a eqv_s); (left; assumption) || (right; assumption).
   }
-  apply pivotal_validator_extension in H.
+  apply pivotal_validator_extension in H. 
   - destruct H as [vs' [Hnodup_vs' [Hincl_vs' [Hgt [v [Hin_v Hlt]]]]]].
     exists v. split.
     + subst. apply Hincl_vs' in Hin_v. apply set_diff_elim2 in Hin_v. assumption.
