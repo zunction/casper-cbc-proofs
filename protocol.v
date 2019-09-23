@@ -95,6 +95,37 @@ Class CBC_protocol_eq :=
                                   (equivocation_weight (state_union s1 s2) <= proj1_sig t)%R -> prot_state (state_union s1 s2);
    }.
 
+Definition reach_one `{CBC_protocol_eq} (sigma1 sigma2 : state) : Prop :=
+  sigma1 <> sigma2 /\ reach sigma1 sigma2 /\
+  forall sigma, reach sigma1 sigma -> reach sigma sigma2 -> sigma = sigma1 \/ sigma = sigma2.
+
+CoInductive traces `{CBC_protocol_eq} (sigma : state) : Type :=
+  | next : forall sigma', reach_one sigma sigma' -> traces sigma' -> traces sigma
+  | done : (~ exists sigma', reach_one sigma sigma') ->  traces sigma
+  .
+
+CoInductive all_path_eventually `{CBC_protocol_eq} (sigma : state) (P : state -> Prop) : Prop :=
+  | all_path_holds_now
+    : P sigma -> all_path_eventually sigma P
+  | all_path_holds_next
+    :  (exists sigma', reach_one sigma sigma')
+    -> forall sigma', reach_one sigma sigma'
+    -> all_path_eventually sigma' P
+    -> all_path_eventually sigma P
+  .
+
+
+CoInductive one_path_eventually `{CBC_protocol_eq} (sigma : state) (P : state -> Prop) : Prop :=
+  | one_path_holds_now
+    : P sigma -> one_path_eventually sigma P
+  | one_path_holds_next
+    :  (exists sigma', reach_one sigma sigma' /\ all_path_eventually sigma' P)
+    -> one_path_eventually sigma P
+  .
+
+
+
+
 (*
 Class CBC_protocol :=
    {
@@ -218,6 +249,17 @@ Section Consistency.
 
   Definition decided `{CBC_protocol_eq} (s : state) (P : state -> Prop) :=
     forall s', reach s s' -> P s'. 
+
+  Definition decided_on_predicate
+    `{CBC_protocol_eq}
+    (c : consensus_values)
+    (future : state)
+    : Prop
+    :=
+    forall c', E future c' -> c' = c.
+
+  Definition decided_on `{CBC_protocol_eq} (s : state) (c : consensus_values) :=
+    decided s (decided_on_predicate c).
 
   Definition not `{CBC_protocol_eq} (P : state -> Prop) :=
     fun s => P s -> False.
