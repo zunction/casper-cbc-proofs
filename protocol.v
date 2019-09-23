@@ -95,37 +95,6 @@ Class CBC_protocol_eq :=
                                   (equivocation_weight (state_union s1 s2) <= proj1_sig t)%R -> prot_state (state_union s1 s2);
    }.
 
-Definition reach_one `{CBC_protocol_eq} (sigma1 sigma2 : state) : Prop :=
-  sigma1 <> sigma2 /\ reach sigma1 sigma2 /\
-  forall sigma, reach sigma1 sigma -> reach sigma sigma2 -> sigma = sigma1 \/ sigma = sigma2.
-
-CoInductive traces `{CBC_protocol_eq} (sigma : state) : Type :=
-  | next : forall sigma', reach_one sigma sigma' -> traces sigma' -> traces sigma
-  | done : (~ exists sigma', reach_one sigma sigma') ->  traces sigma
-  .
-
-CoInductive all_path_eventually `{CBC_protocol_eq} (sigma : state) (P : state -> Prop) : Prop :=
-  | all_path_holds_now
-    : P sigma -> all_path_eventually sigma P
-  | all_path_holds_next
-    :  (exists sigma', reach_one sigma sigma')
-    -> forall sigma', reach_one sigma sigma'
-    -> all_path_eventually sigma' P
-    -> all_path_eventually sigma P
-  .
-
-
-CoInductive one_path_eventually `{CBC_protocol_eq} (sigma : state) (P : state -> Prop) : Prop :=
-  | one_path_holds_now
-    : P sigma -> one_path_eventually sigma P
-  | one_path_holds_next
-    :  (exists sigma', reach_one sigma sigma' /\ all_path_eventually sigma' P)
-    -> one_path_eventually sigma P
-  .
-
-
-
-
 (*
 Class CBC_protocol :=
    {
@@ -169,19 +138,68 @@ Theorem reach_total `{CBC_protocol_eq} :
   forall s, exists s', reach s s'.
 Proof. intro s. exists (state_union s s). apply (reach_union s s). Qed.
 
+(** Defining A **) 
+Definition pstate `{CBC_protocol_eq} : Type := {s : state | prot_state s}. 
+Definition pstate_proj1 `{CBC_protocol_eq} (p : pstate) : state :=
+  proj1_sig p. 
+Coercion pstate_proj1 : pstate >-> state.
+
+(** Proving A_eq_dec **)
+Lemma pstate_eq_dec `{CBC_protocol_eq} : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
+Proof.
+  intros p1 p2.
+  assert (H_useful := about_state). 
+  now apply sigify_eq_dec. 
+Qed.
+
+(** Proving A_inhabited **) 
+Lemma pstate_inhabited `{CBC_protocol_eq} : exists (p1 : pstate), True.
+Proof. now exists (exist prot_state state0 about_state0). Qed. 
+
+(** Defining A_rel **) 
+Definition pstate_rel `{CBC_protocol_eq} : pstate -> pstate -> Prop :=
+  fun p1 p2 => reach (pstate_proj1 p1) (pstate_proj1 p2).
+
+(** Proving A_rel_refl **) 
+Lemma pstate_rel_refl `{CBC_protocol_eq} : Reflexive pstate_rel.
+Proof. red; intro p; now apply reach_refl. Qed.
+
+(** Proving A_rel_trans **) 
+Lemma pstate_rel_trans `{CBC_protocol_eq} : Transitive pstate_rel. 
+Proof. 
+  red; intros p1 p2 p3 H_12 H_23.
+  destruct p1 as [p1 about_p1];
+    destruct p2 as [p2 about_p2];
+    destruct p3 as [p3 about_p3];
+    simpl in *.
+  now apply reach_trans with p2.
+Qed.
+
+Instance level0 `{CBC_protocol_eq} : PartialOrder :=
+  { A := pstate;
+    A_eq_dec := pstate_eq_dec;
+    A_inhabited := pstate_inhabited;
+    A_rel := pstate_rel;
+    A_rel_refl := pstate_rel_refl;
+    A_rel_trans := pstate_rel_trans;
+  }.
+
+
+
 Section CommonFutures. 
 
   (* Theorem 1 *) 
   Theorem pair_common_futures `{CBC_protocol_eq}:
-    forall s1 s2,
-      prot_state s1 ->
-      prot_state s2 ->
+    forall s1 s2 : pstate,
       (equivocation_weight (state_union s1 s2) <= proj1_sig t)%R ->
-      exists s, prot_state s /\ reach s1 s /\ reach s2 s.
+      exists s : pstate, pstate_rel s1 s /\ pstate_rel s2 s.
   Proof.
-    intros s1 s2 H_s1 H_s2 H_weight.
-    exists (state_union s1 s2); split.
-    apply about_prot_state; assumption. 
+    intros s1 s2 H_weight. remember s1 as ps1. remember s2 as ps2.
+    destruct s1 as [s1 H_s1]. destruct s2 as [s2 H_s2].
+    rewrite Heqps1, Heqps2 in H_weight; simpl in H_weight.
+
+    exists (exist _ (state_union s1 s2) (about_prot_state s1 s2 H_s1 H_s2 H_weight)).
+    subst. unfold pstate_rel. simpl.
     split. apply reach_union.
     apply (reach_morphism s2 (state_union s2 s1) (state_union s1 s2)). 
     apply reach_union.
@@ -197,13 +215,13 @@ Section CommonFutures.
     - destruct H_in as [Heq | Hneq].
       + subst.
         simpl. apply reach_union.
-      + spec IHtl Hneq. simpl. 
+      + spec IHtl Hneq. simpl.
         eapply reach_trans.
-        exact IHtl.  
+        exact IHtl.
         apply (reach_morphism (fold_right state_union state0 tl)
                               (state_union (fold_right state_union state0 tl) hd)
-                              (state_union hd (fold_right state_union state0 tl))). 
-        apply reach_union. apply state_union_comm. 
+                              (state_union hd (fold_right state_union state0 tl))).
+        apply reach_union. apply state_union_comm.
   Qed.
 
   Lemma prot_state_union_iter `{CBC_protocol_eq} :
@@ -229,103 +247,150 @@ Section CommonFutures.
       assumption. assumption. assumption.
   Qed.
 
+  Lemma pstate_list `{CBC_protocol_eq} :
+    forall pls : list pstate,
+      Forall prot_state (map (fun ps => proj1_sig ps) pls).
+  Proof.
+    intros.
+    apply Forall_forall.
+    induction pls; intros. 
+    - inversion H0.
+    - destruct H0 as [Heq | Hin].
+      + subst. destruct a as [a H_a]. simpl. assumption.
+      + apply IHpls. assumption.
+  Qed.
+
   (* Theorem 2 *) 
   Theorem n_common_futures `{CBC_protocol_eq} :
-    forall ls,
-      Forall prot_state ls ->
-      (equivocation_weight (fold_right state_union state0 ls) <= proj1_sig t)%R ->
-      exists s, prot_state s /\ Forall (fun s' => reach s' s) ls. 
+    forall ls : list pstate,
+      (equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
+      exists ps : pstate, Forall (fun ps' => pstate_rel ps' ps) ls.
   Proof.
-    intros ls H_ls H_weight.
-    exists (fold_right state_union state0 ls); split. 
-    apply prot_state_union_iter; assumption.
-    apply Forall_forall. intros s H_in.
-    now apply reach_union_iter.
+    intros pls H_weight.
+    remember (map (fun ps => proj1_sig ps) pls) as ls.
+    assert (H_ls : Forall prot_state ls) by (subst; apply pstate_list).
+    exists (exist _ (fold_right state_union state0 ls) (prot_state_union_iter ls H_ls H_weight)).
+    apply Forall_forall. intros. destruct x as [x H_x]. unfold pstate_rel. simpl.
+    apply reach_union_iter.
+    subst. apply in_map_iff.
+    exists (exist (fun s : state => prot_state s) x H_x). simpl.
+    split; reflexivity || assumption.
   Qed. 
 
 End CommonFutures.
 
+(* Level Specific -refines-> Level 0 *) 
+
+Definition reach_one `{CBC_protocol_eq} (sigma1 sigma2 : pstate) : Prop :=
+  sigma1 <> sigma2 /\ pstate_rel sigma1 sigma2 /\
+  forall sigma
+    ,  pstate_rel sigma1 sigma
+    -> pstate_rel sigma sigma2
+    -> sigma = sigma1 \/ sigma = sigma2.
+
+
+Inductive all_path_eventually `{CBC_protocol_eq} (P : pstate -> Prop) (sigma : pstate) : Prop :=
+  | all_path_holds_now
+    : P sigma -> all_path_eventually P sigma
+  | all_path_holds_next
+    :  (exists sigma', reach_one sigma sigma')
+    -> forall sigma', reach_one sigma sigma'
+    -> all_path_eventually P sigma'
+    -> all_path_eventually P sigma
+  .
+
+Inductive one_path_eventually `{CBC_protocol_eq} (P : pstate -> Prop) (sigma : pstate) : Prop :=
+  | one_path_holds_now
+    : P sigma -> one_path_eventually P sigma
+  | one_path_holds_next
+    :  (exists sigma', reach_one sigma sigma' /\ one_path_eventually P sigma')
+    -> one_path_eventually P sigma
+  .
+
+
+
 Section Consistency.
 
-  Definition decided `{CBC_protocol_eq} (s : state) (P : state -> Prop) :=
-    forall s', reach s s' -> P s'. 
+  Definition decided `{CBC_protocol_eq} (P : pstate -> Prop) : pstate -> Prop :=
+    fun (s : pstate) => forall s', pstate_rel s s' -> P s'. 
 
-  Definition decided_on_predicate
-    `{CBC_protocol_eq}
-    (c : consensus_values)
-    (future : state)
-    : Prop
+  Definition decided_on_predicate `{CBC_protocol_eq} (c : consensus_values) : pstate -> Prop
     :=
-    forall c', E future c' -> c' = c.
+    fun (future : pstate) => forall c', E (proj1_sig future) c' -> c' = c.
 
-  Definition decided_on `{CBC_protocol_eq} (s : state) (c : consensus_values) :=
-    decided s (decided_on_predicate c).
+  Definition decided_on `{CBC_protocol_eq} (c : consensus_values) : pstate -> Prop :=
+    decided (decided_on_predicate c).
 
-  Definition not `{CBC_protocol_eq} (P : state -> Prop) :=
+  Definition locked_on `{CBC_protocol_eq} (c : consensus_values) : pstate -> Prop :=
+    all_path_eventually (decided_on c).
+
+  Definition not_locked_off `{CBC_protocol_eq} (c : consensus_values) : pstate -> Prop :=
+    one_path_eventually (decided_on c).
+
+  Definition not `{CBC_protocol_eq} (P : pstate -> Prop) : pstate -> Prop :=
     fun s => P s -> False.
-  
+
+  Definition locked_off `{CBC_protocol_eq} (c : consensus_values) : pstate -> Prop :=
+    not (not_locked_off c).
+
   Lemma forward_consistency `{CBC_protocol_eq} :
     forall s P,
-      decided s P ->
+      decided P s ->
       forall s',
-        reach s s' ->
-        decided s' P.
+        pstate_rel s s' ->
+        decided P s'.
   Proof.
     intros s P H_dec s' H_rel.
     unfold decided in *.
     intros s'' H_rel'.
-    assert (reach s s'') by (apply (reach_trans s s' s''); assumption).
+    assert (pstate_rel s s'') by (apply (pstate_rel_trans s s' s''); assumption).
     spec H_dec s''; now apply H_dec. 
   Qed.
 
   Lemma backward_consistency `{CBC_protocol_eq} :
     forall s s',
-      reach s s' ->
+      pstate_rel s s' ->
       forall P,
-      decided s' P ->
-      ~ decided s (not P).
+      decided P s' ->
+      ~ decided (not P) s.
   Proof. 
     intros s s' H_rel P H_dec Hnot.
-    destruct (reach_total s') as [s'' H_rel']. 
     unfold decided in *.
-    spec H_dec s'' H_rel'. spec Hnot s''.
-    assert (H_r : reach s s'') by (apply (reach_trans s s' s''); assumption).
-    spec Hnot H_r; contradiction.
+    spec Hnot s' H_rel.
+    apply Hnot.
+    apply H_dec.
+    apply pstate_rel_refl.
   Qed. 
 
   (* Theorem 3 *) 
   Theorem pair_consistency_prot `{CBC_protocol_eq} :
-    forall s1 s2,
-      prot_state s1 ->
-      prot_state s2 ->
+    forall s1 s2 : pstate,
       (equivocation_weight (state_union s1 s2) <= proj1_sig t)%R ->
       forall P, 
-        ~ (decided s1 P /\ decided s2 (not P)).
+        ~ (decided P s1 /\ decided (not P) s2).
   Proof.
-    intros s1 s2 H_s1 H_s2 H_weight P [H_dec H_dec_not]. 
-    destruct (pair_common_futures s1 s2 H_s1 H_s2 H_weight) as [s [H_s [H_r1 H_r2]]].
-    spec H_dec s H_r1. spec H_dec_not s H_r2. contradiction.
+    intros s1 s2 H_weight P [H_dec H_dec_not].
+    destruct (pair_common_futures s1 s2 H_weight) as [s [H_r1 H_r2]].
+    spec H_dec s H_r1.
+    spec H_dec_not s H_r2. contradiction.
   Qed. 
 
   (* Consistency on state properties *) 
-  Definition state_consistency `{CBC_protocol_eq} (ls : list state) : Prop :=
-    exists s,
-      prot_state s /\
-      forall (P : state -> Prop),
-        Exists (fun s => decided s P) ls ->
+  Definition state_consistency `{CBC_protocol_eq} (ls : list pstate) : Prop :=
+    exists s : pstate,
+      forall (P : pstate -> Prop),
+        Exists (fun s => decided P s) ls ->
         P s.
-  
+
   (* Theorem 4 *) 
   Theorem n_consistency_prot `{CBC_protocol_eq} :
-    forall ls,
-      Forall prot_state ls ->
-      (equivocation_weight (fold_right state_union state0 ls) <= proj1_sig t)%R ->
-      state_consistency ls. 
-  Proof. 
-    intros ls H_ls H_weight. 
-    destruct (n_common_futures ls H_ls H_weight) as [s' [H_s' H_reach]].
-    exists s'; split. 
-    assumption.
+    forall ls : list pstate,
+      (equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
+      state_consistency ls.
+  Proof.
+    intros ls H_weight. 
+    destruct (n_common_futures ls H_weight) as [s' H_reach].
+    exists s'. 
     intros P H_exists.
     apply Exists_exists in H_exists.
     destruct H_exists as [s'' [H_in'' H_dec'']].
@@ -336,24 +401,23 @@ Section Consistency.
   Qed.
 
   (* Consistency on consensus values *) 
-  Definition lift `{CBC_protocol_eq} (P : consensus_values -> Prop) : state -> Prop :=
-    fun s => forall c : consensus_values, E s c -> P c.
+  Definition lift `{CBC_protocol_eq} (P : consensus_values -> Prop) : pstate -> Prop :=
+    fun s => forall c : consensus_values, E (proj1_sig s) c -> P c.
 
-  Definition consensus_value_consistency `{CBC_protocol_eq} (ls : list state) : Prop :=
+  Definition consensus_value_consistency `{CBC_protocol_eq} (ls : list pstate) : Prop :=
     exists c,
       forall (P : consensus_values -> Prop),
-        Exists (fun s => decided s (lift P)) ls ->
+        Exists (fun s => decided (lift P) s) ls ->
         P c. 
 
   (* Theorem 5 *)
   Theorem n_consistency_consensus `{CBC_protocol_eq} :
-    forall ls,
-      Forall prot_state ls ->
-      (equivocation_weight (fold_right state_union state0 ls) <= proj1_sig t)%R ->
+    forall ls : list pstate,
+      (equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
       consensus_value_consistency ls. 
   Proof.
-    intros ls H_ls H_weight. 
-    destruct (n_consistency_prot ls H_ls H_weight) as [s [H_s H_dec]].
+    intros ls H_weight. 
+    destruct (n_consistency_prot ls H_weight) as [s H_dec].
     destruct (estimator_total s) as [c about_c].
     exists c. intros P H_exists.
     apply Exists_exists in H_exists.
@@ -464,51 +528,4 @@ Section Triviality.
 End Triviality. 
  *)
 
-(* Level Specific -refines-> Level 0 *) 
-
-(** Defining A **) 
-Definition pstate `{CBC_protocol_eq} : Type := {s : state | prot_state s}. 
-Definition pstate_proj1 `{CBC_protocol_eq} (p : pstate) : state :=
-  proj1_sig p. 
-Coercion pstate_proj1 : pstate >-> state.
-
-(** Proving A_eq_dec **)
-Lemma pstate_eq_dec `{CBC_protocol_eq} : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
-Proof.
-  intros p1 p2.
-  assert (H_useful := about_state). 
-  now apply sigify_eq_dec. 
-Qed.
-
-(** Proving A_inhabited **) 
-Lemma pstate_inhabited `{CBC_protocol_eq} : exists (p1 : pstate), True.
-Proof. now exists (exist prot_state state0 about_state0). Qed. 
-
-(** Defining A_rel **) 
-Definition pstate_rel `{CBC_protocol_eq} : pstate -> pstate -> Prop :=
-  fun p1 p2 => reach (pstate_proj1 p1) (pstate_proj1 p2).
-
-(** Proving A_rel_refl **) 
-Lemma pstate_rel_refl `{CBC_protocol_eq} : Reflexive pstate_rel.
-Proof. red; intro p; now apply reach_refl. Qed.
-
-(** Proving A_rel_trans **) 
-Lemma pstate_rel_trans `{CBC_protocol_eq} : Transitive pstate_rel. 
-Proof. 
-  red; intros p1 p2 p3 H_12 H_23.
-  destruct p1 as [p1 about_p1];
-    destruct p2 as [p2 about_p2];
-    destruct p3 as [p3 about_p3];
-    simpl in *.
-  now apply reach_trans with p2.
-Qed.
-
-Instance level0 `{CBC_protocol_eq} : PartialOrder :=
-  { A := pstate;
-    A_eq_dec := pstate_eq_dec;
-    A_inhabited := pstate_inhabited;
-    A_rel := pstate_rel;
-    A_rel_refl := pstate_rel_refl;
-    A_rel_trans := pstate_rel_trans;
-  }.
 

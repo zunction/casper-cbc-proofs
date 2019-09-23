@@ -448,6 +448,32 @@ Section States.
    }.
 
 
+ Definition bivalent : pstate -> Prop :=
+    fun (s : pstate) => not_locked_off zero s /\ not_locked_off one s.
+
+ Definition stuck : pstate -> Prop :=
+    fun (s : pstate) => locked_off zero s /\ locked_off one s.
+
+ Lemma locked_on_off : forall s, locked_on one s -> locked_off zero s.
+ Proof.
+  unfold locked_on. unfold locked_off. unfold not_locked_off.
+  unfold not.
+  intros s Lon1.
+  remember decided_on as D.
+  remember (D one) as D1. remember (D zero) as D0. rewrite HeqD in *. clear HeqD; clear  D.
+  induction Lon1.
+  - intros Loff0; subst; destruct Loff0. 
+    + unfold decided_on in *. unfold decided in *.
+      assert (H_s : pstate_rel sigma sigma) by apply pstate_rel_refl.
+      apply H0 in H_s as D1.
+      apply H1 in H_s as D0.
+      unfold decided_on_predicate in *.
+      destruct (estimator_total (proj1_sig sigma)) as [c' H_c'].
+      apply D0 in H_c' as C0.
+      apply D1 in H_c' as C1.
+      subst. inversion C0.
+ Admitted.
+
 End States.
 
 
