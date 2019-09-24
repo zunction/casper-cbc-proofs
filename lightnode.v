@@ -177,20 +177,27 @@ Proof.
 Qed.
 
 Lemma hash_state_injective : forall sigma1 sigma2,
-  hash_state sigma1 = hash_state sigma2 ->
+  hash_state sigma1 = hash_state sigma2
+  <->
   set_eq sigma1 sigma2.
 Proof.
-  intros. apply justification_add_all_injective in H.
-  destruct H as [H12 H21].
-  split; intros x Hin
-  ; apply (in_map hash_message) in Hin
-  ; apply H12 in Hin || apply H21 in Hin
-  ; apply in_map_iff in Hin
-  ; destruct Hin as [x' [Heq Hin]]
-  ; apply hash_message_injective in Heq
-  ; subst; assumption.
+  split; intros.
+  - apply justification_add_all_injective in H.
+    destruct H as [H12 H21].
+    split; intros x Hin
+    ; apply (in_map hash_message) in Hin
+    ; apply H12 in Hin || apply H21 in Hin
+    ; apply in_map_iff in Hin
+    ; destruct Hin as [x' [Heq Hin]]
+    ; apply hash_message_injective in Heq
+    ; subst; assumption.
+  - apply (@set_equality_predicate hash (compare_lt compare) compare_lt_strict_order); try apply hash_state_sorted.
+    unfold hash_state.
+    apply set_eq_tran with (map hash_message sigma2); try apply (justification_set_eq (map hash_message sigma2)).
+    apply set_eq_comm.
+    apply set_eq_tran with (map hash_message sigma1); try apply (justification_set_eq (map hash_message sigma1)).
+    apply map_set_eq. apply set_eq_comm. assumption.
 Qed.
-
 
 Lemma hash_state_in : forall sigma msg,
   In (hash_message msg) (hash_state sigma) <->
@@ -617,7 +624,6 @@ Proof.
 Qed.
 
 
-
 Lemma not_extx_in_x : forall c v s s',
     protocol_state s ->
     protocol_state s' ->
@@ -626,33 +632,16 @@ Lemma not_extx_in_x : forall c v s s',
 Proof.
   intros c v s s' PS PS'. induction PS'; intros Hincl Hin; apply hash_state_in in Hin.
   - unfold state0 in Hin. inversion Hin.
-  - apply protocol_state_nodup in PS'2 as H1'.
-    assert (Heq_s0 : set_eq s0 ((c0, v0, hash_state j) :: (set_remove compare_eq_dec (c0, v0, hash_state j) s0))).
-(*
-    {   apply set_eq_fn_rec_iff.
-apply set_eq_comm.
-        destruct (set_eq_functional compare_eq_dec ((c0, v0, hash_state j) :: (set_remove compare_eq_dec (c0, v0, hash_state j) s0)) s0).
-        apply H4. unfold set_eq_fn. simpl.
-        destruct (in_dec compare_eq_dec (c0, v0, hash_state j) (set_remove compare_eq_dec (c0, v0, hash_state j) s0)) eqn:Hin_dec.
-        - 
-        rewrite in_dec_false.
-
-  fix Hind 4.
-  intros. intro. apply hash_state_in in H0. destruct s' as [ | [(c', v') j]]; destruct s as  [ | [(cc, vc) jj]].
-  - inversion H0.
-  - inversion H0.
-  - apply H in H0. inversion H0.
-  - destruct H0 as [Heq | Hin'].
-    + inversion Heq; subst; clear Heq.
-      apply (Hind c v s s); try apply incl_refl.
-      apply hash_state_in. admit.  (* apply H. left. reflexivity. *)
-    + apply (Hind c v s s').
-      * intros m Hin_m. 
-apply incl_tran with ((c', v', j) :: s'); try assumption. apply incl_tl. apply incl_refl.
-      * apply hash_state_in. assumption.
-*)
-Admitted.
-
+  - apply (set_remove_in_iff compare_eq_dec (c, v, hash_state s) (c0, v0, hash_state j) s0 H1 H0) in Hin.
+    destruct Hin as [Heq | Hin].
+    + inversion Heq; subst; clear Heq. apply hash_state_injective in H6. apply IHPS'1; try apply H6.
+      apply hash_state_in. apply Hincl in H0. apply H6.
+      assert (hash_state s = hash_state j) by (apply hash_state_injective; assumption).
+      rewrite H3. assumption.
+    + apply IHPS'2; try (apply hash_state_in; assumption).
+      apply incl_tran with s0; try assumption.
+      intros h Hin_h. apply set_remove_1 in Hin_h. assumption.
+Qed.
 
 Lemma set_eq_protocol_state :
   forall sigma,
