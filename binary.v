@@ -462,7 +462,7 @@ Section States.
   remember decided_on as D.
   remember (D one) as D1. remember (D zero) as D0. rewrite HeqD in *. clear HeqD; clear  D.
   induction Lon1.
-  - intros Loff0; subst; destruct Loff0. 
+  - intros Loff0; induction Loff0; subst. 
     + unfold decided_on in *. unfold decided in *.
       assert (H_s : pstate_rel sigma sigma) by apply pstate_rel_refl.
       apply H0 in H_s as D1.
@@ -472,7 +472,21 @@ Section States.
       apply D0 in H_c' as C0.
       apply D1 in H_c' as C1.
       subst. inversion C0.
- Admitted.
+    + unfold decided_on in *.
+      apply IHLoff0.
+      destruct H1 as [_ [Hrel _]].
+      apply forward_consistency with sigma; assumption.
+  - intros Loff0. destruct Loff0; subst.
+    + destruct H0 as [sigma' H_r'].
+      spec H2 sigma' H_r'.
+      apply H2.
+      apply one_path_holds_now.
+      unfold decided_on in *.
+      destruct H_r' as [_ [H_r' _]].
+      apply forward_consistency with sigma; assumption.
+    + clear H0.
+      apply H2 with sigma'; assumption.
+ Qed.
 
 End States.
 

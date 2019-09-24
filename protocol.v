@@ -294,8 +294,7 @@ Inductive all_path_eventually `{CBC_protocol_eq} (P : pstate -> Prop) (sigma : p
     : P sigma -> all_path_eventually P sigma
   | all_path_holds_next
     :  (exists sigma', reach_one sigma sigma')
-    -> forall sigma', reach_one sigma sigma'
-    -> all_path_eventually P sigma'
+    -> (forall sigma', reach_one sigma sigma' -> all_path_eventually P sigma')
     -> all_path_eventually P sigma
   .
 
@@ -303,7 +302,9 @@ Inductive one_path_eventually `{CBC_protocol_eq} (P : pstate -> Prop) (sigma : p
   | one_path_holds_now
     : P sigma -> one_path_eventually P sigma
   | one_path_holds_next
-    :  (exists sigma', reach_one sigma sigma' /\ one_path_eventually P sigma')
+    :  forall sigma'
+    ,  reach_one sigma sigma'
+    -> one_path_eventually P sigma'
     -> one_path_eventually P sigma
   .
 
