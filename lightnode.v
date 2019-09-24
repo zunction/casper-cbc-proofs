@@ -191,6 +191,45 @@ Proof.
   ; subst; assumption.
 Qed.
 
+
+Lemma hash_state_in : forall sigma msg,
+  In (hash_message msg) (hash_state sigma) <->
+  In msg sigma.
+Proof.
+  unfold hash_state.
+  intros.
+  assert (H_s : set_eq (map hash_message sigma) (justification_add_all (map hash_message sigma)))
+      by apply justification_set_eq.
+  split; intro Hin.
+  - apply H_s in Hin. 
+    apply in_map_iff in Hin.
+    destruct Hin as [msg' [Heq Hin]].
+    apply hash_message_injective in Heq. subst. assumption.
+  - apply H_s. apply in_map. assumption.
+Qed.
+
+Lemma hash_state_incl : forall sigma1 sigma2,
+  incl sigma1 sigma2 <-> incl (hash_state sigma1) (hash_state sigma2).
+Proof.
+  intros.
+  assert (H_s1 : set_eq (map hash_message sigma1) (justification_add_all (map hash_message sigma1)))
+      by apply justification_set_eq.
+  assert (H_s2 : set_eq (map hash_message sigma2) (justification_add_all (map hash_message sigma2)))
+      by apply justification_set_eq.
+  unfold hash_state.
+  split; intro Hincl.
+  - intros h Hin.
+    apply H_s2. apply H_s1 in Hin.
+    apply in_map_iff. apply in_map_iff in Hin.
+    destruct Hin as [msg [H_mh Hin_m]].
+    apply Hincl in Hin_m.
+    exists msg. split; assumption.
+  - intros msg Hin. apply hash_state_in in Hin.
+    apply Hincl in Hin.
+    apply hash_state_in in Hin. assumption.
+Qed.
+
+
 (* Defining the estimator function as a relation *) 
 Parameters (estimator : state -> C -> Prop)
            (estimator_total : forall s : state, exists c : C, estimator s c). 
@@ -214,6 +253,16 @@ Definition equivocating_messages (msg1 msg2 : message) : bool :=
 
 Definition equivocating_messages_prop (msg1 msg2 : message) : Prop :=
   msg1 <> msg2 /\ sender msg1 = sender msg2 /\ ~ In (hash_message msg1) (justification msg2) /\ ~ In (hash_message msg2) (justification msg1).
+
+Lemma not_extx_in_x : forall c v s s',
+    incl s' s ->
+    ~ In (hash_message (c, v, hash_state s)) (hash_state s').
+Proof.
+  induction s; intros; intro; simpl; apply hash_state_in in H0; apply H in H0 as Hin.
+  - inversion Hin.
+  - destruct Hin as [Heq | Hin].
+    + destruct a as [(c', v') j']; inversion Heq; subst; clear Heq.
+Admitted.
 
 Lemma equivocating_messages_sender :
   forall msg1 msg2,
