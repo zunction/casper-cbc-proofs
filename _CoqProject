@@ -6,5 +6,5 @@ RealsExtras.v
 sorted_lists.v
 protocol.v
 fullnode.v
-lightnode.
+lightnode.v
 binary.v

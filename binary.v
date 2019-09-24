@@ -109,12 +109,15 @@ Section States.
 
   Definition observed (sigma:state) : list V :=
     set_map compare_eq_dec sender sigma.
-  
-  Definition from_sender (v:V) (sigma:state) : list message :=
-    filter (fun msg' => compareb (sender msg') v) sigma.
 
   Parameters (hash : message -> H)
              (hash_injective : Injective hash).
+
+  Definition later (msg : message) (sigma : state) : list message :=
+    filter (fun msg' => inb compare_eq_dec (hash msg) (justification msg')) sigma.
+  
+  Definition from_sender (v:V) (sigma:state) : list message :=
+    filter (fun msg' => compareb (sender msg') v) sigma.
 
   Definition later_from (msg : message) (v : V) (sigma : state) : list message :=
     filter (fun msg' => (inb compare_eq_dec (hash msg) (justification msg')) && (compareb (sender msg') v)) sigma.
@@ -127,8 +130,17 @@ Section States.
 
   Definition latest_messages (sigma : state) : V -> list message :=
     fun v => filter (fun msg => is_nil_fn (later_from msg v sigma)) (from_sender v sigma).
+
+  Definition latest_messages_driven (estimator : state -> C -> Prop) : Prop :=
+    exists validator : (V -> list message) -> C -> Prop,
+      forall sigma c, estimator sigma c <-> validator (latest_messages sigma) c.
+
   Definition latest_estimates (sigma : state) : V -> list C :=
     fun v => set_map compare_eq_dec estimate (latest_messages sigma v).
+
+  Definition latest_estimates_driven (estimator : state -> C -> Prop) : Prop :=
+    exists validator : (V -> list C) -> C -> Prop,
+      forall sigma c, estimator sigma c <-> validator (latest_estimates sigma) c.
 
   Definition in_fn {A:Type} (eq_dec : forall x y : A, {x = y} + {x <> y}) (a:A) (l:list A) : bool :=
   match in_dec eq_dec a l with
@@ -434,7 +446,34 @@ Section States.
      equivocation_weight_compat := equivocation_weight_compat; 
      about_prot_state := about_prot_state;
    }.
- 
+
+
+ Definition bivalent : pstate -> Prop :=
+    fun (s : pstate) => not_locked_off zero s /\ not_locked_off one s.
+
+ Definition stuck : pstate -> Prop :=
+    fun (s : pstate) => locked_off zero s /\ locked_off one s.
+
+ Lemma locked_on_off : forall s, locked_on one s -> locked_off zero s.
+ Proof.
+  unfold locked_on. unfold locked_off. unfold not_locked_off.
+  unfold not.
+  intros s Lon1.
+  remember decided_on as D.
+  remember (D one) as D1. remember (D zero) as D0. rewrite HeqD in *. clear HeqD; clear  D.
+  induction Lon1.
+  - intros Loff0; subst; destruct Loff0. 
+    + unfold decided_on in *. unfold decided in *.
+      assert (H_s : pstate_rel sigma sigma) by apply pstate_rel_refl.
+      apply H0 in H_s as D1.
+      apply H1 in H_s as D0.
+      unfold decided_on_predicate in *.
+      destruct (estimator_total (proj1_sig sigma)) as [c' H_c'].
+      apply D0 in H_c' as C0.
+      apply D1 in H_c' as C1.
+      subst. inversion C0.
+ Admitted.
+
 End States.
 
 
