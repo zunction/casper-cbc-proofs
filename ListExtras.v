@@ -117,6 +117,16 @@ Proof.
   - rewrite H0. reflexivity.
 Qed.
 
+Lemma map_incl {A B} (f : B -> A) : forall s s',
+  incl s s' ->
+  incl (map f s) (map f s').
+Proof.
+  intros s s' Hincl fx Hin.
+  apply in_map_iff .
+  apply in_map_iff in Hin.
+  destruct Hin as [x [Heq Hin]].
+  exists x. split; try assumption. apply Hincl. assumption.
+Qed.
 
 Lemma existsb_forall {A} (f : A -> bool):
   forall l, existsb f l = false <-> forall x, In x l -> f x = false.

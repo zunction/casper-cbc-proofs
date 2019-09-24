@@ -1,7 +1,7 @@
 Require Import List Bool Sorting RelationClasses Relations Orders ListSet.
 Import ListNotations.
 From Casper
-Require Import preamble. 
+Require Import preamble ListSetExtras. 
 
 (** Sorted Lists **)
 
@@ -163,6 +163,14 @@ Proof.
   apply add_in_sorted_list_iff; try assumption. right. assumption.
 Qed.
 
+Lemma LocallySorted_tl {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg sigma,
+    LocallySorted (compare_lt compare) (msg :: sigma) ->
+    LocallySorted (compare_lt compare) sigma.
+Proof.
+  intros. apply Sorted_LocallySorted_iff in H0.
+  inversion H0; subst; clear H0. apply Sorted_LocallySorted_iff. assumption.
+Qed.
+
 Lemma add_in_sorted_list_sorted {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg sigma,
     LocallySorted (compare_lt compare) sigma ->
   LocallySorted (compare_lt compare) (add_in_sorted_list_fn compare msg sigma).
@@ -200,7 +208,23 @@ Proof.
       apply (H y a x H4 IHs). 
 Qed.
 
-Definition set_eq {A : Type} := fun (s1 s2 : set A) => incl s1 s2 /\ incl s2 s1. 
+
+Lemma add_in_sorted_list_existing {A} {compare : A -> A -> comparison} `{CompareStrictOrder A compare} : forall msg sigma,
+  LocallySorted (compare_lt compare) sigma ->
+  In msg sigma ->
+  add_in_sorted_list_fn compare msg sigma = sigma.
+Proof.
+  induction sigma; intros.
+  - inversion H1.
+  - destruct H1 as [Heq | Hin].
+    + subst. simpl. rewrite compare_eq_refl. reflexivity.
+    + apply LocallySorted_tl in H0 as LS.
+      spec IHsigma LS Hin. simpl.
+      destruct (compare msg a) eqn:Hcmp; try rewrite IHsigma; try reflexivity.
+      apply (@set_In _ _ compare_lt_strict_order msg a sigma H0) in Hin.
+      unfold compare_lt in Hin. apply compare_asymmetric in Hin.
+      rewrite Hin in Hcmp. inversion Hcmp.
+Qed.
 
 Lemma set_eq_first_equal {A}  {lt : relation A} `{StrictOrder A lt} :
   forall x1 x2 s1 s2,

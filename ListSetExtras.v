@@ -260,6 +260,13 @@ Proof.
   - apply set_union_intro. right. assumption.
 Qed.
 
+Lemma map_set_eq {A B} (f : B -> A) : forall s s',
+  set_eq s s' ->
+  set_eq (map f s) (map f s').
+Proof.
+  split; apply map_incl; apply H.
+Qed.
+
 Lemma set_map_nodup {A B} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) (f : B -> A) : forall s,
   NoDup (set_map Aeq_dec f s).
 Proof.
@@ -372,6 +379,22 @@ Proof.
     rewrite H2 in H. inversion H; subst; clear H.
     constructor; try apply IHs; try assumption.
     intro. apply H5. apply set_remove_3; try assumption. intro; subst. apply H0; reflexivity.
+Qed.
+
+
+Lemma set_remove_in_iff {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y})
+  :  forall x y s
+  ,  NoDup s
+  ->  In y s
+  -> In x s <-> x = y \/ In x (set_remove Aeq_dec y s).
+Proof.
+  intros. split; intros.
+  - destruct (Aeq_dec x y).
+    + left. assumption.
+    + right. apply set_remove_3; assumption.
+  - destruct H1 as [Heq | Hin].
+    + subst; assumption.
+    + apply set_remove_1 in Hin. assumption.
 Qed.
 
 Lemma set_eq_remove {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s1 s2,
