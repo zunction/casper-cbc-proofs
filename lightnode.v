@@ -191,6 +191,45 @@ Proof.
   ; subst; assumption.
 Qed.
 
+
+Lemma hash_state_in : forall sigma msg,
+  In (hash_message msg) (hash_state sigma) <->
+  In msg sigma.
+Proof.
+  unfold hash_state.
+  intros.
+  assert (H_s : set_eq (map hash_message sigma) (justification_add_all (map hash_message sigma)))
+      by apply justification_set_eq.
+  split; intro Hin.
+  - apply H_s in Hin. 
+    apply in_map_iff in Hin.
+    destruct Hin as [msg' [Heq Hin]].
+    apply hash_message_injective in Heq. subst. assumption.
+  - apply H_s. apply in_map. assumption.
+Qed.
+
+Lemma hash_state_incl : forall sigma1 sigma2,
+  incl sigma1 sigma2 <-> incl (hash_state sigma1) (hash_state sigma2).
+Proof.
+  intros.
+  assert (H_s1 : set_eq (map hash_message sigma1) (justification_add_all (map hash_message sigma1)))
+      by apply justification_set_eq.
+  assert (H_s2 : set_eq (map hash_message sigma2) (justification_add_all (map hash_message sigma2)))
+      by apply justification_set_eq.
+  unfold hash_state.
+  split; intro Hincl.
+  - intros h Hin.
+    apply H_s2. apply H_s1 in Hin.
+    apply in_map_iff. apply in_map_iff in Hin.
+    destruct Hin as [msg [H_mh Hin_m]].
+    apply Hincl in Hin_m.
+    exists msg. split; assumption.
+  - intros msg Hin. apply hash_state_in in Hin.
+    apply Hincl in Hin.
+    apply hash_state_in in Hin. assumption.
+Qed.
+
+
 (* Defining the estimator function as a relation *) 
 Parameters (estimator : state -> C -> Prop)
            (estimator_total : forall s : state, exists c : C, estimator s c). 
@@ -557,6 +596,7 @@ Inductive protocol_state : state -> Prop :=
         not_heavy s ->
         protocol_state s.
 
+
 Lemma protocol_state_nodup : forall sigma,
   protocol_state sigma ->
   NoDup sigma.
@@ -565,6 +605,44 @@ Proof.
   - constructor.
   - assumption.
 Qed.
+
+
+
+Lemma not_extx_in_x : forall c v s s',
+    protocol_state s ->
+    protocol_state s' ->
+    incl s' s ->
+    ~ In (hash_message (c, v, hash_state s)) (hash_state s').
+Proof.
+  intros c v s s' PS PS'. induction PS'; intros Hincl Hin; apply hash_state_in in Hin.
+  - unfold state0 in Hin. inversion Hin.
+  - apply protocol_state_nodup in PS'2 as H1'.
+    assert (Heq_s0 : set_eq s0 ((c0, v0, hash_state j) :: (set_remove compare_eq_dec (c0, v0, hash_state j) s0))).
+(*
+    {   apply set_eq_fn_rec_iff.
+apply set_eq_comm.
+        destruct (set_eq_functional compare_eq_dec ((c0, v0, hash_state j) :: (set_remove compare_eq_dec (c0, v0, hash_state j) s0)) s0).
+        apply H4. unfold set_eq_fn. simpl.
+        destruct (in_dec compare_eq_dec (c0, v0, hash_state j) (set_remove compare_eq_dec (c0, v0, hash_state j) s0)) eqn:Hin_dec.
+        - 
+        rewrite in_dec_false.
+
+  fix Hind 4.
+  intros. intro. apply hash_state_in in H0. destruct s' as [ | [(c', v') j]]; destruct s as  [ | [(cc, vc) jj]].
+  - inversion H0.
+  - inversion H0.
+  - apply H in H0. inversion H0.
+  - destruct H0 as [Heq | Hin'].
+    + inversion Heq; subst; clear Heq.
+      apply (Hind c v s s); try apply incl_refl.
+      apply hash_state_in. admit.  (* apply H. left. reflexivity. *)
+    + apply (Hind c v s s').
+      * intros m Hin_m. 
+apply incl_tran with ((c', v', j) :: s'); try assumption. apply incl_tl. apply incl_refl.
+      * apply hash_state_in. assumption.
+*)
+Admitted.
+
 
 Lemma set_eq_protocol_state :
   forall sigma,
