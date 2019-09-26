@@ -1287,10 +1287,6 @@ Proof.
     intros sigma H. 
     apply H. left; reflexivity. 
   - (* The second state which does not satisfy the property is the state containing the message's equivocation partner, as well as messages from all the other validators in the complement set *)
-    (* Why does it need to contain the messages from all the other senders? *)
-    (* Because we need for the equivocation weight to be right under t_full by v's weight. *)
-    (* And the idea is that each (c1, v, hash_state j1) (c2, v, hash_state j2) pair are mutually equivocating. *)
-    (* And interestingly, here we are using list concatenation *) 
     assert (H_prot : protocol_state ((c2, v, hash_state j2) :: flat_map (fun v => [(c1, v, hash_state j1); (c2, v, hash_state j2)]) vs)).
     { apply protocol_state_cons with j2 c2 v; try assumption.
       * (* Proving that the message partner is in the new state *)
@@ -1300,12 +1296,9 @@ Proof.
         (* This state is a protocol state if it's not too heavy *)
         apply binary_justification_protocol_state; try assumption.
         unfold not_heavy, fault_weight_state.
-        (* Because filter map is a subset of map, sum_weights of filter map is less than or equal to sum_weights of map *)
         apply Rle_trans with (sum_weights (set_map compare_eq_dec sender (flat_map (fun v0 : V => [(c1, v0, hash_state j1); (c2, v0, hash_state j2)]) vs))); try apply fault_weight_max.
         apply Rle_trans with (sum_weights vs); try assumption.
         apply sum_weights_incl; try assumption; try apply set_map_nodup.
-        (* In fact I think these should be set_eq *)
-        (* But incl is weaker than set_eq *)
         (* x is some arbitrary validator in vs *) 
         intros x Hin.
         (* x has sent some message in the tl of the state *)
@@ -2252,6 +2245,44 @@ Proof.
     tauto. 
 Qed. 
 
+Lemma next_equivocations_equivocating_senders_left_weak :
+  forall (s : state) (vs : list V) (v0 v : V),
+    protocol_state (next_equivocation_rec' s vs v0) -> 
+    (In v vs -> v <> v0) ->
+    In v vs ->
+    In v (equivocating_senders (next_equivocation_rec' s vs v0)). 
+Proof.
+  intros s vs; induction vs as [|hd tl IHvs]; intros v0 v H_prot H_neq H_in. 
+  - inversion H_in. 
+  - assert (H_prot_sub : protocol_state (next_equivocation_rec' s tl v0)).
+    { apply protocol_state_incl with (next_equivocation_rec' s (hd :: tl) v0).
+      assumption.
+      apply protocol_state_nodup in H_prot.
+      simpl in H_prot.
+      unfold next_equivocation_state in H_prot.
+      do 3 (apply NoDup_cons_iff in H_prot; destruct H_prot as [_ H_prot]).
+      assumption.
+      intros msg H_in_msg.
+      simpl; repeat right; assumption. }
+    spec IHvs v0 v.
+    spec IHvs H_prot_sub. 
+    spec IHvs. intros. apply H_neq. auto.
+    (* Case analysis on where v is *)
+    destruct H_in as [H_eq | H_in].
+    * (* When we are looking at the hd element, *)
+      subst.
+      simpl.
+      apply about_equivocating_messages_add_equivocator.
+      assumption. apply H_neq. apply in_eq. 
+    * spec IHvs H_in.
+      simpl. 
+      assert (H_useful := equivocating_senders_incl). 
+      spec H_useful (next_equivocation_rec' s tl v0) (next_equivocation_state (next_equivocation_rec' s tl v0) hd v0).
+      spec H_useful.
+      apply next_equivocation_state_incl.
+      apply H_useful. assumption.
+Qed.
+
 Lemma next_equivocations_add_weights : 
   forall (s : state),
     protocol_state s ->
@@ -2498,9 +2529,10 @@ Proof.
           apply H_in2_copy.
           assumption.
         * assert (H_in_v0 : In v0 (equivocating_senders (next_equivocation_rec' s1' vs v))).
-          { apply equivocating_senders_correct.
-            admit. 
-            }
+          { apply next_equivocations_equivocating_senders_left_weak. 
+            subst; assumption. intros.
+            2 : assumption.
+            intro H_absurd; subst; contradiction. } 
           rewrite <- Heqs3 in H_in_v0.
           eapply equivocating_senders_incl.
           exact H_in3_copy. 
@@ -2550,4 +2582,4 @@ Proof.
     rewrite <- Rplus_assoc in H_over. 
     apply Rgt_not_le in H_over.
     contradiction.
-Admitted.
+Qed. 
