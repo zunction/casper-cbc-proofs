@@ -1,0 +1,164 @@
+\documentclass[runningheads]{llncs}
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+\usepackage{amsmath}
+%% The amsthm package provides extended theorem environments
+%\usepackage{amsthm}
+\usepackage{wrapfig}
+\usepackage{lineno}
+
+%% Use package enumitem to align enumeration and itemization
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{courier}           % for the courier font (optional)
+\usepackage{multicol}          % for two equations side by side
+\usepackage[justification=centering]{caption}
+\usepackage{xcolor}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+%\usepackage{url}
+\usepackage[misc,geometry]{ifsym} 
+\chardef\_=`_
+
+%\hypersetup{ % play with these to change the look of hyperlinks
+%    colorlinks=true,
+%    linkcolor=black,
+%    filecolor=magenta,
+%    urlcolor=cyan,
+%   citecolor=black
+%}
+
+\colorlet{red}{red!80!black}
+
+%% NEW COMMANDS =============================================
+
+\lstdefinestyle{myStyle}{
+	%	language=Coq,
+	keywords={Inductive,Type,Lemma,Theorem,Definition,Fixpoint,forall,exists,match,with,end,let,in,fix},
+	basicstyle=\normalfont\footnotesize\tt,
+	keywordstyle=\color{red}, % Blue clashes with the cyan links. Change if you want.
+	stepnumber=1,
+	tabsize=2,
+	numbers=none,
+	numberstyle=\tiny,
+	numbersep=5pt,
+	showspaces=false,
+	escapechar=`,
+	showstringspaces=false
+}
+%basicstyle=\fontsize{10}{11}\selectfont\ttfamily,
+
+\lstset{style=myStyle}
+\makeatletter
+\newlength{\@mli}
+\newcommand{\mli}[1]{%
+	\settowidth{\@mli}{\lstinline/#1/}
+	\hspace{-.5ex}\begin{minipage}[t]{\@mli}\lstinline/#1/\end{minipage}}
+\makeatother
+\newcommand{\li}[1]{\ifmmode\mbox{\mli{#1}}\else\mbox{\lstinline/#1/}\fi}
+
+\newcommand\hide[1]{}
+\newenvironment{centermath}
+{\begin{center}$\displaystyle}
+	{$\end{center}}
+\renewcommand{\note}[2][polish]{{\color{red} #2}{\marginpar{\tiny \color{blue} #1}}}
+\renewcommand{\implies}{\Rightarrow}
+\renewcommand{\iff}{\Leftrightarrow}
+
+%\theoremstyle{plain}
+%\newtheorem{thm}{Theorem}[section]
+%\newtheorem{ex}[thm]{Example}
+%\newtheorem{prop}[thm]{Proposition}
+%\newtheorem{col}[thm]{Corollary}
+%\newtheorem{lem}[thm]{Lemma}
+%\newtheorem*{hypo}{Hypothesis}
+%\theoremstyle{definition}
+%\newtheorem{defn}[thm]{Definition}
+%\newtheorem{rem}[thm]{Remark}
+
+%\crefname{thm}{theorem}{theorems}
+%\crefname{defn}{definition}{definitions}
+%\crefname{lem}{lemma}{lemmas}
+%\crefname{col}{corollary}{corollaries}
+%\crefname{ex}{example}{examples}
+%\crefname{prop}{proposition}{propositions}
+
+%\Crefname{thm}{Theorem}{Theorems}
+%\Crefname{defn}{Definition}{Definitions}
+%\Crefname{lem}{Lemma}{Lemmas}
+%\Crefname{col}{Corollary}{Corollaries}
+%\Crefname{ex}{Example}{Examples}
+%\Crefname{prop}{Proposition}{Propositions}
+
+%% DOCUMENT =================================================
+
+\bibliographystyle{plainurl}% the mandatory bibstyle
+
+\begin{document}
+	
+\title{Formalizing Correct-By-Construction Casper in Coq}
+
+\institute{Runtime Verification}
+
+\maketitle
+
+\section{Overview}
+
+We present a machine-checked formalization of the Correct-By-Construction Casper (CBC Casper) family of consensus protocols in the Coq proof assistant. We leverage Coq's type classes to represent CBC Casper using a hierarchy of type classes that derive increasingly stronger properties. In doing so, we 1) illuminate the assumptions required of each desired property, and 2) reformulate the protocol in terms of more general mathematical objects, namely partial orders with non-local confluence. We highlight two advantages of our approach: from a proof engineering perspective, it gives rise to a clear separation of concerns between theory and implementation; from a protocol engineering perspective, it provides us with a rigorous, foundational understanding which allows us to derive stronger properties about the protocol. We highlight one such property, namely strong non-triviality. 
+
+\section{Type class hierarchy} 
+\label{sec:typeclass}
+\input{typeclass.tex}
+
+\section{Full node} 
+\label{sec:full}
+\input{full.tex}
+
+\section{Light node}
+\label{sec:light}
+\input{light.tex}
+
+\section{Related work and discussion}
+\label{sec:related}
+\input{related.tex}
+
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+
+% Bibliography has been alphabetically rearranged according to last name of first author.
+\begin{thebibliography}{99}
+
+\bibitem{CiC} Thierry Coquand, Gérard Huet.
+\newblock The Calculus of Constructions.
+\newblock {\em Information and Computation}, 76(2-3):95--120, 1988.
+
+\bibitem{Coq} 
+\newblock The Coq Proof Assistant. 
+\newblock https://coq.inria.fr/.
+
+\bibitem{Nakamura} Ryuya Nakamura, Takayuki Jimba, Dominik Harz.
+\newblock Refinement and Verification of CBC Casper. 
+\newblock {\em Cryptology ePrint Archive}, Report 2019/415, 2019.
+
+\bibitem{CBCfull} Vlad Zamfir, Nate Rush, Aditya Asgaonkar, Georgios Piliouras.
+\newblock Introducing the ``Minimal CBC Casper'' Family of Consensus Protocols. 
+\newblock 2019. 
+
+\bibitem{CBClight} Vlad Zamfir
+\newblock Introducing the ``Minimal'' CBC Casper Light Client -- with some explorations. 
+\newblock 2019. 
+\end{thebibliography}
+
+
+%%\begin{thebibliography}{00}
+
+%% \bibitem{label}
+%% Text of bibliographic item
+
+%%\end{thebibliography}
+\end{document}
+\endinput
+%%
+%% End of file `elsarticle-template-num.tex'.
