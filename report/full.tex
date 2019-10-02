@@ -1,5 +1,93 @@
+
 Emphasis on explicating: 
 \begin{enumerate}
 	\item least fixed point-based state definitions
 	\item strong non-triviality proof: atomic equivocation construction, pivotal validator proof, recursive atomic equivocation construction, overall proof sketch
 \end{enumerate}
+
+\subsection{States, messages, representatives}
+
+The full-node protocol states are {\em sets} of messages, each message being a triple $(c, v, j)$, where
+\begin{itemize}
+    \item $c$ is a (proposed) consensus value
+    \item $v$ identifies the sender of the message
+    \item $j$, the justification, {\em is the protocol state} in which the sender was at the time the message was sent
+\end{itemize}
+
+There are two technical difficulties with the above definition:  
+\begin{itemize}
+    \item It is recursive (states are sets of messages, each containing a state)
+    \item The ordering of the message should not matter
+\end{itemize}
+
+To solve the first issue, we chose to postpone the definition of messages and
+to define states inductively as follows:
+
+\begin{coq}
+Inductive state : Type :=
+  | Empty : state
+  | Next : C ->  V -> state -> state -> state.
+\end{coq}
+
+This definition says that a state can be build by extending an existing state
+given a consensus value (C), a validator (V), and another state representing
+the justification.
+To clarify that the three are the components of a message, we introduce the
+following notation for \verb"Next":
+
+\begin{coq}
+Notation "'add' ( c , v , j ) 'to' sigma" :=
+  (Next c v j sigma)
+  (at level 20).
+\end{coq}
+
+This definitions addresses the first issue mentioned above, that is, the 
+recursive nature of states.
+
+The second issue is very important as it relates to the notion of
+state equality.
+Although it is pottentially possible to define an equivalence between
+states which disregards the order between messages, that is definitely
+not trivial, because it is itself recursive, as it requires an equivalence
+on messages, which must be defined in terms of the same state equivalence.
+This would be a hinderance to both define it and work with it.
+
+Our approach was to work with canonical representatives of these classes,
+namely what we called LocallySorted states.  Although this definition
+is still recursive, it's easier to express and to work with it than with the
+equivalence one because it is only defined in terms of a single state.
+
+To define the notion of sorted states, we need to be able to compare messages,
+which amounts to defining a (total) order relation on states.
+This can be defined as a lexicographic ordering on the state seen as a list
+of messages, with the tweak of recursing in order to compare justifications:
+
+\begin{coq}
+Fixpoint state_compare (sigma1 sigma2 : state) : comparison :=
+  match sigma1, sigma2 with
+  | Empty, Empty => Eq
+  | Empty, _ => Lt
+  | _, Empty => Gt
+  | add (c1, v1, j1) to sigma1, add (c2, v2, j2) to sigma2 =>
+    match compare c1 c2 with
+    | Eq =>
+      match compare v1 v2 with
+      | Eq =>
+        match state_compare j1 j2 with
+        | Eq => state_compare sigma1 sigma2
+        | cmp_j => cmp_j
+        end
+      | cmp_v => cmp_v
+      end
+    | cmp_c => cmp_c
+    end
+  end.
+\end{coq}
+
+Note that defining this ordering requires a existing orderings on
+consensus values and validators, but these can any orderings,
+and an total ordering is guaranteed to exists for any set in set theory
+including axiom of choice\footnote{Dense orderings, partitions and weak
+forms of choice, by Carlos G. Gonzalez FUNDAMENTA MATHEMATICAE 147 (1995)}.
+    
+

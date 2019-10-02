@@ -32,23 +32,40 @@
 
 %% NEW COMMANDS =============================================
 
-\lstdefinestyle{myStyle}{
-	%	language=Coq,
-	keywords={Inductive,Type,Lemma,Theorem,Definition,Fixpoint,forall,exists,match,with,end,let,in,fix},
-	basicstyle=\normalfont\footnotesize\tt,
-	keywordstyle=\color{red}, % Blue clashes with the cyan links. Change if you want.
-	stepnumber=1,
-	tabsize=2,
-	numbers=none,
-	numberstyle=\tiny,
-	numbersep=5pt,
-	showspaces=false,
-	escapechar=`,
-	showstringspaces=false
-}
-%basicstyle=\fontsize{10}{11}\selectfont\ttfamily,
+\lstdefinelanguage{Coq}%
+  {morekeywords={Notation,Class,Variable,Inductive,CoInductive,Fixpoint,CoFixpoint,%
+      Definition,Example,Lemma,Theorem,Axiom,Local,Save,Grammar,Syntax,Intro,%
+      Trivial,Qed,Intros,Symmetry,Simpl,Rewrite,Apply,Elim,Assumption,%
+      Left,Cut,Case,Auto,Unfold,Exact,Right,Hypothesis,Pattern,Destruct,%
+      Constructor,Defined,Fix,Record,Print,Proof,Induction,Hint,Hints,Exists,
+      let,in,Parameter,Split,Red,Reflexivity,Transitivity,if,then,else,Opaque,%
+      Transparent,Inversion,Absurd,Generalize,Mutual,Cases,of,end,Analyze,%
+      AutoRewrite,Functional,Scheme,params,Refine,using,Discriminate,Try,%
+      Require,Load,Import,Scope,Set,Open,Section,End,match,with,Ltac,%
+      exists,forall,fix,fun
+	},% 
+   keywordstyle=\color{red},%
+   basicstyle=\normalfont\footnotesize\tt,%
+   sensitive, %
+   tabsize=2,%
+   escapechar=`,%
+   morecomment=[n]{(*}{*)},%
+   morestring=[d]",%
+   literate={=>}{{$\Rightarrow$}}1 {>->}{{$\rightarrowtail$}}2{->}{{$\to$}}1
+   {\/\\}{{$\wedge$}}1
+   {|-}{{$\vdash$}}1
+   {\\\/}{{$\vee$}}1
+   {~}{{$\sim$}}1
+   %{<>}{{$\neq$}}1 indeed... no.
+  }[keywords,comments,strings]%
 
-\lstset{style=myStyle}
+\lstnewenvironment{coq}{
+       \lstset{
+        basicstyle=\ttfamily,
+        language=Coq,
+        showstringspaces=false
+       }
+}{}
 \makeatletter
 \newlength{\@mli}
 \newcommand{\mli}[1]{%
