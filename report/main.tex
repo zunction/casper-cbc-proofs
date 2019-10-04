@@ -121,11 +121,149 @@
 
 \section{Overview}
 
-We present a machine-checked formalization of the Correct-By-Construction Casper (CBC Casper) family of consensus protocols in the Coq proof assistant. We leverage Coq's type classes to represent CBC Casper using a hierarchy of type classes that derive increasingly stronger properties. In doing so, we 1) illuminate the assumptions required of each desired property, and 2) reformulate the protocol in terms of more general mathematical objects, namely partial orders with non-local confluence. We highlight two advantages of our approach: from a proof engineering perspective, it gives rise to a clear separation of concerns between theory and implementation; from a protocol engineering perspective, it provides us with a rigorous, foundational understanding which allows us to derive stronger properties about the protocol. We highlight one such property, namely strong non-triviality. 
+We present a machine-checked formalization of the Correct-By-Construction Casper (CBC Casper) family of consensus protocols in the Coq proof assistant. We leverage Coq's type classes to represent the family of CBC Casper protocols as a collection of parameters and axioms, from which we derive safety and non-triviality properties that hold for each instantiation of the type class using concrete data types and proofs. In doing so, we 1) illuminate the assumptions required of each desired property, and 2) reformulate the protocol in more general mathematical terms. We highlight two advantages of our approach: from a proof engineering perspective, it gives rise to a separation of concerns between theory and implementation; from a protocol engineering perspective, it provides us with a rigorous, foundational understanding of the protocol which allows us to derive stronger properties. 
 
-\section{Type class hierarchy} 
-\label{sec:typeclass}
-\input{typeclass.tex}
+\section{Formalization} 
+In this section we present a Coq type class \verb|CBC_protocol_eq| which defines an abstract CBC Casper protocol. We explicate the type class in two parts: 1) the data types and assumptions it contains corresponding to the parameters identifying each CBC Casper protocol, and 2) the abstract safety proof it derives which is satisfied by each CBC Casper protocol. 
+\subsection{Parameters} 
+Each member of the family of CBC Casper protocols is identified by five parameters, namely validator names, validator weights, fault tolerance threshold, consensus values, and an estimator function \cite{CBCfull}. Implicitly, each parameter satisfies certain properties, such as non-negativity for validator weights and the fault tolerance threshold, totality for the estimator function etc. We model these parameters as generic \verb|Type|s in Coq, accompanied by explicit statements of their additional properties. 
+
+\subsubsection{Validators} 
+Validators represent the consensus-forming nodes in the protocol. We require of validators the fact that 1) they form a non-empty set, namely that there is at least one validator, and 2) they are comparable. We capture both of these requirements in a generic type class \verb|StrictlyComparable|, which is parameterized by an abstract type \verb|X|. 
+\begin{coq}
+	Class StrictlyComparable (X : Type) : Type :=
+	{
+	inhabited : exists (x : X), True;
+	compare : X -> X -> comparison;
+	compare_strictorder :> CompareStrictOrder compare;
+	}.
+\end{coq}
+\verb|StrictlyComparable| contains a proof that there exists at least one witness of type \verb|X| (\verb|inhabited|), a comparison operator which takes two elements of type \verb|X| and returns either \verb|Lt|, \verb|Eq| or \verb|Gt| (\verb|compare|), and a proof that this comparison operator imposes a strict ordering on elements of type \verb|X|, i.e. that it is both reflexive and transitive (\verb|compare_strictorder|). 
+
+This is reflected in the type class as follows: 
+\begin{coq}
+	validators : Type; 
+	about_validators : StrictlyComparable validators;
+\end{coq}
+
+\subsubsection{Consensus values} 
+The requirements for consensus values represented as abstract types are similar. 
+\begin{coq}
+	consensus_values : Type; 
+	about_consensus_values : StrictlyComparable consensus_values; 
+\end{coq}
+
+\subsubsection{Validator weights} 
+Validator weights are computed by a function which takes a validator name and returns a positive real number. We represent positive real numbers using dependent types in Coq, and represent the validator weight function with the following function signature: 
+\begin{coq}
+	weight : validators -> {r | (r > 0)%R};
+\end{coq}
+
+\subsubsection{Fault tolerance threshold} 
+The Byzantine-fault tolerance threshold is a non-negative real number that is strictly smaller than the sum of all validator weights. Because Coq \verb|Type|s are not guaranteed finite, we state the strictly smaller requirement in terms of the existence of a finite list of validators whose sum exceeds the fault weight. 
+\begin{coq}
+	t : {r | (r >= 0)%R}; 
+	suff_val : exists vs, 
+					NoDup vs /\ 
+					((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs 
+				> (proj1_sig t))%R;
+\end{coq}
+
+\subsubsection{States} 
+In preparation for defining the estimator function and protocol states, we define a preliminary abstract state type, 
+\verb|state|. We similarly require that these states are \verb|StrictlyComparable|. We define an initial state, \verb|state0| of type \verb|state|. We additionally define an abstract notion of state equality and a commutative state union operator. 
+\begin{coq}
+	state : Type;
+	about_state : StrictlyComparable state;
+	state0 : state;
+	state_eq : state -> state -> Prop;
+	state_union : state -> state -> state;
+	state_union_comm : forall s1 s2, state_eq (state_union s1 s2) 
+																						(state_union s2 s1);
+\end{coq}
+Further, we define a reachability relation on abstract states. We require of this reachability relation that it is reflexive and transitive. We relate reachability with the state union operator with the requirement that any state is able to reach its union with any other state. Finally, we require that reachability respects state equality. 
+\begin{coq}
+	reach : state -> state -> Prop;
+	reach_refl : forall s, reach s s; 
+	reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3; 
+	reach_union : forall s1 s2, reach s1 (state_union s1 s2);  
+	reach_morphism : forall s1 s2 s3, reach s1 s2 -> state_eq s2 s3 -> reach s1 s3;  
+\end{coq}
+
+\subsubsection{Estimator} 
+The estimator function is a total function which takes a state and returns a non-empty set of consensus values. We represent the estimator function using a relation of type \verb|state -> consensus_values -> Prop|, which can be interpreted as an assertion that the estimator agrees on some consensus value for some state. 
+\begin{coq}
+	E : state -> consensus_values -> Prop; 
+	estimator_total : forall s, exists c, E s c; 
+\end{coq}
+
+\subsubsection{Protocol states}
+We represent restricting elements of generic type \verb|state| to valid protocol states by defining protocol state as a property of type \verb|state -> Prop|. In this way, we abstract the mutually recursive definition of protocol states as sets of messages and messages as triples containing protocol states away into the implementation layer, and exclude the definition of messages from our type class. We require of the property \verb|prot_state| that it holds for the initial state. 
+\begin{coq}
+	prot_state : state -> Prop; 
+	about_state0 : prot_state state0; 
+\end{coq}
+
+\subsubsection{Equivocation} 
+Finally, we abstract away the details of computing fault weight from states by representing the fault weight of a state as a function of type \verb|state -> R|. We require that the fault weight of the union of two states is greater than or equal to the fault weight of each individual state, and we relate the definition of protocol states with fault weight by requiring that two protocol states' union is a protocol state iff its fault weight is under threshold. 
+\begin{coq}
+	equivocation_weight : state -> R; 
+	equivocation_weight_compat : forall s1 s2, 
+	(equivocation_weight s1 <= equivocation_weight (state_union s2 s1))%R; 
+	about_prot_state : forall s1 s2, prot_state s1 -> prot_state s2 ->
+										(equivocation_weight (state_union s1 s2) <= proj1_sig t)%R 
+										-> prot_state (state_union s1 s2);
+\end{coq}
+
+\subsection{Safety} 
+Next, we prove the asynchronous, Byzantine-fault-tolerant consensus safety properties of the family of CBC Casper protocols. Each proof assumes that we have a generic family member, i.e. an instance of the type class \verb|CBC_Casper_eq|. 
+\subsubsection{Common futures} 
+We prove that protocol states have common futures as long as their union state is a valid protocol state. We proceed stepwise, as in \cite{CBCfull}: first we show that any pair of protocol states satisfies the common futures property, then we use it to generalize to an arbitrary number of states. 
+\begin{coq}
+Theorem pair_common_futures '{CBC_protocol_eq}:
+	forall s1 s2 : pstate,
+	(equivocation_weight (state_union s1 s2) <= proj1_sig t)%R ->
+	exists s : pstate, pstate_rel s1 s /\ pstate_rel s2 s.
+	
+Theorem n_common_futures "{CBC_protocol_eq} :
+forall ls : list pstate,
+(equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
+exists ps : pstate, Forall (fun ps' => pstate_rel ps' ps) ls.
+\end{coq}	
+
+\subsubsection{Consistency of decisions on protocol states}
+We prove that protocol states which have common futures cannot make conflicting decisions on future states. We again proceed stepwise, first showing that any two protocol states with a common future cannot make conflicting decisions on future states. 
+\begin{coq}
+Theorem pair_consistency_prot '{CBC_protocol_eq} :
+	forall s1 s2 : pstate,
+	(equivocation_weight (state_union s1 s2) <= proj1_sig t)%R ->
+	forall P, 
+	~ (decided P s1 /\ decided (not P) s2).
+\end{coq}
+We then generalize this result to an arbitrary number of states. We generalize the definition of consistent decisions to a list of states. 
+\begin{coq}
+Definition state_consistency '{CBC_protocol_eq} (ls : list pstate) : Prop :=
+exists s : pstate,
+forall (P : pstate -> Prop),
+Exists (fun s => decided P s) ls ->
+P s.
+\end{coq}
+We then state n-party consensus value consistency as follows: 
+\begin{coq}
+Theorem n_consistency_prot '{CBC_protocol_eq} :
+forall ls : list pstate,
+(equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
+state_consistency ls.
+\end{coq}
+
+\subsubsection{Consistency of decisions on consensus values} 
+Showing that protocol states which have common futures cannot make conflicting decisions on consensus values follows naturally from the fact that consensus values are parameterized by state. The statement of consensus value safety is as follows: 
+\begin{coq}
+Theorem n_consistency_consensus '{CBC_protocol_eq} :
+	forall ls : list pstate,
+	(equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
+	consensus_value_consistency ls. 
+\end{coq}
 
 \section{Full node} 
 \label{sec:full}
