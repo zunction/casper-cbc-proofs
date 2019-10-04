@@ -1,17 +1,12 @@
-
-Emphasis on explicating: 
-\begin{enumerate}
-	\item least fixed point-based state definitions
-	\item strong non-triviality proof: atomic equivocation construction, pivotal validator proof, recursive atomic equivocation construction, overall proof sketch
-\end{enumerate}
-
 \subsection{States, messages, representatives}
 
-The full-node protocol states are {\em sets} of messages, each message being a triple $(c, v, j)$, where
+The full-node protocol states are {\em sets} of messages,
+each message being a triple $(c, v, j)$, where:
 \begin{itemize}
     \item $c$ is a (proposed) consensus value
     \item $v$ identifies the sender of the message
-    \item $j$, the justification, {\em is the protocol state} in which the sender was at the time the message was sent
+    \item $j$, the justification, {\em is the protocol state} in which the sender
+        was at the time the message was sent
 \end{itemize}
 
 There are two technical difficulties with the above definition:  
@@ -90,4 +85,48 @@ and an total ordering is guaranteed to exists for any set in set theory
 including axiom of choice\footnote{Dense orderings, partitions and weak
 forms of choice, by Carlos G. Gonzalez FUNDAMENTA MATHEMATICAE 147 (1995)}.
     
+This ordering naturally induces an ordering on messages, and thus allows us
+to define the notion of a \verb"LocallySorted" state, i.e., one in which
+each message is smaller than the next and all justifications are themselves
+\verb"LocallySorted".
+
+\verb"LocallySorted" states are chosen as representatives for states, with the
+benefit that testing equality of such states reduces to checking syntactic
+equality.
+
+Protocol states are defined by means of an inductive predicate on states, by
+
+\begin{coq}
+(* Valid protocol state definition *) 
+Inductive protocol_state : state -> Prop :=
+  | protocol_state_empty : protocol_state Empty
+  | protocol_state_next
+         : forall s j
+         , protocol_state s
+        -> protocol_state j
+        -> incl_messages j s
+        -> forall c v
+         , valid_estimate c j
+        -> not_heavy (add_in_sorted_fn (c,v,j) s)
+        -> protocol_state (add_in_sorted_fn (c,v,j) s).
+\end{coq}
+
+The above definition reads as:
+\begin{itemize}
+    \item a protocol state is either empty; or
+    \item it can be obtained from an existing protocol state $s$ by extending
+        it with a message $(c, v, j)$ such that:
+        \begin{itemize}
+            \item $j$ is a protocol state included in $s$
+            \item $c$ is a consensus values which can be estimated by $j$
+            \item adding $(c,v,j)$ to $s$ does not produce a heavy state
+        \end{itemize}
+\end{itemize}
+
+\subsection{Strong-non-triviality proofs}
+Emphasis on explicating: 
+\begin{enumerate}
+	\item strong non-triviality proof: atomic equivocation construction, pivotal validator proof, recursive atomic equivocation construction, overall proof sketch
+\end{enumerate}
+
 

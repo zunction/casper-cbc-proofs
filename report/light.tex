@@ -1,5 +1,90 @@
+\subsection{States, hashes, messages, representatives}
+
+The light-node protocol states are also sets of messages,
+each message being a triple $(c, v, j)$, where:
+\begin{itemize}
+    \item $c$ is a (proposed) consensus value
+    \item $v$ identifies the sender of the message
+    \item $j$, the justification, is the {\em set of hashes} of all messages
+        of the protocol state in which the sender was at the time the message
+        was sent
+\end{itemize}
+
+The fact that justification is a set of hashes allows for a simpler,
+non-recursive definition. To begin, the type of hashes can be any
+totally ordered set, a justification can be a list of hashes, and
+a message is now just a triple:
+
+\begin{coq}
+Variable hash : Type.
+Variable (about_H : `{StrictlyComparable hash}). 
+
+Definition justification_type : Type := list hash. 
+
+Definition message : Type := C * V * justification_type.
+\end{coq}
+
+The total order on hashes induces a total lexicographic order on
+justifications, which can be extended to messages.
+
+We therefore can work with sorted lists of hashes as representatives
+for sets of hashes, reducing equality between justifications to
+syntactic equality.
+
+For states we prefer to define equality as set-equality, that is
+double inclusion between the sets of messages representing states.
+
+Assuming an injective function from messages to hashes,
+\begin{coq}
+Parameters (hash_message : message -> hash)
+           (hash_message_injective : Injective hash_message).
+\end{coq}    
+we can recursively define a function \verb"hash_state" taking 
+states to sorted lists of hashes, i.e., justifications, with the
+property that two justifications are equal iff they belong to 
+states which are equal as sets:
+
+\begin{coq}
+Lemma hash_state_injective : forall sigma1 sigma2,
+  hash_state sigma1 = hash_state sigma2
+  <->
+  set_eq sigma1 sigma2.
+\end{coq}    
+
+This allows for the following inductive definition of protocol states:
+
+\begin{coq}
+Inductive protocol_state : state -> Prop :=
+| protocol_state_nil : protocol_state state0
+| protocol_state_cons : forall (j : state),
+    protocol_state j ->
+    forall (c : C),
+      valid_estimate c j ->
+      forall (v : V) (s : state),
+        In (c, v, hash_state j) s ->
+        protocol_state (set_remove compare_eq_dec (c, v, hash_state j) s) ->
+        NoDup s ->
+        not_heavy s ->
+        protocol_state s.
+\end{coq}
+
+The above definition reads as:
+\begin{itemize}
+    \item a protocol state is either empty; or
+    \item it is a non-heavy, non-duplicate state $s$ for which
+        there exist a consensus value $c$, a sender $V$, and a state $j$ such that:
+        \begin{itemize}
+            \item $j$ is a protocol state
+            \item $c$ is a consensus values which can be estimated by $j$
+            \item $(c,v, \texttt{hash\_state}\  j)$ belongs to $s$
+            \item The state obtained from $s$ by removing
+                $(c,v, \texttt{hash\_state}\  j)$ is a protocol state.
+        \end{itemize}
+\end{itemize}
+
+
+\subsection{Strong-non-triviality proofs}
 Emphasis on explicating: 
 \begin{enumerate}
-	\item why we no longer need least fixed point-based state definitions
 	\item to the extent that it differs from the full node version, the strong non-triviality proof: atomic equivocation construction, pivotal validator proof, recursive atomic equivocation construction, overall proof sketch
 \end{enumerate}
