@@ -20,6 +20,11 @@
 \usepackage[misc,geometry]{ifsym} 
 \chardef\_=`_
 
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{ae,aecompl}
+\PrerenderUnicode{ȘșțȚăĂîÎâÂîÎ}
+
 %\hypersetup{ % play with these to change the look of hyperlinks
 %    colorlinks=true,
 %    linkcolor=black,
@@ -113,18 +118,39 @@
 
 \begin{document}
 	
-\title{Formalizing Correct-By-Construction Casper in Coq}
+\title{Formalizing Correct-By-Construction Casper \\ in Coq}
 
-\institute{Runtime Verification}
+\author{Elaine Li\inst{1}, Traian \textcommabelow{S}erbănu\textcommabelow{t}ă\inst{1}, Denisa Diaconescu\inst{1}, Grigore Ro\textcommabelow{s}u\inst{1}, Vlad Zamfir\inst{2}}
+\institute{Runtime Verification \\ 
+					\and 
+					Ethereum Foundation\\}
 
 \maketitle
 
-\section{Overview}
-
+\begin{abstract}
 We present a machine-checked formalization of the Correct-By-Construction Casper (CBC Casper) family of consensus protocols in the Coq proof assistant. We leverage Coq's type classes to represent the family of CBC Casper protocols as a collection of parameters and axioms, from which we derive safety and non-triviality properties that hold for each instantiation of the type class using concrete data types and proofs. In doing so, we 1) illuminate the assumptions required of each desired property, and 2) reformulate the protocol in more general mathematical terms. We highlight two advantages of our approach: from a proof engineering perspective, it gives rise to a separation of concerns between theory and implementation; from a protocol engineering perspective, it provides us with a rigorous, foundational understanding of the protocol which allows us to derive stronger properties. 
+\end{abstract}
 
-\section{Formalization} 
-In this section we present a Coq type class \verb|CBC_protocol_eq| which defines an abstract CBC Casper protocol. We explicate the type class in two parts: 1) the data types and assumptions it contains corresponding to the parameters identifying each CBC Casper protocol, and 2) the abstract safety proof it derives which is satisfied by each CBC Casper protocol. 
+\section{Overview} 
+In the first section we give an account of the motivating principles behind our formalization of CBC Casper, and the design choices they give rise to. For a motivation of CBC Casper at large, we refer the reader to \cite{CBCfull}. 
+
+In the second section we describe our formalization. We present our definition of CBC Casper as a Coq type class containing parameters and proofs, and explicate the safety properties provable from the abstract type class. 
+
+In the third section we describe two concrete instantiations of our type class: respectively a full node and light node member of the protocol family, as described in \cite{CBCfull} and \cite{CBClight} respectively. We focus on parameters in the abstract type class that are instantiated differently by the full node and light node protocols, and how this reflects the essential difference between their concrete definitions. In doing so, we highlight how type classes as an abstraction mechanism allow us to separate concerns between theory and implementation. 
+
+In the fourth section we present a new proof of a stronger non-triviality property for both the full node and light node protocols, inspired by the statement of non-triviality of decisions on protocol properties in \cite{CBCfull}. We discuss our ongoing attempts to abstract the proof of this property to the same degree as the proofs of safety. In the process, we highlight how our design choices invite a precise characterization of the assumptions required for each property, which gives rise to a more rigorous understanding of CBC Casper in general mathematical terms.  
+
+In the fifth section we discuss future directions, related work, and conclude. 
+
+\section{Design choices} 
+A salient property of the CBC Casper family of protocols, as captured in its ``correct-by-construction'' namesake, is that desirable properties such as safety and liveness are guaranteed independently of the specific details of each protocol, such as information about nodes, consensus values etc. However, these properties do rely on certain implicit or explicit assumptions about the parameters used to instantiate each member of the CBC Casper family. Our design choices primarily aimed at clarifying these assumptions explicitly. Subsequently, we wanted to express these assumptions and properties in general mathematical terms, thereby abstracting away from protocol-specific language. This required us to precisely pinpoint the minimal assumptions required for each desirable property and formulate an abstraction that was both necessary and sufficient - one that included relevant information about each protocol family member, but no more and no less. Therefore, while our primary goal was formalization of the existing specification of CBC Casper, our concurrent goal was mathematical generalization and refinement of the protocol. 
+
+Towards these ends, we chose to represent the CBC Casper family of protocols using Coq type classes. Our reasons are twofold: 1) the relationship between type class and instance aptly reflects the relationship between protocol family and member; 2) Coq's type inference mechanism allows us to organize typeclasses in relation with one another and thereby elucidate the relationship between assumptions and properties. We present the our formalization using type classes in the following section. 
+
+\section{Formalization}
+\label{sec:formalization}
+In this section we present a Coq type class \verb|CBC_protocol_eq| which defines an abstract CBC Casper protocol. Our type class abstracts away explicit mention of several components of the protocol as described in \cite{CBCfull}, including messages, and in turn the definition of states as sets of messages, while still being able to state and prove its safety properties.We explicate the type class in two parts: 1) the data types and assumptions it contains, corresponding to the parameters identifying each CBC Casper protocol, and 2) the abstract safety proof it derives which is satisfied by each CBC Casper protocol.
+
 \subsection{Parameters} 
 Each member of the family of CBC Casper protocols is identified by five parameters, namely validator names, validator weights, fault tolerance threshold, consensus values, and an estimator function \cite{CBCfull}. Implicitly, each parameter satisfies certain properties, such as non-negativity for validator weights and the fault tolerance threshold, totality for the estimator function etc. We model these parameters as generic \verb|Type|s in Coq, accompanied by explicit statements of their additional properties. 
 
@@ -265,6 +291,31 @@ Theorem n_consistency_consensus '{CBC_protocol_eq} :
 	consensus_value_consistency ls. 
 \end{coq}
 
+\subsection{Partial order}
+ Indeed, we found that it was possible to further abstract away other components of the protocol, including validators, the estimator function, and the notion of equivocation, and still be able to state and prove its safety properties, albeit in more abstract terms. One particular abstraction we explored was a partial order, formally defined as follows: 
+\begin{coq} 
+	Class PartialOrder :=
+	{ A : Type;
+		A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
+		A_inhabited : exists (a0 : A), True; 
+		A_rel : A -> A -> Prop;
+		A_rel_refl :> Reflexive A_rel;
+		A_rel_trans :> Transitive A_rel;
+	}.
+\end{coq} 	
+We found that valid protocol states in CBC Casper protocols along with future reachability could be represented as a partial order, with the join of two states corresponding to protocol state union, and existing iff it did not exceed the fault tolerance threshold. We formally show this by proving that CBC Casper type class \verb|CBC_protocol_eq| can instantiate a \verb|PartialOrder| type class: 
+\begin{coq}
+	Instance level0 `{CBC_protocol_eq} : PartialOrder :=
+	{ A := pstate;
+		A_eq_dec := pstate_eq_dec;
+		A_inhabited := pstate_inhabited;
+		A_rel := pstate_rel;
+		A_rel_refl := pstate_rel_refl;
+		A_rel_trans := pstate_rel_trans;
+	}.
+\end{coq}
+
+
 \section{Full node} 
 \label{sec:full}
 \input{full.tex}
@@ -273,16 +324,267 @@ Theorem n_consistency_consensus '{CBC_protocol_eq} :
 \label{sec:light}
 \input{light.tex}
 
+\section{Strong non-triviality} 
+Accordingly, we are able to express another important property of CBC Casper protocols, namely non-triviality, in these abstract terms. \cite{CBClight} uses the notion of non-triviality of protocol properties to illustrate the significance of restricting valid protocol states to those that are not too heavy, i.e. those whose equivocation weights do not exceed the fault tolerance threshold. \cite{CBClight} defines non-triviality as the existence of a protocol property $P$ for which there is a protocol state $sigma_1$ that is decided on $P$ and another protocol state $sigma_2$ that is decided on $\neg P$. We found that non-triviality precisely captures the notion of non-local confluence in the abstract rewriting system literature, and can be expressed as follows: 
+\begin{coq}
+	Class PartialOrderNonLCish `{PartialOrder} :=
+	{ no_local_confluence_ish : exists (a a1 a2 : A),
+		A_rel a a1 /\ A_rel a a2 /\
+		~ exists (a' : A), A_rel a1 a' /\ A_rel a2 a';
+	}.
+\end{coq}
+However, while we can instantiate \verb|PartialOrderNonLCish| with our full node and light node protocol definitions, we cannot directly prove that our abstract CBC Casper type class \verb|CBC_protocol_eq| can instantiate a \verb|PartialOrder| type class because additional abstract assumptions are required. 
+Naturally, the question of whether we could strengthen the first existential quantifier to a universal quantifier arose. We found a positive answer to this question, and further found that the \verb|A_rel a a1| could be strengthened from generic reachability to atomic reachability, i.e. the statement holds when \verb|a| reaches \verb|a1| in one step. We state this strengthened version of non-triviality, which we call strong-nontriviality, as follows: 
+\begin{coq}
+	Definition strong_nontriviality :=
+	forall (s1 : pstate),
+	exists (s2 : pstate),
+	next_future s1 s2 /\
+	exists (s3 : pstate),
+	yes_common_future s1 s3
+	/\
+	no_common_future s2 s3. 
+\end{coq}
+Strong non-triviality states that for every protocol state \verb|s1|, there exists a protocol state \verb|s2| that is \verb|s1|'s next state and a protocol state \verb|s3| that is \verb|s1|'s future state, such that \verb|s1| and \verb|s3| share a common future, but \verb|s2| and \verb|s3| do not. 
+In the following section, we explicate our proof of strong non-triviality. While we are not able to fully derive the proof from \verb|CBC_protocol_eq| as we did for the safety proofs because we require additional assumptions, we do observe that it follows a general abstract pattern shared between the full and light node versions. Pinpointing the precise additional assumptions is topic of ongoing work. Thus, we follow the same approach we used to explicate \verb|CBC_protocol_eq| above: we first give an abstract proof sketch which highlights similarities to the fullest extent; we then go into the details of the specific proof for full and light node, highlighting the differences between them. 
+
+\subsection{Proof sketch} 
+By definition, valid protocol states are states that do not exceed the fault tolerance threshold, in other words, states that do not admit too many equivocating senders (recall the definition of \verb|fault_weight_state| in Section \label{sec:formalization} above). Since validator weights are discrete, senders can continue to equivocate, increasing the state's fault weight, until we reach a state that is on the verge of exceeding the fault weight, i.e. states that cannot admit anymore equivocating senders. These states are non-locally confluent: if an additional equivocating sender sends a pair of equivocating messages from that state, the resulting two states can never join. We call these states heavy states, and we call the additional equivocating sender a pivotal sender. We formalize this notion of a pivotal sender with regards to some heavy state as follows. We note that a heavy state can have multiple pivotal senders, but for the purposes of proving strong non-triviality it suffices to show the existence of one.
+\begin{coq}
+Definition potentially_pivotal_state (v : definitions.V) (s : state) :=
+	~ In v (equivocating_senders s) /\
+	exists (vs : list definitions.V),
+	NoDup vs /\
+	~ In v vs /\ 
+	(forall (v : definitions.V), In v vs -> ~ In v (equivocating_senders s)) /\
+	(sum_weights ((equivocating_senders s) ++ vs) <= proj1_sig t_full)%R /\
+	(sum_weights ((equivocating_senders s) ++ vs) >
+	proj1_sig t_full - proj1_sig (weight v))%R. 
+\end{coq}
+Formally, we say that \verb|v| is a pivotal sender for some state \verb|s| iff 1) \verb|v| is not already seen to be equivocating in \verb|s|, and there exists a remaining set of validators \verb|vs| which 2a) does not contain \verb|v| and 2b) that are all not already seen to be equivocating in \verb|s|, that 2c) tip over the fault weight of \verb|s| only with the help of \verb|v|. We include an explicit duplicate-free requirement for \verb|vs| because we represent sets using inductively-defined lists in Coq, which do not automatically come with this property. 
+We then prove that every protocol state has such a pivotal sender: 
+\begin{coq}
+Lemma all_pivotal_validator :
+	forall (s : state),
+	protocol_state s -> 
+	exists (v : definitions.V),
+	potentially_pivotal_state v s. 
+\end{coq}
+Based on this critical property of protocol states, we can prove strong non-triviality as per our formal statement above as follows: given an arbitrary protocol state \verb|s1|, we can obtain from \verb|all_pivotal_validator| a set of validators \verb|vs| and a single pivotal validator \verb|v| with special properties above. We can construct a pair of equivocating messages for \verb|v|, and send each half from \verb|s1|, to obtain \verb|s1'| and \verb|s2| respectively, such that \verb|v| is equivocating in the union of \verb|s1'| and \verb|s2|. We can then construct a future state of \verb|s1'|, \verb|s3|, such that all of the validators in \verb|vs| are equivocating in \verb|s3|. We must then show that 1) \verb|s1| and \verb|s3| have a common future, but 2) \verb|s2| and \verb|s3| do not. Discharging obligation 1) is trivial: \verb|s3| is itself a future state of \verb|s1|. Discharging obligation 2) proceeds via reasoning by contradiction: assume we have a protocol state \verb|s| that is a future state of both \verb|s2| and \verb|s3|. Then, it must contain all the messages in both \verb|s2| and \verb|s3|, respectively all the equivocating senders in both \verb|s2| and \verb|s3|, respectively all the fault weight in both \verb|s2| and \verb|s3|. This means it must contain the fault weight of all the validators in \verb|vs| in addition to the fault weight of \verb|v|. However, by \verb|all_pivotal_validator|, the combined fault weights of \verb|vs| and \verb|v| exceed the fault tolerance threshold, therefore \verb|s| cannot be a valid protocol state. We find a contradiction. 
+
+From this proof sketch, we distill two key ingredients: 1) a proof of \verb|all_pivotal_validators|, and 2) a way to construct equivocations from a list of validators from any protocol state resulting in a future state which is heavier by exactly the sum of the weights of these validators. 
+
+We prove \verb|all_pivotal_validators| using the \verb|suff_val| assumption described in our description of validators above. Intuitively, assuming \verb|suff_val| and an ordering on validators based on weight, the heaviest validator will always be pivotal with respect to the remaining set of validators. We omit the proof details here for brevity. The proof of \verb|all_pivotal_validators| is similar between the full node and light node protocols. 
+
+Our strategy for constructing consecutive equivocations in some state proceeds as follows. First we construct a pair of equivocating messages as follows: starting with some state \verb|s| and two validators \verb|v| and \verb|v'|, we send a message from \verb|v'|  with \verb|s| as justification to obtain state \verb|s'|. Then, we construct two messages both with sender \verb|v|, but with different justifications: one with \verb|s'| and one  with \verb|s|. We can prove that these two messages are equivocating -- they are two distinct messages from the same sender that do not contain each other in their respective justifications. The correctness proof relies on the fact that any protocol state cannot contain a message with a justification that is in its own future. Next, we define an atomic equivocation function, \verb|next_equivocation_state|, of type \verb|state -> V -> V -> state|, which adds three messages, the latter two of which are equivocating as shown, to a state. The type signature includes two \verb|V|'s because two distinct validators are required to construct an equivocation. 
+The precise definition of \verb|next_equivocation_state| is dependent on the message-adding mechanism, which in turn is dependent on the definition of states in relation to messages, which differs between the full and light node versions. Therefore, we postpone discussion of the definition of \verb|next_equivocation_state| to the following sections. However, the correctness properties desirable of \verb|next_equivocation_state| is shared between both versions of the protocol, and are as follows. 
+First, we show that the \verb|next_equivocation_state| is indeed a future state of its origin state. 
+\begin{coq} 
+Lemma next_equivocation_state_incl :
+	forall (j : state) (v v' : definitions.V),
+	syntactic_state_inclusion j (next_equivocation_state j v v'). 
+\end{coq}
+Next, we show that \verb|next_equivocation_state|  preserves all messages, respectively equivocating messages, respectively equivocating senders in the original state. 
+\begin{coq}
+Lemma next_equivocation_state_keeps_messages :
+	forall (j : state) (v v' : definitions.V) (msg : message),
+	in_state msg j ->
+	in_state msg (next_equivocation_state j v v'). 
+Lemma next_equivocation_state_keeps_equivocators :
+	forall (j : state) (v v' v0 : definitions.V),
+	In v (equivocating_senders j) ->
+	In v (equivocating_senders (next_equivocation_state j v v')). 
+Lemma next_equivocation_state_keeps_equivocating_messages :
+	forall (j : state) (v v' : definitions.V) (msg : message),
+	equivocating_in_state_prop msg j ->
+	equivocating_in_state_prop msg (next_equivocation_state j v v'). 
+\end{coq}
+We show that each half of the equivocating messages in \verb|next_equivocation_state|  is indeed equivocating in the future state. 
+\begin{coq}
+Lemma about_equivocating_messages_in_state_l :
+	forall j v v',
+	v <> v' ->
+	equivocating_in_state_prop (get_estimate j, v, j)
+	(next_equivocation_state j v v').
+Lemma about_equivocating_messages_in_state_r :
+	forall j v v',
+	v <> v' ->
+	equivocating_in_state_prop (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j)
+	(next_equivocation_state j v v').
+\end{coq}
+We show that the sender \verb|v| whose equivocations we added is indeed seen to be equivocating in \verb|next_equivocation_state|. 
+\begin{coq}
+	Lemma about_equivocating_messages_add_equivocator :
+	forall j v v',
+	v <> v' ->
+	In v (equivocating_senders (next_equivocation_state j v v')).
+\end{coq}
+We show that if the sender \verb|v| whose equivocations we added is not already seen to be equivocating in our original state, then they are seen to be equivocating in \verb|next_equivocation_state|. 
+\begin{coq}
+Lemma equivocation_adds_fault_weight : 
+	forall (j : state),
+	protocol_state j ->
+	forall (v v' : definitions.V),
+	~ In v (equivocating_senders j) -> 
+	v <> v' ->  
+	fault_weight_state (next_equivocation_state j v v') = 
+	(fault_weight_state j + proj1_sig (weight v))%R. 
+\end{coq}
+So far, we are only dealing with generic states, and not valid protocol states. However, we need to show that \verb|next_equivocation_state| constructs a valid and heavier protocol state from a valid protocol state. We proceed stepwise, first showing that if we start with a protocol state \verb|s|, and a sender \verb|v| who is not already seen to be equivocating in \verb|s|, and additionally if adding \verb|v|'s weight to the existing fault weight of \verb|s| does not exceed the fault tolerance threshold, then \verb|next_equivocation_state| is a valid protocol state.
+\begin{coq}
+Theorem next_equivocation_protocol_state :
+	forall j,
+	protocol_state j ->
+	forall v v',
+	~ In v (equivocating_senders j) -> 
+	v <> v' -> 
+	(add_weight_under j v ->
+	protocol_state (next_equivocation_state j v v')).
+\end{coq} 	
+Next, we strengthen the previous lemma by showing that not only is the resulting \verb|next_equivocation_state| a valid protocol state, it is a protocol state whose fault weight is exactly \verb|s|'s fault weight plus equivocator \verb|v|'s fault weight. 
+\begin{coq}
+	Lemma next_equivocation_adds_weight :
+	forall (s : state),
+	protocol_state s ->
+	forall (v : definitions.V),
+	add_weight_under s v ->
+	~ In v (equivocating_senders s) -> 
+	forall (v' : definitions.V),
+	v <> v' ->
+	protocol_state (next_equivocation_state s v v') /\
+	fault_weight_state (next_equivocation_state s v v') =
+	(fault_weight_state s + proj1_sig (weight v))%R. 
+\end{coq}	
+This concludes the correctness properties we require from our atomic equivocation construction. Next, we use our atomic equivocation construction strategy to recursively add equivocations from a list of validators, using the following function: 
+\begin{coq}
+Fixpoint next_equivocation_rec (s : state) (vs : list definitions.V) (v0 : definitions.V) : state :=
+	match vs with
+	| [] => s
+	| hd :: tl => next_equivocation_state (next_equivocation_rec s tl v0) hd v0
+	end.
+\end{coq}
+Unlike \verb|next_equivocation_state|, \verb|next_equivocation_rec'| has type signature \verb|state -> list V -> V -> state|. The additional \verb|V| is required for the same reason as above -- two distinct validators are required to construct an equivocation. In this case, the validator has to be distinct from each validator in the input list. This recursive function is defined identically for both the full and light node versions of the protocol -- the difference is captured and contained in \verb|next_equivocation_state|. 
+We prove similar correctness properties for \verb|next_equivocation_rec|. The proofs proceeds via induction on our list of validators \verb|vs|. The results for an individual validator \verb|v| above can be seen as the inductive argument for each of the proofs below. 
+% Due to the similarities between property statements for \verb|v| and \verb|next_equivocation_state| and for \verb|vs| and \verb|next_equivocation_rec|, we omit explanations of the properties and instead list them below as follows: 
+We start by showing that \verb|next_equivocation_rec| preserves messages. 
+\begin{coq}
+Lemma next_equivocations_keeps_messages :
+	forall (s : state) (vs : list definitions.V) (v0 : definitions.V),
+	forall (msg : message),
+	in_state msg s ->
+	in_state msg (next_equivocation_rec' s vs v0). 
+\end{coq}
+Next, we show that \verb|next_equivocation_rec| preserves equivocating senders. 
+\begin{coq}
+	Lemma next_equivocations_keeps_equivocating_senders :
+	forall (s : state) (vs : list definitions.V) (v0 : definitions.V),
+	forall (v : definitions.V),
+	In v (equivocating_senders s) ->
+	In v (equivocating_senders (next_equivocation_rec' s vs v0)).
+\end{coq}
+However, we additionally need to show that \verb|next_equivocation_rec| adds all of the equivocating senders from \verb|vs|. We prove this stepwise, beginning with the following inductive argument, which says that all equivocating senders in \verb|next_equivocation_rec| applied once have either just been added, or were already in the original state. 
+\begin{coq}
+Lemma next_equivocation_equivocating_sender_cons :
+	forall (s : state),
+	protocol_state s ->
+	forall (hd : definitions.V) (v0 v : definitions.V),
+	v <> v0 -> 
+	In v (equivocating_senders (next_equivocation_state s hd v0)) <->
+	v = hd \/ In v (equivocating_senders s).
+\end{coq}
+Next, we show that all equivocating senders in \verb|next_equivocation_rec| applied recursively to a list \verb|vs| were either added by \verb|next_equivocation_rec|, or were already in the original state. 
+\begin{coq}
+Lemma next_equivocations_equivocating_senders_iff :
+	forall (s : state) (vs : list definitions.V) (v0 v : definitions.V),
+	(In v vs -> v <> v0) ->
+	In v (equivocating_senders (next_equivocation_rec' s vs v0)) <->
+	In v vs \/ In v (equivocating_senders s). 
+\end{coq}
+Next, we show that, under similar conditions to the single equivocator case, \verb|next_equivocation_rec| results in a protocol state with fault weight increased by all the senders in its input argument \verb|vs|. 
+\begin{coq}
+Lemma next_equivocations_add_weights : 
+	forall (s : state),
+	protocol_state s ->
+	forall (vs : list definitions.V) (v0 : definitions.V),
+	NoDup vs -> 
+	(fault_weight_state s + sum_weights vs <= proj1_sig t_full)%R ->
+	(forall (v : definitions.V),
+	In v vs -> ~ In v (equivocating_senders s) /\ v <> v0) ->
+	protocol_state (next_equivocation_rec' s vs v0) /\
+	fault_weight_state (next_equivocation_rec' s vs v0) =
+	(fault_weight_state s + sum_weights vs)%R.	
+\end{coq}
+This completes our correctness properties for \verb|next_equivocation_rec|, and in turn the second key ingredient in our strong non-triviality proof. 
+
+In the following two sections we detail the definition of \verb|next_equivocation_state| for the full and light node versions of the protocol. 
+
+\subsection{Full node} 
+For the full node protocol, our mechanism for adding messages to states are as follows: 
+\begin{coq}
+Fixpoint add_in_sorted_fn (msg: message) (sigma: state) : state :=
+match msg, sigma with
+| _, Empty => next msg Empty
+| msg, add (c, v, j) to sigma' =>
+match message_compare msg (c, v, j) with
+| Eq => sigma
+| Lt => next msg sigma
+| Gt => next (c, v, j) (add_in_sorted_fn msg sigma')
+end
+end.
+\end{coq}
+We prove the correctness of our message-adding function as follows: 
+\begin{coq}
+Lemma in_state_add_in_sorted_iff : forall msg msg' sigma',
+	in_state msg (add_in_sorted_fn msg' sigma') <->
+	msg = msg' \/ in_state msg sigma'.
+\end{coq}
+This definition corresponds with our co-inductive definition of states as a least fixpoint. Based on this, we define our atomic equivocation function as follows: 
+\begin{coq}
+Definition next_equivocation_state (j : state) (v v' : definitions.V) : state :=
+	add_in_sorted_fn
+	(get_estimate j, v, j)
+	(add_in_sorted_fn
+	(get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))
+	(add_in_sorted_fn (get_estimate j, v', j) j)).	
+\end{coq}
+The two equivocating messages are \verb|(get_estimate j, v, j)| and \verb|(get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))|. We show that these two messages are in fact equivocating with each other for any state \verb|j| and any two distinct validators \verb|v| and \verb|v'|: 
+\begin{coq}
+Lemma about_equivocating_messages :
+	forall j v v',
+	v <> v' ->  
+	equivocating_messages_prop (get_estimate j, v, j)
+	(get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j). 
+\end{coq}
+
+\subsection{Light node}
+For the light node version of the protocol, we do not need to worry about ordering messages, as explicated in Section 5.1 above. Therefore, adding messages to a state is simply a matter of hashing the justification and appending the message directly. The two equivocating messages are \verb|(get_estimate j, v, hash_state j)| and \verb|(get_estimate ((get_estimate j, v', hash_state j) :: j), v, hash_state ((get_estimate j, v', hash_state j) :: j))|. 
+\begin{coq}
+Lemma exist_equivocating_messages : forall vs,
+vs <> nil ->
+exists j1, exists j2, protocol_state j1 /\ protocol_state j2 /\ ~ set_eq j1 j2 /\
+exists c1, exists c2,
+valid_estimate c1 j1 /\ valid_estimate c2 j2 /\
+(forall v,
+In v vs  ->
+equivocating_messages (c1, v, hash_state j1) (c2, v, hash_state j2) = true).
+
+Definition next_equivocation_state (j : state) (v v' : V) : state :=
+(get_estimate j, v, hash_state j)
+::
+(get_estimate ((get_estimate j, v', hash_state j) :: j), v, hash_state ((get_estimate j, v', hash_state j) :: j))
+::
+(get_estimate j, v', hash_state j)
+::
+j. 
+\end{coq} 
+
 \section{Related work and discussion}
 \label{sec:related}
 \input{related.tex}
 
+\section{Acknowledgements} 
+This work was funded by the Ethereum Foundation.
 
-\section{Conclusion}
-\label{sec:conclusion}
-
-
-% Bibliography has been alphabetically rearranged according to last name of first author.
 \begin{thebibliography}{99}
 
 \bibitem{CiC} Thierry Coquand, Gérard Huet.
@@ -301,9 +603,14 @@ Theorem n_consistency_consensus '{CBC_protocol_eq} :
 \newblock Introducing the ``Minimal CBC Casper'' Family of Consensus Protocols. 
 \newblock 2019. 
 
-\bibitem{CBClight} Vlad Zamfir
+\bibitem{CBClight} Vlad Zamfir. 
 \newblock Introducing the ``Minimal'' CBC Casper Light Client -- with some explorations. 
 \newblock 2019. 
+
+\bibitem{Gonzalez} Carlos G. Gonzalez. 
+\newblock Dense orderings, partitions and weak forms of choice. 
+\newblock Fundamenta Mathematica, 146, 1995.
+
 \end{thebibliography}
 
 

@@ -82,8 +82,7 @@ Fixpoint state_compare (sigma1 sigma2 : state) : comparison :=
 Note that defining this ordering requires a existing orderings on
 consensus values and validators, but these can any orderings,
 and an total ordering is guaranteed to exists for any set in set theory
-including axiom of choice\footnote{Dense orderings, partitions and weak
-forms of choice, by Carlos G. Gonzalez FUNDAMENTA MATHEMATICAE 147 (1995)}.
+including axiom of choice \cite{Gonzalez}.
     
 This ordering naturally induces an ordering on messages, and thus allows us
 to define the notion of a \verb"LocallySorted" state, i.e., one in which
@@ -122,11 +121,4 @@ The above definition reads as:
             \item adding $(c,v,j)$ to $s$ does not produce a heavy state
         \end{itemize}
 \end{itemize}
-
-\subsection{Strong-non-triviality proofs}
-Emphasis on explicating: 
-\begin{enumerate}
-	\item strong non-triviality proof: atomic equivocation construction, pivotal validator proof, recursive atomic equivocation construction, overall proof sketch
-\end{enumerate}
-
 
