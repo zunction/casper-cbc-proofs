@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.5.8)  7 OCT 2019 15:56
+This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.5.8)  7 OCT 2019 17:15
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -536,65 +536,45 @@ LaTeX Font Info:    Try loading font information for T1+aett on input line 152.
 (/usr/local/texlive/2019/texmf-dist/tex/latex/ae/t1aett.fd
 File: t1aett.fd 1997/11/16 Font definitions for T1/aett.
 ) [2]
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 179--180
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 176--177
 [][][][][][][][][][][] 
  []
 
-[3]
-Overfull \hbox (60.72742pt too wide) in paragraph at lines 194--195
+
+Overfull \hbox (26.73984pt too wide) in paragraph at lines 188--189
 [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
 
  []
 
-
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 207--208
+[3]
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 200--201
 [][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (15.41064pt too wide) in paragraph at lines 208--209
+Overfull \hbox (15.41064pt too wide) in paragraph at lines 201--202
 [][][][][][][][][][] 
  []
 
-
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 214--215
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
- []
-
-
-Overfull \hbox (43.73363pt too wide) in paragraph at lines 216--217
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
- []
-
 [4]
-Overfull \hbox (60.72742pt too wide) in paragraph at lines 238--239
-[][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (38.06903pt too wide) in paragraph at lines 239--240
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (94.715pt too wide) in paragraph at lines 240--241
-[][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (0.36209pt too wide) in paragraph at lines 245--246
+Overfull \hbox (0.36209pt too wide) in paragraph at lines 244--245
 \T1/aer/m/n/10 Next, we prove the asyn-chronous, Byzantine-fault-tolerant con-s
 en-sus safety prop-
  []
 
 
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 251--252
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 250--251
 [][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (38.06903pt too wide) in paragraph at lines 256--257
-[][][][][][][][][][][][][][][][][][][][][][]
+Overfull \hbox (49.39822pt too wide) in paragraph at lines 255--256
+[][][][][][][][][][][][][][][][][][][][][][][]
+ []
+
+
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 257--258
+[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 [5]
@@ -602,229 +582,129 @@ Overfull \hbox (9.74605pt too wide) in paragraph at lines 265--266
 [][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
-
-Overfull \hbox (83.3858pt too wide) in paragraph at lines 271--272
-[][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (38.06903pt too wide) in paragraph at lines 281--282
-[][][][][][][][][][][][][][][][][][][][][][][][]
- []
-
-
-Overfull \hbox (49.39822pt too wide) in paragraph at lines 290--291
-[][][][][][][][][][][][][][][][][][][][][][][][][]
- []
-
 [6] (./full.tex [7]
-Overfull \hbox (4.08145pt too wide) in paragraph at lines 61--62
+Overfull \hbox (4.08145pt too wide) in paragraph at lines 49--50
 [][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
-[8]) (./light.tex [9]
-Overfull \hbox (83.3858pt too wide) in paragraph at lines 65--66
-[][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
+[8]) (./light.tex [9]) [10] [11] [12]
+Underfull \vbox (badness 2158) has occurred while \output is active []
 
-) [10] [11]
-Overfull \hbox (55.06282pt too wide) in paragraph at lines 354--355
-[][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (89.0504pt too wide) in paragraph at lines 359--360
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][
-][] 
- []
-
-
-Overfull \hbox (66.39201pt too wide) in paragraph at lines 360--361
-[][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (67.50223pt too wide) in paragraph at lines 375--376
-[]\T1/aer/m/n/10 From this proof sketch, we dis-till two key in-gre-di-ents: 1)
- a proof of [][]\T1/aett/m/n/10 all_pivotal_validators[]\T1/aer/m/n/10 ,
- []
-
-[12]
-Overfull \hbox (17.24269pt too wide) in paragraph at lines 379--382
-\T1/aer/m/n/10 sec-tions. How-ever, the cor-rect-ness prop-er-ties de-sir-able 
-of [][]\T1/aett/m/n/10 next_equivocation_state
- []
-
-
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 385--386
+ [13]
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 394--395
 [][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 396--397
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 405--406
 [][][][][][][][][][][][][][][][][][][] 
  []
 
-[13]
-Overfull \hbox (26.73984pt too wide) in paragraph at lines 400--401
+
+Overfull \hbox (26.73984pt too wide) in paragraph at lines 409--410
 [][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (8.96338pt too wide) in paragraph at lines 402--403
+Overfull \hbox (8.96338pt too wide) in paragraph at lines 411--412
 \T1/aer/m/n/10 We show that each half of the equiv-o-cat-ing mes-sages in [][]\
 T1/aett/m/n/10 next_equivocation_state
  []
 
 
-Overfull \hbox (417.597pt too wide) in paragraph at lines 412--413
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][
-][][][][][] 
- []
-
-
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 420--421
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 431--432
 [][][][][][][][][][][][][][][][][][][] 
  []
 
 [14]
-Overfull \hbox (219.33612pt too wide) in paragraph at lines 460--461
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][
-][][][] 
- []
-
-
-Overfull \hbox (89.0504pt too wide) in paragraph at lines 463--464
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (38.06903pt too wide) in paragraph at lines 472--473
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (38.06903pt too wide) in paragraph at lines 480--481
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+Overfull \hbox (55.06282pt too wide) in paragraph at lines 476--477
+[][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 [15]
-Overfull \hbox (9.74605pt too wide) in paragraph at lines 483--484
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 500--501
 [][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (32.40443pt too wide) in paragraph at lines 492--493
-[][][][][][][][][][][][][][][][][][][][][] 
+Overfull \hbox (9.74605pt too wide) in paragraph at lines 509--510
+[][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (49.39822pt too wide) in paragraph at lines 498--499
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+Overfull \hbox (4.08145pt too wide) in paragraph at lines 519--520
+[][][][][][][][][][][][][][][][][][][][] 
  []
 
-
-Overfull \hbox (26.73984pt too wide) in paragraph at lines 500--501
-[][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (26.73984pt too wide) in paragraph at lines 510--511
+[16]
+Overfull \hbox (26.73984pt too wide) in paragraph at lines 530--531
 [][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (20.78317pt too wide) in paragraph at lines 519--520
+Overfull \hbox (20.78317pt too wide) in paragraph at lines 539--540
 []\T1/aer/m/n/10 In the fol-low-ing two sec-tions we de-tail the def-i-ni-tion 
 of [][]\T1/aett/m/n/10 next_equivocation_state
  []
 
-[16]
-Overfull \hbox (26.73984pt too wide) in paragraph at lines 524--525
+
+Overfull \hbox (26.73984pt too wide) in paragraph at lines 544--545
 [][][][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (106.04419pt too wide) in paragraph at lines 543--544
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
+Overfull \hbox (60.72742pt too wide) in paragraph at lines 563--564
+[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (275.98209pt too wide) in paragraph at lines 547--548
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][
-][][][][] 
+Overfull \hbox (15.41064pt too wide) in paragraph at lines 567--568
+[][][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
-
-Overfull \hbox (508.57329pt too wide) in paragraph at lines 550--551
+[17]
+Overfull \hbox (8.00432pt too wide) in paragraph at lines 571--572
 \T1/aer/m/n/10 The two equiv-o-cat-ing mes-sages are [][]\T1/aett/m/n/10 (get_e
-stimate j, v, j) []\T1/aer/m/n/10 and [][]\T1/aett/m/n/10 (get_estimate (add_in
-_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v'
-, j) j))[]\T1/aer/m/n/10 .
+stimate j, v, j) []\T1/aer/m/n/10 and [][]\T1/aett/m/n/10 (get_estimate 
  []
 
 
-Overfull \hbox (270.31749pt too wide) in paragraph at lines 556--557
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][
-][][][] 
+Overfull \hbox (15.41064pt too wide) in paragraph at lines 577--578
+[][][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
 
-Overfull \hbox (14.17372pt too wide) in paragraph at lines 560--561
+Overfull \hbox (14.17372pt too wide) in paragraph at lines 582--583
 \T1/aer/m/n/10 di-rectly. The two equiv-o-cat-ing mes-sages are [][]\T1/aett/m/
 n/10 (get_estimate j, v, hash_state j)
  []
 
 
-Overfull \hbox (266.08508pt too wide) in paragraph at lines 560--561
-[]\T1/aer/m/n/10 and [][]\T1/aett/m/n/10 (get_estimate ((get_estimate j, v', ha
-sh_state j) :: j), v, hash_state ((get_estimate j, v', hash_state j) :: j))[]\T
-1/aer/m/n/10 .
+Overfull \hbox (26.73984pt too wide) in paragraph at lines 586--587
+[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 560--561
-
- []
-
-
-Overfull \hbox (15.41064pt too wide) in paragraph at lines 564--565
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
- []
-
-[17]
-Overfull \hbox (83.3858pt too wide) in paragraph at lines 569--571
+Overfull \hbox (38.06903pt too wide) in paragraph at lines 594--595
 [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
  []
 
-
-Overfull \hbox (38.06903pt too wide) in paragraph at lines 571--572
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][] 
- []
-
-
-Overfull \hbox (292.97588pt too wide) in paragraph at lines 574--575
-[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][
-][][][][][][][] 
- []
-
-(./related.tex) [18] (./main.aux)
+(./related.tex [18]) [19] (./main.aux)
 
 LaTeX Warning: There were multiply-defined labels.
 
  ) 
 Here is how much of TeX's memory you used:
- 9187 strings out of 492616
- 123878 string characters out of 6129482
- 215296 words of memory out of 5000000
- 12910 multiletter control sequences out of 15000+600000
- 41176 words of font info for 91 fonts, out of 8000000 for 9000
+ 9177 strings out of 492616
+ 123767 string characters out of 6129482
+ 217299 words of memory out of 5000000
+ 12905 multiletter control sequences out of 15000+600000
+ 38183 words of font info for 85 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  41i,7n,40p,1626b,1717s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb
 ></usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb>
 </usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx9.pfb></
-usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmitt10.pfb></
 usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></u
 sr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr
 /local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/lo
@@ -837,7 +717,7 @@ e/2019/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/local/texlive/
 019/texmf-dist/fonts/type1/public/amsfonts/cm/cmti9.pfb></usr/local/texlive/201
 9/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/2019
 /texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb>
-Output written on main.pdf (18 pages, 246055 bytes).
+Output written on main.pdf (19 pages, 242380 bytes).
 PDF statistics:
  126 PDF objects out of 1000 (max. 8388607)
  89 compressed objects within 1 object stream
