@@ -1,3 +1,10 @@
+We welcome the recent formalization of the Casper CBC in Isabelle \cite{Nakamura}.
+Our aproach resembles theirs from a high-level point of view; however, we try to keep the protocol as abstract as possible and formalize the results as close as possible to the ones in the Casper CBC white papers.
+They only tackle the full-node version of Casper TFG and they formulate and prove for it a slightly different version of safety; in contrast, we prove safety, non-triviality, and string non-triviality for both the full-node and the light-node abstractions of Casper CBC.
+On a more technical note, their definition of the full-node messages uses lists instead of sets of messages for justification, as using sets of messages because ``because sets can not be used for recursive definition'' \cite{Nakamura-github}; to capture the intended idea of sets we use a more involved definition for states and ensure that protocol states are always sorted.
+
+
+
 To include: 
 \begin{enumerate} 
 	\item Compare/contrast with \cite{Nakamura}
