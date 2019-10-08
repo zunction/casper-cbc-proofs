@@ -1,7 +1,7 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts ChoiceFacts.
 Import ListNotations.   
 From Casper   
-Require Import preamble ListExtras ListSetExtras RealsExtras protocol definitions.
+Require Import preamble ListExtras ListSetExtras RealsExtras protocol common definitions.
 
 (* Implementation -instantiates-> Level Specific *)
 (** Building blocks for instancing CBC_protocol with full node version **)
@@ -151,7 +151,7 @@ Lemma union_protocol_states' :
   forall s1 s2 : sorted_state,
   protocol_state s1 ->
   protocol_state s2 ->
-  (fault_weight_state (sorted_state_union s1 s2) <= proj1_sig t_full)%R ->
+  (fault_weight_state (sorted_state_union s1 s2) <= proj1_sig common.t_full)%R ->
   protocol_state (sorted_state_union s1 s2). 
 Proof.                  
   intros [s1 about_s1] [s2 about_s2] H_prot1 H_prot2 H_weight. 
@@ -167,13 +167,13 @@ Proof.
 Qed.
 
 Instance FullNode_syntactic : CBC_protocol_eq :=
-  { consensus_values := definitions.C;  
-    about_consensus_values := definitions.about_C;
-    validators := definitions.V;
-    about_validators := definitions.about_V;
-    weight := weight;
-    t := t_full;
-    suff_val := suff_val_full;
+  { consensus_values := common.C;  
+    about_consensus_values := common.about_C;
+    validators := common.V;
+    about_validators := common.about_V;
+    weight := common.weight;
+    t := common.t_full;
+    suff_val := common.suff_val_full;
     state := sorted_state;
     about_state := sorted_state_type;
     state0 := sorted_state0;
@@ -209,12 +209,12 @@ Definition non_trivial_pstate (P : pstate -> Prop) :=
   (exists (s2 : pstate), forall (s : pstate), pstate_rel s2 s -> (P s -> False)).
 
 Theorem non_triviality_decisions_on_properties_of_protocol_states :
-  at_least_two_validators ->
+  common.at_least_two_validators ->
   exists (p : pstate -> Prop) , non_trivial_pstate p.
 Proof.
   intro H2v. 
   destruct (estimator_total Empty) as [c Hc].
-  destruct exists_pivotal_validator as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
+  destruct common.exists_pivotal_validator as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
   destruct vs as [ | v' vs].
   - exists (in_state (c,v,Empty)).
     split.
@@ -230,7 +230,7 @@ Proof.
       intros sigma' H'. 
       intro.
       apply protocol_state_not_heavy in bleh as Hft'.
-      assert (Hnft' : (fault_weight_state sigma' > proj1_sig t_full)%R).
+      assert (Hnft' : (fault_weight_state sigma' > proj1_sig common.t_full)%R).
       { apply Rlt_le_trans with (fault_weight_state (add (c, v, Empty) to (add (c0, v, sigma0) to Empty))).
         - unfold fault_weight_state. unfold equivocating_senders. simpl.
           assert ( Hequiv : equivocating_in_state (c, v, Empty)
@@ -270,7 +270,7 @@ Proof.
           }
           rewrite Hequiv0. simpl. rewrite eq_dec_if_true; try reflexivity.
           simpl. simpl in Hgt. unfold Rminus in Hgt.
-          apply (Rplus_gt_compat_r (proj1_sig (weight v))) in Hgt. rewrite Rplus_assoc in Hgt.
+          apply (Rplus_gt_compat_r (proj1_sig (common.weight v))) in Hgt. rewrite Rplus_assoc in Hgt.
           rewrite Rplus_0_r. rewrite Rplus_0_l in Hgt. rewrite Rplus_opp_l in Hgt. rewrite Rplus_0_r in Hgt.
           apply Rgt_lt. assumption.
         - apply fault_weight_state_incl. unfold syntactic_state_inclusion. simpl.
@@ -479,7 +479,7 @@ Proof.
 Qed.
 
 (* Defining the state that adds this minimal equivocation *)
-Definition next_equivocation_state (j : state) (v v' : definitions.V) : state :=
+Definition next_equivocation_state (j : state) (v v' : common.V) : state :=
   add_in_sorted_fn
     (* One equivocation partner *)
     (get_estimate j, v, j)
@@ -492,7 +492,7 @@ Definition next_equivocation_state (j : state) (v v' : definitions.V) : state :=
 
 (* Explicit instances of various incl results *) 
 Lemma next_equivocation_state_incl :
-  forall (j : state) (v v' : definitions.V),
+  forall (j : state) (v v' : common.V),
     syntactic_state_inclusion j (next_equivocation_state j v v'). 
 Proof.
   intros j v v' msg H_in.
@@ -502,7 +502,7 @@ Proof.
 Qed.
 
 Lemma next_equivocation_state_keeps_messages :
-  forall (j : state) (v v' : definitions.V) (msg : message),
+  forall (j : state) (v v' : common.V) (msg : message),
     in_state msg j ->
     in_state msg (next_equivocation_state j v v'). 
 Proof.
@@ -510,7 +510,7 @@ Proof.
 Qed.
 
 Lemma next_equivocation_state_keeps_equivocators :
-  forall (j : state) (v v' v0 : definitions.V),
+  forall (j : state) (v v' v0 : common.V),
     In v (equivocating_senders j) ->
     In v (equivocating_senders (next_equivocation_state j v v')). 
 Proof.
@@ -521,7 +521,7 @@ Proof.
 Qed.
 
 Lemma next_equivocation_state_keeps_equivocating_messages :
-  forall (j : state) (v v' : definitions.V) (msg : message),
+  forall (j : state) (v v' : common.V) (msg : message),
     equivocating_in_state_prop msg j ->
     equivocating_in_state_prop msg (next_equivocation_state j v v'). 
 Proof.
@@ -595,7 +595,7 @@ Proof.
 Qed.
 
 Lemma add_weight_one :
-  forall (j : state) (v' : definitions.V),
+  forall (j : state) (v' : common.V),
     fault_weight_state j =
     fault_weight_state (add_in_sorted_fn (get_estimate j, v', j) j). 
 Proof.
@@ -605,7 +605,7 @@ Proof.
 Qed.
 
 Lemma add_weight_two :
-  forall (j : state) (v v' : definitions.V),
+  forall (j : state) (v v' : common.V),
     (fault_weight_state 
       (add_in_sorted_fn
          (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))
@@ -620,7 +620,7 @@ Proof.
 Qed.
 
 Lemma add_weight_three :
-  forall (j : state) (v v' : definitions.V),
+  forall (j : state) (v v' : common.V),
     protocol_state j ->
     ~ In v (equivocating_senders j) -> 
     v <> v' -> 
@@ -709,13 +709,13 @@ Proof.
   contradiction.
 Qed.
 
-Definition add_weight_under (s : state) (v : definitions.V) :=
+Definition add_weight_under (s : state) (v : common.V) :=
   (fault_weight_state s + proj1_sig (weight v) <= proj1_sig t_full)%R.
 
 Lemma equivocation_adds_fault_weight : 
   forall (j : state),
     protocol_state j ->
-    forall (v v' : definitions.V),
+    forall (v v' : common.V),
       ~ In v (equivocating_senders j) -> 
       v <> v' ->  
       fault_weight_state (next_equivocation_state j v v') = 
@@ -765,12 +765,12 @@ Qed.
 Lemma next_equivocation_adds_weight :
   forall (s : state),
     protocol_state s ->
-    forall (v : definitions.V),
+    forall (v : common.V),
       (* If the weight is not over *) 
       add_weight_under s v ->
       (* And the sender is not already equivocating *) 
       ~ In v (equivocating_senders s) -> 
-      forall (v' : definitions.V),
+      forall (v' : common.V),
         v <> v' ->
         (* Then we get a protocol state *) 
         protocol_state (next_equivocation_state s v v') /\
@@ -785,7 +785,7 @@ Proof.
 Qed.
 
 (* Now we want to add a series of equivocations *) 
-Fixpoint next_equivocation_rec (s : state) (vs : list definitions.V) : state :=
+Fixpoint next_equivocation_rec (s : state) (vs : list common.V) : state :=
   match vs with
   | [] => s
   | hd :: tl => next_equivocation_rec (next_equivocation_state s hd (get_distinct_sender hd)) tl
@@ -800,14 +800,14 @@ Fixpoint next_equivocation_rec' (s : state) (vs : list definitions.V) : state :=
 *) 
 
 (* Tweaking this function to give an explicit distinct sender *) 
-Fixpoint next_equivocation_rec' (s : state) (vs : list definitions.V) (v0 : definitions.V) : state :=
+Fixpoint next_equivocation_rec' (s : state) (vs : list common.V) (v0 : common.V) : state :=
   match vs with
   | [] => s
   | hd :: tl => next_equivocation_state (next_equivocation_rec' s tl v0) hd v0
   end.
 
 Lemma next_equivocations_keeps_messages :
-  forall (s : state) (vs : list definitions.V) (v0 : definitions.V),
+  forall (s : state) (vs : list common.V) (v0 : common.V),
   forall (msg : message),
     in_state msg s ->
     in_state msg (next_equivocation_rec' s vs v0). 
@@ -820,8 +820,8 @@ Proof.
 Qed.
 
 Lemma next_equivocations_keeps_equivocating_senders :
-  forall (s : state) (vs : list definitions.V) (v0 : definitions.V),
-  forall (v : definitions.V),
+  forall (s : state) (vs : list common.V) (v0 : common.V),
+  forall (v : common.V),
     In v (equivocating_senders s) ->
     In v (equivocating_senders (next_equivocation_rec' s vs v0)). 
 Proof.
@@ -837,7 +837,7 @@ Qed.
 Lemma next_equivocation_equivocating_sender_cons :
   forall (s : state),
     protocol_state s ->
-    forall (hd : definitions.V) (v0 v : definitions.V),
+    forall (hd : common.V) (v0 v : common.V),
       v <> v0 -> 
       In v (equivocating_senders (next_equivocation_state s hd v0)) <->
       v = hd \/ In v (equivocating_senders s).
@@ -870,7 +870,7 @@ Proof.
 Qed.
 
 Lemma next_equivocations_equivocating_senders_iff :
-  forall (s : state) (vs : list definitions.V) (v0 v : definitions.V),
+  forall (s : state) (vs : list common.V) (v0 v : common.V),
     (In v vs -> v <> v0) ->
     In v (equivocating_senders (next_equivocation_rec' s vs v0)) <->
     In v vs \/ In v (equivocating_senders s). 
@@ -949,12 +949,12 @@ Qed.
 Lemma next_equivocations_add_weights : 
   forall (s : state),
     protocol_state s ->
-    forall (vs : list definitions.V) (v0 : definitions.V),
+    forall (vs : list common.V) (v0 : common.V),
       NoDup vs -> 
       (* The sum weight is not over *)
       (fault_weight_state s + sum_weights vs <= proj1_sig t_full)%R ->
       (* None of the senders are already equivocating *) 
-      (forall (v : definitions.V),
+      (forall (v : common.V),
           In v vs -> ~ In v (equivocating_senders s) /\ v <> v0) ->
       (* Then we end up with a protocol state *)
       protocol_state (next_equivocation_rec' s vs v0) /\
@@ -1019,18 +1019,18 @@ Proof.
       tauto. 
 Qed. 
 
-Definition potentially_pivotal_state (v : definitions.V) (s : state) :=
+Definition potentially_pivotal_state (v : common.V) (s : state) :=
   (* We say that v is a pivotal validator for some state s iff : *)
   (* v is not already equivocating in s *) 
   ~ In v (equivocating_senders s) /\
   (* There is a remaining list of validators *) 
-  exists (vs : list definitions.V),
+  exists (vs : list common.V),
     (* That is duplicate-free *)
     NoDup vs /\
     (* Doesn't contain v *)
     ~ In v vs /\ 
     (* That are all not already equivocating in s *) 
-    (forall (v : definitions.V), In v vs -> ~ In v (equivocating_senders s)) /\
+    (forall (v : common.V), In v vs -> ~ In v (equivocating_senders s)) /\
     (* That tip over s's fault weight but only with the help of v *) 
     (sum_weights ((equivocating_senders s) ++ vs) <= proj1_sig t_full)%R /\
     (sum_weights ((equivocating_senders s) ++ vs) >
@@ -1040,7 +1040,7 @@ Definition potentially_pivotal_state (v : definitions.V) (s : state) :=
 Lemma all_pivotal_validator :
   forall (s : state),
     protocol_state s -> 
-  exists (v : definitions.V),
+  exists (v : common.V),
     potentially_pivotal_state v s. 
 Proof.
   intros s about_s.
