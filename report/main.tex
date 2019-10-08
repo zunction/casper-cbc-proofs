@@ -123,7 +123,7 @@
 \author{Elaine Li\inst{1}, Traian \textcommabelow{S}erbănu\textcommabelow{t}ă\inst{1}, Denisa Diaconescu\inst{1}, Grigore Ro\textcommabelow{s}u\inst{1}, Vlad Zamfir\inst{2}}
 \institute{Runtime Verification \\ 
 					\and 
-					Ethereum Foundation\\}
+					Ethereum Research\\}
 
 \maketitle
 
@@ -318,6 +318,13 @@ Instance level0 `{CBC_protocol_eq} : PartialOrder :=
 		A_rel_trans := pstate_rel_trans;
 	}.
 \end{coq}
+We summarize our abstraction of CBC Casper in the diagram below. Boxes represent type classes, and ovals represent properties. Solid arrows between type classes represent ``instantiate'', and dotted arrows between type classes and properties represent ``derive''. All arrows are transitive, meaning that \verb|FullNode| and \verb|LightNode| also derive safety properties because they instantiate \verb|PartialOrder|. We note that although we state safety properties in terms of the \verb|CBC_protocol_eq| type class above, the safety properties can be stated in more general terms using just a partial order.
+\begin{figure}
+	\centering
+	\includegraphics[scale = 0.2]{Flowchart.png}
+	\caption{Type class hierarchy representing relationship between type classes and derived properties}
+	\label{fig:flowchart}
+\end{figure}
 
 
 \section{Full node} 
