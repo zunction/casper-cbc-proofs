@@ -128,7 +128,12 @@
 \maketitle
 
 \begin{abstract}
-We present a machine-checked formalization and generalization of the Correct-By-Construction Casper (CBC Casper) family of consensus protocols in the Coq proof assistant. We leverage Coq's type classes to represent the family of CBC Casper protocols as a collection of parameters and axioms, from which we derive safety and non-triviality properties that hold for each instantiation of the type class using concrete data types and proofs. In doing so, we 1) illuminate the assumptions required of each desired property, and 2) reformulate the protocol in more general mathematical terms. We highlight two advantages of our approach: from a proof engineering perspective, it gives rise to a separation of concerns between theory and implementation; from a protocol engineering perspective, it provides us with a rigorous, foundational understanding of the protocol which allows us to derive stronger properties. 
+We present a machine-checked formalization of the Correct-By-Construction Casper family of consensus protocols (CBC Casper) using the Coq proof assistant. 
+We leverage Coq's type classes to represent CBC Casper at various levels of abstraction. 
+We construct a type class hierarchy showing the relationship between the various abstractions and the properties they derive. 
+In doing so, we 1) illuminate the assumptions that each property depend on, and 2) reformulate the protocol in general, mathematical terms. 
+We highlight two advantages of our approach: 1) from a proof engineering perspective, it enables a clean separation of concerns between theory and implementation; 2) from a protocol engineering perspective, it provides a rigorous, foundational understanding of the protocol which is conducive towards finding and proving stronger properties. We detail one such new property, namely strong non-triviality. 
+
 \end{abstract}
 
 \section{Overview} 
