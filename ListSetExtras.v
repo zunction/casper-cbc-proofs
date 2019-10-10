@@ -339,6 +339,21 @@ Proof.
     ; destruct Hin as [x' [Hin Heq]]; apply H in Heq; subst; assumption.
 Qed.
 
+Lemma filter_set_add {X} `{StrictlyComparable X} :
+  forall (l : list X) (f : X -> bool) (x : X),
+    f x = false ->
+    filter f l = filter f (set_add compare_eq_dec x l). 
+Proof.
+  induction l as [|hd tl IHl]; intros f x H_false. 
+  - simpl. rewrite H_false. reflexivity.
+  - simpl. spec IHl f x H_false. 
+    destruct (compare_eq_dec x hd). 
+    + subst. rewrite H_false.
+      simpl. rewrite H_false. reflexivity.
+    + case_eq (f hd); intro H_eq;
+      simpl; rewrite H_eq; rewrite <- IHl; reflexivity.
+Qed.
+
 Lemma set_remove_not_in {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s,
   ~ In x s ->
   set_remove Aeq_dec x s = s.
@@ -490,5 +505,37 @@ Proof.
   - intros. intro. apply set_diff_iff in H2. destruct H2.
     apply H3. assumption.
 Qed.
+
+(*
+(* We can always split any two protocol states into two inequal duplicate-free subsets *) 
+Lemma split_nodup_incl_lists {X} `{StrictlyComparable X} :
+  forall (ls : list X),
+    ls <> [] -> 
+  exists (ls1 ls2 : list X),
+    incl ls1 ls /\ incl ls2 ls /\
+    NoDup ls1 /\ NoDup ls2 /\
+    ~ set_eq ls1 ls2. 
+Proof.
+  intros ls H_non_nil.
+  induction ls as [|hd tl IHls].
+  - exfalso; apply H_non_nil.
+    reflexivity.
+  - destruct tl.
+    exists [hd], [].
+    repeat split.
+    apply incl_refl.
+    easy.
+    constructor.
+    intros; inversion 1.
+    constructor.
+    constructor.
+    intros H_absurd. destruct H_absurd.
+    spec H0 hd (in_eq hd []). inversion H0.
+    spec IHls. intros; inversion 1.
+    destruct IHls as [ls1 [ls2 [H_incl1 [H_incl2 [H_nodup1 [H_nodup2 H_neq]]]]]].
+    exists ls1, ls2; repeat split; try apply incl_tl; assumption.
+Qed.
+*)
+
 
 Unset Implicit Arguments.

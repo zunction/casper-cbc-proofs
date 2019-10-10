@@ -178,9 +178,6 @@ Definition potentially_pivotal (v : V) : Prop :=
       (sum_weights vs <= proj1_sig t_full)%R /\
       (sum_weights vs > proj1_sig t_full - (proj1_sig (weight v)))%R.
 
-Definition at_least_two_validators : Prop :=
-  forall v1 : V, exists v2 : V, v1 <> v2.
-
 Lemma exists_pivotal_validator : exists v, potentially_pivotal v.
 Proof.
   destruct sufficient_validators_pivotal as [vs [Hnodup [Hgt [v [Hin Hlte]]]]].
