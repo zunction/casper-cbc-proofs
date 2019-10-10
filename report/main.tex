@@ -128,39 +128,44 @@
 \maketitle
 
 \begin{abstract}
-We present a machine-checked formalization and generalization of the Correct-By-Construction Casper (CBC Casper) family of consensus protocols in the Coq proof assistant. We leverage Coq's type classes to represent the family of CBC Casper protocols as a collection of parameters and axioms, from which we derive safety and non-triviality properties that hold for each instantiation of the type class using concrete data types and proofs. In doing so, we 1) illuminate the assumptions required of each desired property, and 2) reformulate the protocol in more general mathematical terms. We highlight two advantages of our approach: from a proof engineering perspective, it gives rise to a separation of concerns between theory and implementation; from a protocol engineering perspective, it provides us with a rigorous, foundational understanding of the protocol which allows us to derive stronger properties. 
+We present a machine-checked formalization of the Correct-By-Construction Casper family of consensus protocols (CBC Casper) using the Coq proof assistant. 
+We leverage Coq's type classes to represent CBC Casper at various levels of abstraction. 
+We construct a type class hierarchy showing the relationship between the various abstractions and the properties they derive. 
+In doing so, we 1) illuminate the assumptions that each property depend on, and 2) reformulate the protocol in general, mathematical terms. 
+We highlight two advantages of our approach: 1) from a proof engineering perspective, it enables a clean separation of concerns between theory and implementation; 2) from a protocol engineering perspective, it provides a rigorous, foundational understanding of the protocol which is conducive towards finding and proving stronger properties. We detail one such new property, namely strong non-triviality. 
 \end{abstract}
 
 \section{Overview} 
 In the first section we give an account of the motivating principles behind our formalization of CBC Casper, and the design choices they give rise to. For a motivation of CBC Casper at large, we refer the reader to \cite{CBCfull}. 
 
-In the second section we describe our formalization. We present our definition of CBC Casper as a Coq type class containing parameters and proofs, and explicate the safety properties provable from the abstract type class. 
+In the second section we describe our formalization. We present our abstraction hierarchy, with each level consisting of a type class containing a collection of parameters and axioms. We explicate 1) how the levels relate to one another, and 2) how desirable protocol properties such as safety, consistency and non-triviality are derived from each level. 
 
-In the third section we describe two concrete instantiations of our type class: a full node and light node member of the protocol family, as described in \cite{CBCfull} and \cite{CBClight} respectively. We focus on parameters in the abstract type class that are instantiated differently by the full node and light node protocols, and how this reflects the essential difference between them. In doing so, we highlight how type classes as an abstraction mechanism allow us to separate concerns between theory and implementation. 
+In the third section we present formalizations of two concrete protocols: a full node and light node version of CBC Casper, as described in \cite{CBCfull} and \cite{CBClight} respectively. We show how our concrete definitions instantiate an abstract type class. We highlight parameters in the type class that are instantiated differently between the full and light node versions, and explain how this reflects the essential differences between the protocols. In doing so, we illustrate how using type classes as an abstraction mechanism allows us to separate concerns between theory and implementation. 
 
-In the fourth section we present a new proof of a stronger non-triviality property for both the full node and light node protocols, inspired by the statement of non-triviality of decisions on protocol properties in \cite{CBCfull}. We discuss our ongoing attempts to abstract this proof to the same degree as the safety proofs. In the process, we highlight how our design choices invite a precise characterization of the assumptions required for each property, which gives rise to a more rigorous understanding of CBC Casper in general mathematical terms.  
+In the fourth section we present a new proof of a protocol property which we call strong non-triviality, for both the full node and light node protocols. We highlight how our abstraction hierarchy invites a precise mathematical characterization of CBC Casper, which paves the way for us to look for and prove stronger properties. We discuss our ongoing attempts at refining our abstraction hierarchy. 
 
-In the fifth section we discuss future directions, related work, and conclude. 
+In the final section, we discuss related work, and conclude. 
+
 
 \section{Design choices} 
-A salient property of the CBC Casper family of protocols, as captured in its ``correct-by-construction'' namesake, is that desirable properties such as safety and liveness are guaranteed independently of the specific details of each protocol, such as information about nodes, consensus values, etc. However, these properties do rely on certain implicit or explicit assumptions about the parameters used to complete the partial specification of any CBC Casper protocol. Our goal was to both formalize and generalize the existing partial specification of CBC Casper protocols. Our design choices primarily aimed at making these assumptions explicit. Subsequently, we wished to characterize these assumptions and properties in general mathematical terms, abstracting away from protocol-specific language. This required us to precisely pinpoint the minimal assumptions required for each desirable property and formulate a suitable abstraction to highlight the relationship between assumptions and derivable properties. 
+A salient feature of the CBC Casper family of protocols, as captured in its ``correct-by-construction'' namesake, is that desirable protocol properties such as safety and consistency should be guaranteed independently of its choice of parameters. However, these properties do rely on certain implicit or explicit assumptions about the parameters that can be used to fully specify any protocol. Our primary aim was to thoroughly investigate CBC Casper's protocol properties and the assumptions they depend on, by abstracting away from protocol-specific language and characterizing the properties and their assumptions in general mathematical terms. We took an incremental approach: starting with the existing description of partially-specified protocols and their properties, we progressively parameterized protocol features such as state definitions, the notion of equivocation, and reachability, and observed which properties would no longer hold. This process allowed us to precisely pinpoint the minimal assumptions required for each desirable property. 
 
-Towards these ends, we choose to represent the CBC Casper family of protocols using Coq type classes. Our reasons are twofold: 1) the relationship between type class and instance aptly reflects the relationship between protocol family and member; 2) Coq's type inference mechanism allows us to organize typeclasses in relation with one another and thereby elucidate the relationship between assumptions and properties. We present the our formalization using type classes in the following section. 
+We found Coq's type classes to be a suitable abstraction to present our findings. Our reasons are twofold: 1) the relationship between type class and instances of it aptly reflects the relationship between CBC Casper and its members; 2) Coq's type inference mechanism allows us to organize typeclasses in relation to one another and thereby elucidate the relationship between assumptions and properties. We present the our formal abstraction using type classes in the following section. 
 
 \section{Formalization}
 \label{sec:formalization}
-In this section we present a Coq type class \verb|CBC_protocol_eq| which defines an abstract CBC Casper protocol. Our type class abstracts away explicit mention of several components of the protocol as described in \cite{CBCfull}, including messages, and in turn the definition of states as sets of messages, while still being able to state and prove its safety properties.We explicate the type class in two parts: 1) the data types and assumptions it contains, corresponding to the parameters identifying each CBC Casper protocol, and 2) the abstract safety proof it derives which is satisfied by each CBC Casper protocol.
 
-\subsection{Parameters} 
-Each member of the family of CBC Casper protocols is identified by five parameters, namely validator names, validator weights, fault tolerance threshold, consensus values, and an estimator function \cite{CBCfull}. Implicitly, each parameter satisfies certain properties, such as non-negativity for validator weights and the fault tolerance threshold, totality for the estimator function etc. We model these parameters as generic \verb|Type|s in Coq, accompanied by explicit statements of their additional properties. 
+\subsection{Parameters}
+Each member of the CBC Casper protocol family is identified by five parameters, namely validators, validator weights, consensus values, the estimator function, and a fault tolerance threshold \cite{CBCfull}. Each of these parameter satisfies certain explicit properties, such as non-negativity for validator weights and the fault tolerance threshold, totality for the estimator function etc. We model these parameters as-is, as generic \verb|Type|s in Coq, accompanied by explicit statements of their additional properties. 
+
 \subsubsection{Validators} 
 Validators represent the consensus-forming nodes in the protocol. We require of validators the fact that 1) they form a non-empty set, namely that there is at least one validator, and 2) they are comparable. We capture both of these requirements in a generic type class \verb|StrictlyComparable|, which is parameterized by an abstract type \verb|X|. 
 \begin{coq}
-Class StrictlyComparable (X : Type) : Type :=
+	Class StrictlyComparable (X : Type) : Type :=
 	{
-	inhabited : exists (x : X), True;
-	compare : X -> X -> comparison;
-	compare_strictorder :> CompareStrictOrder compare;
+		inhabited : exists (x : X), True;
+		compare : X -> X -> comparison;
+		compare_strictorder :> CompareStrictOrder compare;
 	}.
 \end{coq}
 \verb|StrictlyComparable| contains a proof that there exists at least one witness of type \verb|X| (\verb|inhabited|), a comparison operator which takes two elements of type \verb|X| and returns either \verb|Lt|, \verb|Eq| or \verb|Gt| (\verb|compare|), and a proof that this comparison operator imposes a strict ordering on elements of type \verb|X|, i.e. that it is both reflexive and transitive (\verb|compare_strictorder|). 
@@ -169,28 +174,36 @@ This is reflected in the type class as follows:
 	validators : Type; 
 	about_validators : StrictlyComparable validators;
 \end{coq}
-\subsubsection{Consensus values} 
-The requirements for consensus values represented as abstract types are similar. 
-\begin{coq}
-	consensus_values : Type; 
-	about_consensus_values : StrictlyComparable consensus_values; 
-\end{coq}
 \subsubsection{Validator weights} 
 Validator weights are computed by a function which takes a validator name and returns a positive real number. We represent positive real numbers using dependent types in Coq, and represent the validator weight function with the following function signature: 
 \begin{coq}
 	weight : validators -> {r | (r > 0)%R};
+	\end{coq}
+\subsubsection{Consensus values} 
+The requirements for consensus values represented as abstract types are similar to those for validators. 
+\begin{coq}
+	consensus_values : Type; 
+	about_consensus_values : StrictlyComparable consensus_values; 
+\end{coq}
+\subsubsection{Estimator} 
+The estimator function is a total function which takes a state and returns a non-empty set of consensus values. We represent the estimator function using a relation of type \verb|state -> consensus_values -> Prop|, which can be interpreted as an assertion that the estimator agrees on some consensus value for some state. We assume for now, as in \cite{CBCfull}, that we have some notion of states. 
+\begin{coq}
+	E : state -> consensus_values -> Prop; 
+	estimator_total : forall s, exists c, E s c; 
 \end{coq}
 \subsubsection{Fault tolerance threshold} 
 The Byzantine-fault tolerance threshold is a non-negative real number that is strictly smaller than the sum of all validator weights. Because Coq \verb|Type|s are not guaranteed finite, we state the strictly smaller requirement in terms of the existence of a finite list of validators whose sum exceeds the fault weight. 
 \begin{coq}
 	t : {r | (r >= 0)%R}; 
-	suff_val : exists vs,  NoDup vs /\ 
-		((fold_right (fun v r => (proj1_sig (weight v) + r)%R) 0%R) vs 
-	> (proj1_sig t))%R;
+		suff_val : exists vs,  NoDup vs /\ 
+		((fold_right (fun v r=>(proj1_sig (weight v) + r)%R) 0%R) vs 
+		> (proj1_sig t))%R;
 \end{coq}
+
+The full node specification of CBC Casper, given in \cite{CBCfull}, features a mutually recursive definition of states and messages. States are defined as ``\textit{certain} sets of messages'', while messages are defined as ``\textit{certain} triples of the form (consensus value, validator name, protocol state)''. Correspondingly, a light node specification of a CBC Casper, given in \cite{CBClight}, features a slightly different definition of states and messages that is not as strongly mutually recursive. Both specifications satisfy three cornerstone safety theorems. Therefore, our first level of abstraction parameterizes the definition of states, and abstracts away messages. 
+
 \subsubsection{States} 
-In preparation for defining the estimator function and protocol states, we define a preliminary abstract state type, 
-\verb|state|. We similarly require that these states are \verb|StrictlyComparable|. We define an initial state, \verb|state0| of type \verb|state|. We additionally define an abstract notion of state equality and a commutative state union operator. 
+We define a preliminary abstract state type, \verb|state|. We similarly require that these states are \verb|StrictlyComparable|. We define an initial state, \verb|state0| of type \verb|state|. We additionally define an abstract notion of state equality and a commutative state union operator. 
 \begin{coq}
 	state : Type;
 	about_state : StrictlyComparable state;
@@ -198,29 +211,23 @@ In preparation for defining the estimator function and protocol states, we defin
 	state_eq : state -> state -> Prop;
 	state_union : state -> state -> state;
 	state_union_comm : forall s1 s2, state_eq (state_union s1 s2) 
-																						(state_union s2 s1);
+	(state_union s2 s1);
 \end{coq}
 Further, we define a reachability relation on abstract states. We require of this reachability relation that it is reflexive and transitive. We relate reachability with the state union operator with the requirement that any state is able to reach its union with any other state. Finally, we require that reachability respects state equality. 
 \begin{coq}
 	reach : state -> state -> Prop;
 	reach_refl : forall s, reach s s; 
 	reach_trans : forall s1 s2 s3, reach s1 s2 -> 
-															reach s2 s3 -> 
-															reach s1 s3; 
+	reach s2 s3 -> 
+	reach s1 s3; 
 	reach_union : forall s1 s2, reach s1 (state_union s1 s2);  
 	reach_morphism : forall s1 s2 s3, reach s1 s2 -> 
-																		state_eq s2 s3 -> 
-																		reach s1 s3;  
-\end{coq}
-\subsubsection{Estimator} 
-The estimator function is a total function which takes a state and returns a non-empty set of consensus values. We represent the estimator function using a relation of type \verb|state -> consensus_values -> Prop|, which can be interpreted as an assertion that the estimator agrees on some consensus value for some state. 
-\begin{coq}
-	E : state -> consensus_values -> Prop; 
-	estimator_total : forall s, exists c, E s c; 
+	state_eq s2 s3 -> 
+	reach s1 s3;  
 \end{coq}
 
 \subsubsection{Protocol states}
-We represent restricting elements of generic type \verb|state| to valid protocol states by defining protocol state as a property of type \verb|state -> Prop|. In this way, we abstract the mutually recursive definition of protocol states as sets of messages and messages as triples containing protocol states away into the implementation layer, and exclude the definition of messages from our type class. We require of the property \verb|prot_state| that it holds for the initial state. 
+We represent restricting elements of generic type \verb|state| to valid protocol states by defining protocol state as a property of type \verb|state -> Prop|. In this way, we fully abstract the mutually recursive definition of states, messages and protocol states into the implementation layer. We require of the property \verb|prot_state| that it holds for the initial state. 
 \begin{coq}
 	prot_state : state -> Prop; 
 	about_state0 : prot_state state0; 
@@ -231,26 +238,27 @@ Finally, we abstract away the details of computing fault weight from states by r
 \begin{coq}
 	equivocation_weight : state -> R; 
 	equivocation_weight_compat : forall s1 s2, 
-	 (equivocation_weight s1 <= 
-	 equivocation_weight (state_union s2 s1))%R; 
+	(equivocation_weight s1 <= 
+	equivocation_weight (state_union s2 s1))%R; 
 	about_prot_state : forall s1 s2, 
-									prot_state s1 -> prot_state s2 ->
-									(equivocation_weight (state_union s1 s2) 
-									<= proj1_sig t)%R  -> 
-									prot_state (state_union s1 s2);
+	prot_state s1 -> prot_state s2 ->
+	(equivocation_weight (state_union s1 s2) 
+	<= proj1_sig t)%R  -> 
+	prot_state (state_union s1 s2);
 \end{coq}
+This completes the parameters and axioms included in our first abstraction layer, which we call \verb|CBC_protocol_eq|. Next, we show how this abstraction layer derives all the asynchronous, Byzantine-fault tolerant consensus safety theorems for CBC Casper. 
 
 \subsection{Safety} 
-Next, we prove the asynchronous, Byzantine-fault-tolerant consensus safety properties of the family of CBC Casper protocols. Each proof assumes that we have a generic family member, i.e. an instance of the type class \verb|CBC_Casper_eq|. 
+CBC Casper protocols satisfy three key safety properties, namely 1) common futures, 2) consistency of decisions on protocol states, and 3) consistency of decisions on consensus values. In each of the following proofs, we assume that we have a generic instance of the type class \verb|CBC_Casper_eq|. 
 \subsubsection{Common futures} 
 We prove that protocol states have common futures as long as their union state is a valid protocol state. We proceed stepwise, as in \cite{CBCfull}: first we show that any pair of protocol states satisfies the common futures property, then we use it to generalize to an arbitrary number of states. 
 \begin{coq}
-Theorem pair_common_futures '{CBC_protocol_eq}:
+	Theorem pair_common_futures '{CBC_protocol_eq}:
 	forall s1 s2 : pstate,
 	(equivocation_weight (state_union s1 s2) <= proj1_sig t)%R ->
 	exists s : pstate, pstate_rel s1 s /\ pstate_rel s2 s.
 	
-Theorem n_common_futures "{CBC_protocol_eq} :
+	Theorem n_common_futures "{CBC_protocol_eq} :
 	forall ls : list pstate,
 	(equivocation_weight (fold_right state_union state0 (map (fun ps => proj1_sig ps) ls)) 
 	<= proj1_sig t)%R ->
@@ -260,7 +268,7 @@ Theorem n_common_futures "{CBC_protocol_eq} :
 \subsubsection{Consistency of decisions on protocol states}
 We prove that protocol states which have common futures cannot make conflicting decisions on future states. We again proceed stepwise, first showing that any two protocol states with a common future cannot make conflicting decisions on future states. 
 \begin{coq}
-Theorem pair_consistency_prot '{CBC_protocol_eq} :
+	Theorem pair_consistency_prot '{CBC_protocol_eq} :
 	forall s1 s2 : pstate,
 	(equivocation_weight (state_union s1 s2) <= proj1_sig t)%R ->
 	forall P, 
@@ -268,8 +276,8 @@ Theorem pair_consistency_prot '{CBC_protocol_eq} :
 \end{coq}
 We then generalize this result to an arbitrary number of states. We first generalize the definition of consistent decisions to a list of states. 
 \begin{coq}
-Definition state_consistency '{CBC_protocol_eq} 
-															(ls : list pstate) : Prop :=
+	Definition state_consistency '{CBC_protocol_eq} 
+	(ls : list pstate) : Prop :=
 	exists s : pstate,
 	forall (P : pstate -> Prop),
 	Exists (fun s => decided P s) ls ->
@@ -277,7 +285,7 @@ Definition state_consistency '{CBC_protocol_eq}
 \end{coq}
 We then state n-party consensus value consistency as follows: 
 \begin{coq}
-Theorem n_consistency_prot '{CBC_protocol_eq} :
+	Theorem n_consistency_prot '{CBC_protocol_eq} :
 	forall ls : list pstate,
 	(equivocation_weight (fold_right state_union state0 
 	(map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
@@ -287,18 +295,17 @@ Theorem n_consistency_prot '{CBC_protocol_eq} :
 \subsubsection{Consistency of decisions on consensus values} 
 Showing that protocol states which have common futures cannot make conflicting decisions on consensus values follows naturally from the fact that consensus values are parameterized by state. The statement of consensus value safety is as follows: 
 \begin{coq}
-Theorem n_consistency_consensus '{CBC_protocol_eq} :
+	Theorem n_consistency_consensus '{CBC_protocol_eq} :
 	forall ls : list pstate,
 	(equivocation_weight (fold_right state_union state0 
 	(map (fun ps => proj1_sig ps) ls)) <= proj1_sig t)%R ->
 	consensus_value_consistency ls. 
 \end{coq}
 
-\section{Formalization}
 \subsection{Partial order}
- Indeed, we found that it was possible to further abstract away other components of the protocol, including validators, the estimator function, and the notion of equivocation, and still be able to state and prove its safety properties, albeit in more abstract terms. One particular abstraction we explored was a partial order, formally defined as follows: 
+With \verb|CBC_protocol_eq| as a starting point, we found that it was possible to further abstract away protocol-specific parameters while preserving the desired safety properties, albeit in more abstract terms. One particular abstraction we explored was a partial order, formally defined as follows: 
 \begin{coq} 
-Class PartialOrder :=
+	Class PartialOrder :=
 	{ A : Type;
 		A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
 		A_inhabited : exists (a0 : A), True; 
@@ -309,7 +316,7 @@ Class PartialOrder :=
 \end{coq} 	
 We found that valid protocol states in CBC Casper protocols along with future reachability could be represented as a partial order, with the join of two states corresponding to protocol state union, and existing iff it did not exceed the fault tolerance threshold. We formally show this by proving that CBC Casper type class \verb|CBC_protocol_eq| can instantiate a \verb|PartialOrder| type class: 
 \begin{coq}
-Instance level0 `{CBC_protocol_eq} : PartialOrder :=
+	Instance level0 `{CBC_protocol_eq} : PartialOrder :=
 	{ A := pstate;
 		A_eq_dec := pstate_eq_dec;
 		A_inhabited := pstate_inhabited;
@@ -318,14 +325,15 @@ Instance level0 `{CBC_protocol_eq} : PartialOrder :=
 		A_rel_trans := pstate_rel_trans;
 	}.
 \end{coq}
-We summarize our abstraction of CBC Casper in the diagram below. Boxes represent type classes, and ovals represent properties. Solid arrows between type classes represent ``instantiate'', and dotted arrows between type classes and properties represent ``derive''. All arrows are transitive, meaning that \verb|FullNode| and \verb|LightNode| also derive safety properties because they instantiate \verb|PartialOrder|. We note that although we state safety properties in terms of the \verb|CBC_protocol_eq| type class above, the safety properties can be stated in more general terms using just a partial order.
+We summarize our abstraction hierarchy for CBC Casper in the diagram below. Boxes represent type classes, and ovals represent properties. Solid arrows between type classes represent ``instantiate'', and dotted arrows between type classes and properties represent ``derive''. All arrows are transitive, meaning that \verb|FullNode| and \verb|LightNode| also derive safety properties because they instantiate \verb|PartialOrder|. We note that although we state safety properties in terms of the \verb|CBC_protocol_eq| type class above, the safety properties can be stated in more general terms using just a partial order. Definitions of the boxes and proofs of the solid arrows in this diagram can be found in \verb|protocol.v|. 
 \begin{figure}
 	\centering
-	\includegraphics[scale = 0.2]{Flowchart.png}
+	\includegraphics[scale = 0.3]{Flowchart.png}
 	\caption{Type class hierarchy representing relationship between type classes and derived properties}
 	\label{fig:flowchart}
 \end{figure}
 
+In the following sections, we present the key ingredients of our formalization of \verb|FullNode| and \verb|LightNode|. The full instantiation from \verb|FullNode| and \verb|LightNode| to \verb|CBC_protocol_eq| can be found in \verb|fullnode.v| and \verb|lightnode.v| respectively. 
 
 \section{Full node} 
 \label{sec:full}
@@ -336,8 +344,8 @@ We summarize our abstraction of CBC Casper in the diagram below. Boxes represent
 \input{light.tex}
 
 \section{Strong non-triviality} 
-In the next section we pivot to another class of consensus protocol properties, namely non-triviality. \cite{CBClight} uses the notion of non-triviality of protocol properties to illustrate the significance of restricting valid protocol states to those that are not too heavy, i.e. those whose equivocation weights do not exceed the fault tolerance threshold. \cite{CBClight} defines non-triviality as the existence of a protocol property $P$ for which there is a protocol state $sigma_1$ that is decided on $P$ and another protocol state $sigma_2$ that is decided on $\neg P$. 
-In our generalization of CBC Casper protocols, we found that non-triviality precisely captures the notion of non-local confluence in the abstract rewriting system literature, and can be expressed as follows: 
+In this section we pivot to another class of consensus protocol properties, namely non-triviality. \cite{CBClight} uses the notion of non-triviality of protocol properties to illustrate the significance of restricting valid protocol states to those that are not too heavy, i.e. those whose equivocation weights do not exceed the fault tolerance threshold. \cite{CBClight} defines non-triviality as the existence of a protocol property $P$ for which there is a protocol state $sigma_1$ that is decided on $P$ and another protocol state $sigma_2$ that is decided on $\neg P$. 
+In our generalization efforts, we found that non-triviality precisely captures the notion of non-local confluence in the abstract rewriting system literature, and can be expressed as follows: 
 \begin{coq}
 Class PartialOrderNonLCish `{PartialOrder} :=
 	{ no_local_confluence_ish : exists (a a1 a2 : A),
@@ -345,7 +353,6 @@ Class PartialOrderNonLCish `{PartialOrder} :=
 		~ exists (a' : A), A_rel a1 a' /\ A_rel a2 a';
 	}.
 \end{coq}
-However, while we can instantiate \verb|PartialOrderNonLCish| with our full node and light node protocol definitions, we cannot directly prove that our abstract CBC Casper type class \verb|CBC_protocol_eq| can instantiate a \verb|PartialOrder| type class because additional assumptions are required. 
 Naturally, the question of whether we could strengthen the first existential quantifier to a universal quantifier arose. We found a positive answer to this question, and further found that the \verb|A_rel a a1| could be strengthened from generic reachability to atomic reachability, i.e. the statement holds when \verb|a| reaches \verb|a1| in one step. We state this strengthened version of non-triviality, which we call strong-nontriviality, as follows: 
 \begin{coq}
 Definition strong_nontriviality :=
@@ -358,7 +365,8 @@ Definition strong_nontriviality :=
 	no_common_future s2 s3. 
 \end{coq}
 Strong non-triviality states that for every protocol state \verb|s1|, there exists a protocol state \verb|s2| that is \verb|s1|'s next state and a protocol state \verb|s3| that is \verb|s1|'s future state, such that \verb|s1| and \verb|s3| share a common future, but \verb|s2| and \verb|s3| do not. 
-In the following section, we explicate our proof of strong non-triviality. While we are not able to fully derive the proof from \verb|CBC_protocol_eq| as we did for the safety proofs because we require additional assumptions, we do observe that it follows a general abstract pattern shared between the full and light node versions. Pinpointing the precise additional assumptions is topic of ongoing work. Thus, we follow the same approach we used to explicate \verb|CBC_protocol_eq| above: we first give an abstract proof sketch which highlights similarities to the fullest extent; we then go into the details of the specific proof for full and light node, highlighting the differences between them. 
+In the following section, we explicate our proof of strong non-triviality. While we can instantiate \verb|PartialOrderNonLCish| with our full node and light node protocol definitions, we cannot prove that our abstract CBC Casper type class \verb|CBC_protocol_eq| can directly instantiate a \verb|PartialOrderNonLCish| type class because additional assumptions are required. 
+Nevertheless, we observe that the proof of strong non-triviality follows a general abstract pattern shared between the full and light node versions. Pinpointing the precise additional assumptions is topic of ongoing work. Thus, we follow the same approach we used to explicate \verb|CBC_protocol_eq| above: we first give an abstract proof sketch which highlights similarities to the fullest extent; we then go into the details of the specific proof for full and light node, highlighting the differences between them. 
 
 \subsection{Proof sketch} 
 By definition, valid protocol states are states that do not exceed the fault tolerance threshold, in other words, states that do not admit too many equivocating senders (recall the definition of \verb|fault_weight_state| in Section \label{sec:formalization} above). Since validator weights are discrete, senders can continue to equivocate, increasing the state's fault weight, until we reach a state that is on the verge of exceeding the fault weight, i.e. states that cannot admit anymore equivocating senders. These states are non-locally confluent: if an additional equivocating sender sends a pair of equivocating messages from that state, the resulting two states can never join. We call these states heavy states, and we call the additional equivocating sender a pivotal sender. We formalize this notion of a pivotal sender with regards to some heavy state as follows. We note that a heavy state can have multiple pivotal senders, but for the purposes of proving strong non-triviality it suffices to show the existence of one.
