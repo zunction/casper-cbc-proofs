@@ -3,38 +3,62 @@ Import ListNotations.
 From Casper  
 Require Import preamble ListExtras ListSetExtras sorted_lists protocol common.
 
-(* Additional types for defining light node states *)
-(* State hashes *) 
-Variable hash : Type.
-Variable (about_H : `{StrictlyComparable hash}). 
-
 (* Lists of state hashes *) 
-Definition justification_type : Type := list hash. 
+Definition justification_type (hash : Type) : Type := list hash.
 
-Lemma justification_type_inhabited : exists (j : justification_type), True. 
-Proof. exists []. auto. Qed. 
+Lemma justification_type_inhabited {hash} : { j : justification_type hash | True}.
+Proof. split; auto. exact []. Qed. 
 
-Definition justification_compare : (justification_type -> justification_type -> comparison) := list_compare compare.
+Definition justification_compare
+  {hash} `{HscH : StrictlyComparable hash}
+  : (justification_type hash -> justification_type hash -> comparison)
+  :=
+  list_compare compare.
 
-Instance about_justification_type : StrictlyComparable justification_type :=
+Instance about_justification_type
+  {hash} `{HscH : StrictlyComparable hash}
+  : StrictlyComparable (justification_type hash)
+  :=
   { inhabited := justification_type_inhabited;
     compare := list_compare compare;
     compare_strictorder := list_compare_strict_order;
   }. 
 
-Definition justification_add : hash -> justification_type -> justification_type := add_in_sorted_list_fn compare.
+Definition justification_add
+  {hash} `{HscH : StrictlyComparable hash}
+  : hash -> justification_type hash -> justification_type hash
+  :=
+  add_in_sorted_list_fn compare.
 
-Definition justification_add_iff := @add_in_sorted_list_iff hash compare compare_strictorder.
+Definition justification_add_iff
+  {hash} `{HscH : StrictlyComparable hash}
+  :=
+  @add_in_sorted_list_iff hash compare compare_strictorder.
 
-Definition justification_add_head := @add_in_sorted_list_head hash compare compare_strictorder.
+Definition justification_add_head
+  {hash} `{HscH : StrictlyComparable hash}
+  :=
+  @add_in_sorted_list_head hash compare compare_strictorder.
 
-Definition justification_add_tail := @add_in_sorted_list_tail hash compare compare_strictorder.
+Definition justification_add_tail
+  {hash} `{HscH : StrictlyComparable hash}
+  :=
+  @add_in_sorted_list_tail hash compare compare_strictorder.
 
-Definition justification_add_sorted := @add_in_sorted_list_sorted hash compare compare_strictorder.
+Definition justification_add_sorted
+  {hash} `{HscH : StrictlyComparable hash}
+  :=
+  @add_in_sorted_list_sorted hash compare compare_strictorder.
 
-Definition justification_add_all : list hash -> justification_type := fold_right justification_add nil.
+Definition justification_add_all
+  {hash} `{HscH : StrictlyComparable hash}
+  : list hash -> justification_type hash
+  :=
+  fold_right justification_add nil.
 
-Lemma justification_sorted : forall j : list hash,
+Lemma justification_sorted
+  {hash} `{HscH : StrictlyComparable hash}
+  : forall j : list hash,
   LocallySorted (compare_lt compare) (justification_add_all j).
 Proof.
   induction j.
@@ -42,19 +66,23 @@ Proof.
   - apply justification_add_sorted. assumption.
 Qed.
 
-Lemma justification_set_eq : forall hs,
+Lemma justification_set_eq
+  {hash} `{HscH : StrictlyComparable hash}
+  : forall hs : list hash,
   set_eq hs (justification_add_all hs).
 Proof.
   induction hs; simpl.
   - apply set_eq_refl.
   - split; intros x Hin
-    ;  rewrite justification_add_iff || apply justification_add_iff in Hin
-    ;  destruct Hin as [Heq | Hin]
+    ; (unfold justification_add; rewrite justification_add_iff) || apply justification_add_iff in Hin
+    ; destruct Hin as [Heq | Hin]
     ; try (subst; left; reflexivity)
-    ; right; apply IHhs; assumption.
+    ;  right; apply IHhs; assumption.
 Qed.
 
-Lemma justification_add_all_injective : forall hs1 hs2,
+Lemma justification_add_all_injective 
+  {hash} `{HscH : StrictlyComparable hash}
+  : forall hs1 hs2 : list hash,
   justification_add_all hs1 = justification_add_all hs2 ->
   set_eq hs1 hs2.
 Proof.
@@ -66,72 +94,128 @@ Proof.
   apply set_eq_comm. apply justification_set_eq.
 Qed.
 
-Definition justification_in : hash -> list hash -> bool := inb compare_eq_dec.
+Definition justification_in
+  {hash} `{HscH : StrictlyComparable hash}
+  : hash -> list hash -> bool := inb compare_eq_dec.
 
 (* Messages *) 
-Definition message : Type := common.C * common.V * justification_type.
+Definition message (C V hash : Type) : Type := C * V * justification_type hash.
 
-Definition message_type := TripleStrictlyComparable common.C common.V justification_type.
+Class StrictlyComparable3 C V hash
+  `{HscV : StrictlyComparable C} `{HscV : StrictlyComparable V} `{HscH : StrictlyComparable hash}.
+
+
+Instance message_type
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : StrictlyComparable (message C V hash)
+  :=
+  TripleStrictlyComparable C V (justification_type hash).
 
 (* StrictlyComparable and CompareStrictOrder for message type comes for free *) 
 
-Definition estimate (msg : message) : common.C :=
+Definition estimate
+  {C V hash}
+  (msg : message C V hash) : C
+  :=
   match msg with (c, _, _) => c end.
 
-Definition sender (msg : message) : common.V :=
+Definition sender
+  {C V hash}
+  (msg : message C V hash) : V
+  :=
   match msg with (_, v, _) => v end.
 
-Definition justification (msg : message) : justification_type :=
+Definition justification
+  {C V hash}
+  (msg : message C V hash) : justification_type hash :=
   match msg with (_, _, j) => j end.
 
-Parameters (hash_message : message -> hash)
-           (hash_message_injective : Injective hash_message).
+
+Class MessageHash message hash :=
+  { hash_message : message -> hash
+  }.
+
+Class InjectiveMessageHash message hash `{Hmh : MessageHash message hash} :=
+  { hash_message_injective : Injective hash_message
+  }.
  
 (* Light node states are sets of message *)
 (* Additionally, we don't care about sorting *) 
-Definition state := set message.
+Definition state C V hash := set (message C V hash).
 
-Lemma state_inhabited : exists (s : state), True. 
-Proof. exists []. auto. Qed. 
+Lemma state_inhabited {C V hash} : { s : state C V hash| True}.
+Proof. exists []. auto. Qed.
 
-Definition state_compare : (state -> state -> comparison) := list_compare compare.
+Definition state_compare
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : (state C V hash -> state C V hash -> comparison) := list_compare compare.
 
-Instance about_state : StrictlyComparable state :=
+Instance about_state
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : StrictlyComparable (state C V hash) :=
   { inhabited := state_inhabited;
     compare := list_compare compare;
     compare_strictorder := list_compare_strict_order;
   }. 
 
-Definition state0 : state := [].
+Definition state0 C V hash : state C V hash := [].
 
-Definition state_add : message -> state -> state := set_add compare_eq_dec.
+Definition state_add
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : message C V hash -> state C V hash -> state C V hash
+  :=
+  set_add compare_eq_dec.
 
-Definition state_remove : message -> state -> state := set_remove compare_eq_dec.
+Definition state_remove
+  {C V hash} `{HscM : StrictlyComparable (message C V hash)}
+  : message C V hash -> state C V hash -> state C V hash
+  :=
+  set_remove compare_eq_dec.
 
-Definition state_in : message -> state -> bool := set_mem compare_eq_dec.
+Definition state_in
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : message C V hash-> state C V hash-> bool
+  :=
+  set_mem compare_eq_dec.
 
-Definition state_union : state -> state -> state := set_union compare_eq_dec.
+Definition state_union
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : state C V hash-> state C V hash-> state C V hash
+  :=
+  set_union compare_eq_dec.
 
-Definition state_eq (s1 s2 : state) := incl s1 s2 /\ incl s2 s1.
+Definition state_eq
+  {C V hash}
+  (s1 s2 : state C V hash)
+  :=
+  incl s1 s2 /\ incl s2 s1.
 
-Lemma state_union_comm : forall s1 s2, state_eq (state_union s1 s2) (state_union s2 s1).
+Lemma state_union_comm
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash}
+  : forall s1 s2 : state C V hash, state_eq (state_union s1 s2) (state_union s2 s1).
 Proof.
   intros; unfold state_eq; split;
   intros x H_in;
   now apply set_union_comm.
 Qed.
 
-Definition hash_state (sigma : state) : justification_type :=
+Definition hash_state
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (sigma : state C V hash) : justification_type hash :=
   justification_add_all (map hash_message sigma).
 
-Lemma hash_state_sorted : forall sigma,
+Lemma hash_state_sorted
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall sigma : state C V hash,
   LocallySorted (compare_lt compare) (hash_state sigma).
 Proof.
   intros.
   apply justification_sorted.
 Qed.
 
-Lemma hash_state_injective : forall sigma1 sigma2,
+Lemma hash_state_injective
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmhi : InjectiveMessageHash (message C V hash) hash}
+  : forall sigma1 sigma2 : state C V hash,
   hash_state sigma1 = hash_state sigma2
   <->
   set_eq sigma1 sigma2.
@@ -154,7 +238,9 @@ Proof.
     apply map_set_eq. apply set_eq_comm. assumption.
 Qed.
 
-Lemma hash_state_in : forall sigma msg,
+Lemma hash_state_in
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmhi : InjectiveMessageHash (message C V hash) hash}
+  : forall (sigma : state C V hash) msg,
   In (hash_message msg) (hash_state sigma) <->
   In msg sigma.
 Proof.
@@ -170,7 +256,9 @@ Proof.
   - apply H_s. apply in_map. assumption.
 Qed.
 
-Lemma hash_state_incl : forall sigma1 sigma2,
+Lemma hash_state_incl
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : InjectiveMessageHash (message C V hash) hash}
+  : forall sigma1 sigma2 : state C V hash,
   incl sigma1 sigma2 <-> incl (hash_state sigma1) (hash_state sigma2).
 Proof.
   intros.
@@ -191,18 +279,10 @@ Proof.
     apply hash_state_in in Hin. assumption.
 Qed.
 
-
-(* Defining the estimator function as a relation *) 
-Parameters (estimator : state -> common.C -> Prop)
-           (estimator_total : forall s : state, exists c : common.C, estimator s c). 
-
-Definition get_estimate (s : state) :=
-  proj1_sig (choice common.C (estimator s) (estimator_total s)).
-
-Definition get_estimate_correct (s : state) :=
-  proj2_sig (choice common.C (estimator s) (estimator_total s)). 
-
-Definition equivocating_messages (msg1 msg2 : message) : bool :=
+Definition equivocating_messages
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (msg1 msg2 : message C V hash) : bool
+  :=
   match compare_eq_dec msg1 msg2 with
   | left _  => false
   | _ => match msg1, msg2 with (c1,v1,j1), (c2,v2,j2) =>
@@ -213,11 +293,15 @@ Definition equivocating_messages (msg1 msg2 : message) : bool :=
     end
   end.
 
-Definition equivocating_messages_prop (msg1 msg2 : message) : Prop :=
+Definition equivocating_messages_prop
+  {C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (msg1 msg2 : message C V hash) : Prop
+  :=
   msg1 <> msg2 /\ sender msg1 = sender msg2 /\ ~ In (hash_message msg1) (justification msg2) /\ ~ In (hash_message msg2) (justification msg1).
 
-Lemma equivocating_messages_sender :
-  forall msg1 msg2,
+Lemma equivocating_messages_sender
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall msg1 msg2 : message C V hash,
     equivocating_messages msg1 msg2 = true -> sender msg1 = sender msg2. 
 Proof.
   unfold equivocating_messages. 
@@ -232,8 +316,9 @@ Proof.
   assumption. inversion H. assumption.
 Qed.
 
-Lemma equivocating_messages_correct :
-  forall (msg1 msg2 : message),
+Lemma equivocating_messages_correct
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall (msg1 msg2 : message C V hash),
     equivocating_messages msg1 msg2 = true <-> equivocating_messages_prop msg1 msg2. 
 Proof. 
   intros [[c1 v1] j1] [[c2 v2] j2]; split; intro H.
@@ -269,25 +354,23 @@ Proof.
       rewrite andb_false_r in H. inversion H.
       inversion H. assumption. 
   - destruct H as [H_neq [H_sender [H_in1 H_in2]]].
-    assert (H_in1_bool : inb compare_eq_dec (hash_message (c1,v1,j1)) (justification (c2,v2,j2)) = false).
-    { rewrite mirror_reflect_curry.  exact H_in1.
-      intros. symmetry. rewrite <- (in_function compare_eq_dec _ _ ). tauto. }
-    assert (H_in2_bool : inb compare_eq_dec (hash_message (c2,v2,j2)) (justification (c1,v1,j1)) = false).
-    { rewrite mirror_reflect_curry.  exact H_in2.
-      intros. symmetry. rewrite <- (in_function compare_eq_dec _ _ ). tauto. }
     simpl in H_sender.
     unfold equivocating_messages.
     destruct (compare_eq_dec (c1,v1,j1) (c2,v2,j2)).
-    contradiction.
-    rewrite eq_dec_if_false.
-    destruct (compare_eq_dec v1 v2).
+    contradiction; try assumption.
+    rewrite eq_dec_if_false; try assumption.
+    destruct (compare_eq_dec v1 v2); try contradiction.
     simpl in *.
-    rewrite H_in1_bool. rewrite H_in2_bool.
-    tauto. contradiction. assumption.
+    apply andb_true_iff.
+    split
+    ; apply negb_true_iff
+    ; rewrite mirror_reflect_curry; try exact H_in1; try exact H_in2
+    ;  intros; split; apply (in_function compare_eq_dec).
 Qed.
 
-Lemma equivocating_messages_correct' :
-  forall (msg1 msg2 : message),
+Lemma equivocating_messages_correct'
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall (msg1 msg2 : message C V hash),
     equivocating_messages msg1 msg2 = false <-> ~ equivocating_messages_prop msg1 msg2.
 Proof.   
   intros.
@@ -295,7 +378,9 @@ Proof.
   exact equivocating_messages_correct.
 Qed.
 
-Lemma equivocating_messages_comm : forall msg1 msg2,
+Lemma equivocating_messages_comm
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall msg1 msg2 : message C V hash,
   equivocating_messages msg1 msg2 = equivocating_messages msg2 msg1.
 Proof.
   intros [(c1, v1) sigma1] [(c2, v2) sigma2].
@@ -318,8 +403,9 @@ Proof.
   assumption. 
 Qed. 
 
-Lemma equivocating_messages_prop_swap :
-  forall msg1 msg2,
+Lemma equivocating_messages_prop_swap
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall msg1 msg2 : message C V hash,
     equivocating_messages_prop msg1 msg2 <-> equivocating_messages_prop msg2 msg1.
 Proof.
   intros; rewrite <- equivocating_messages_correct.
@@ -328,7 +414,9 @@ Proof.
   tauto.
 Qed.
 
-Lemma non_equivocating_messages_sender : forall msg1 msg2,
+Lemma non_equivocating_messages_sender
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall msg1 msg2 : message C V hash,
   sender msg1 <> sender msg2 ->
   equivocating_messages msg1 msg2 = false.
 Proof.
@@ -339,14 +427,22 @@ Proof.
   - intro Heq. inversion Heq; subst; clear Heq. apply Hneq. reflexivity.
 Qed.
 
-Definition equivocating_in_state (msg : message) (sigma : state) : bool :=
+Definition equivocating_in_state
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (msg : message C V hash) (sigma : state C V hash) : bool
+  :=
   existsb (equivocating_messages msg) sigma.
 
-Definition equivocating_in_state_prop (msg : message) (s : state) : Prop :=
+Definition equivocating_in_state_prop
+  {C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (msg : message C V hash) (s : state C V hash) : Prop
+  :=
   exists msg', In msg' s /\ equivocating_messages_prop msg msg'. 
 
-Lemma equivocating_in_state_correct :
-  forall msg s, equivocating_in_state msg s = true <-> equivocating_in_state_prop msg s.
+Lemma equivocating_in_state_correct
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall (msg : message C V hash) s,
+  equivocating_in_state msg s = true <-> equivocating_in_state_prop msg s.
 Proof.
   intros msg s.
   split; intro H.
@@ -361,15 +457,19 @@ Proof.
     rewrite equivocating_messages_correct. assumption.
 Qed.
 
-Lemma equivocating_in_state_correct' :
-  forall msg s, equivocating_in_state msg s = false <-> ~ equivocating_in_state_prop msg s.
+Lemma equivocating_in_state_correct'
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall (msg : message C V hash) s,
+  equivocating_in_state msg s = false <-> ~ equivocating_in_state_prop msg s.
 Proof.
   intros. 
   apply mirror_reflect_curry.
   exact equivocating_in_state_correct.
 Qed.
 
-Lemma equivocating_in_state_incl : forall sigma sigma',
+Lemma equivocating_in_state_incl
+  {C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall sigma sigma',
   incl sigma sigma' ->
   forall msg,
     equivocating_in_state_prop msg sigma ->
@@ -381,8 +481,9 @@ Proof.
   apply H. assumption.
 Qed.
 
-Lemma equivocating_in_state_not_seen :
-  forall msg sigma,
+Lemma equivocating_in_state_not_seen
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall msg sigma,
   ~ In (sender msg) (set_map compare_eq_dec sender sigma) ->
   ~ equivocating_in_state_prop msg sigma.  
 Proof.
@@ -395,14 +496,22 @@ Proof.
   exists (cx, vx, jx). split; try assumption. reflexivity.
 Qed.
 
-Definition equivocating_senders (sigma : state) : set common.V :=
+Definition equivocating_senders
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (sigma : state C V hash) : set V
+  :=
   set_map compare_eq_dec sender (filter (fun msg => equivocating_in_state msg sigma) sigma).
 
-Definition equivocating_senders_prop (s : state) (lv : set common.V) :=
+Definition equivocating_senders_prop
+  {C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  (s : state C V hash) (lv : set V)
+  :=
   forall v, In v lv <-> exists msg, In msg s /\ sender msg = v /\ equivocating_in_state_prop msg s. 
 
-Lemma equivocating_senders_correct : forall s,
-    equivocating_senders_prop s (equivocating_senders s).
+Lemma equivocating_senders_correct
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall s : state C V hash,
+  equivocating_senders_prop s (equivocating_senders s).
 Proof.
   intros s v; split; intro H. 
   - (* Left direction *)
@@ -422,39 +531,62 @@ Proof.
     assumption.
 Qed.
 
-Lemma equivocating_senders_incl : forall sigma sigma',
+Lemma equivocating_senders_incl
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash}
+  : forall sigma sigma' : state C V hash,
   incl sigma sigma' ->
   incl (equivocating_senders sigma) (equivocating_senders sigma').
 Proof.
   intros.
   apply set_map_incl.
-  apply incl_tran with (filter (fun msg : message => equivocating_in_state msg sigma) sigma').
+  apply incl_tran with (filter (fun msg : message C V hash=> equivocating_in_state msg sigma) sigma').
   - apply filter_incl; assumption.
   - apply filter_incl_fn. intro.
     do 2 rewrite equivocating_in_state_correct.
     apply equivocating_in_state_incl. assumption.
 Qed.
 
-Definition reach (s1 s2 : state) := incl s1 s2.
+Definition reach
+  {C V hash}
+  (s1 s2 : state C V hash)
+  :=
+  incl s1 s2.
 
-Lemma reach_refl : forall s, reach s s. 
+Lemma reach_refl
+  {C V hash}
+  : forall s : state C V hash,
+  reach s s. 
 Proof. apply incl_refl. Qed.
 
-Lemma reach_trans : forall s1 s2 s3, reach s1 s2 -> reach s2 s3 -> reach s1 s3. 
+Lemma reach_trans
+  {C V hash}
+  : forall s1 s2 s3 : state C V hash,
+  reach s1 s2 -> reach s2 s3 -> reach s1 s3. 
 Proof. apply incl_tran. Qed.
 
-Lemma reach_union : forall s1 s2, reach s1 (state_union s1 s2). 
+Lemma reach_union
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash}
+  : forall s1 s2 : state C V hash,
+  reach s1 (state_union s1 s2). 
 Proof. intros s1 s2 x H_in; apply set_union_iff; left; assumption. Qed.
 
-Lemma reach_morphism : forall s1 s2 s3, reach s1 s2 -> state_eq s2 s3 -> reach s1 s3.
+Lemma reach_morphism
+  {C V hash}
+  : forall s1 s2 s3 : state C V hash,
+  reach s1 s2 -> state_eq s2 s3 -> reach s1 s3.
 Proof. intros s1 s2 s3 H_reach H_eq x H_in. spec H_reach x H_in.
        destruct H_eq as [H_eq _]. spec H_eq x H_reach; assumption.
 Qed. 
 
-Definition fault_weight_state (sigma : state) : R :=
+Definition fault_weight_state
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash} `{Hm : Measurable V}
+  (sigma : state C V hash) : R
+  :=
   sum_weights (equivocating_senders sigma).
 
-Lemma fault_weight_state_incl : forall sigma sigma',
+Lemma fault_weight_state_incl
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash} `{Hm : Measurable V}
+  : forall sigma sigma' : state C V hash,
   incl sigma sigma' ->
   (fault_weight_state sigma <= fault_weight_state sigma')%R.
 Proof.
@@ -462,15 +594,16 @@ Proof.
   apply equivocating_senders_incl. assumption.
 Qed.
 
-(* Estimator approval condition *) 
-Definition valid_estimate (c : common.C) (sigma : state) : Prop :=
-    estimator sigma c.
-
 (* The not overweight condition *)
-Definition not_heavy (sigma : state) : Prop :=
-  (fault_weight_state sigma <= proj1_sig t_full)%R.
+Definition not_heavy
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash} `{Hrt : ReachableThreshold V}
+  (sigma : state C V hash) : Prop
+  :=
+  (fault_weight_state sigma <= proj1_sig threshold)%R.
 
-Lemma not_heavy_subset : forall sigma sigma',
+Lemma not_heavy_subset
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash} `{Hrt : ReachableThreshold V}
+  : forall sigma sigma' : state C V hash,
   incl sigma sigma' ->
   not_heavy sigma' ->
   not_heavy sigma.
@@ -481,7 +614,9 @@ Proof.
   apply fault_weight_state_incl; assumption.
 Qed.
 
-Lemma not_heavy_set_eq : forall sigma sigma',
+Lemma not_heavy_set_eq
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash} `{Hrt : ReachableThreshold V}
+  : forall sigma sigma' : state C V hash,
   set_eq sigma sigma' ->
   not_heavy sigma ->
   not_heavy sigma'.
@@ -490,13 +625,23 @@ Proof.
   apply (not_heavy_subset _ _ H1 H0).
 Qed. 
 
-Inductive protocol_state : state -> Prop :=
-| protocol_state_nil : protocol_state state0
-| protocol_state_cons : forall (j : state),
+Class ProtocolState C V hash
+  `{Hsc3 : StrictlyComparable3 C V hash}
+  `{Hmhi : InjectiveMessageHash (message C V hash) hash}
+  `{Hrt : ReachableThreshold V}
+  `{He : Estimator (state C V hash) C}.
+
+
+Inductive protocol_state
+  {C V hash} `{PS : ProtocolState C V hash}
+  : state C V hash -> Prop
+  :=
+  | protocol_state_nil : protocol_state (state0 C V hash)
+  | protocol_state_cons : forall (j : state C V hash),
     protocol_state j ->
-    forall (c : common.C),
+    forall (c : C),
       valid_estimate c j ->
-      forall (v : common.V) (s : state),
+      forall (v : V) (s : state C V hash),
         In (c, v, hash_state j) s ->
         protocol_state (set_remove compare_eq_dec (c, v, hash_state j) s) ->
         NoDup s ->
@@ -504,7 +649,9 @@ Inductive protocol_state : state -> Prop :=
         protocol_state s.
 
 
-Lemma protocol_state_nodup : forall sigma,
+Lemma protocol_state_nodup
+  {C V hash} `{PS : ProtocolState C V hash}
+  : forall sigma : state C V hash,
   protocol_state sigma ->
   NoDup sigma.
 Proof.
@@ -513,7 +660,9 @@ Proof.
   - assumption.
 Qed.
 
-Lemma not_extx_in_x : forall c v s s',
+Lemma not_extx_in_x
+  {C V hash} `{HPS : ProtocolState C V hash}
+  : forall c v (s s' : state C V hash),
     protocol_state s ->
     protocol_state s' ->
     incl s' s ->
@@ -532,10 +681,11 @@ Proof.
       intros h Hin_h. apply set_remove_1 in Hin_h. assumption.
 Qed.
 
-Lemma not_in_self :
-  forall (s : state),
+Lemma not_in_self
+  {C V hash} `{HPS : ProtocolState C V hash}
+  : forall (s : state C V hash),
     protocol_state s ->
-    forall (v : common.V), 
+    forall (v : V), 
     ~ In (get_estimate s, v, hash_state s) s. 
 Proof.
   intros s about_s v H_absurd.
@@ -547,10 +697,11 @@ Proof.
   contradiction.
 Qed.
 
-Lemma not_in_self_relaxed :
-  forall (s : state),
+Lemma not_in_self_relaxed
+  {C V hash} `{HPS : ProtocolState C V hash}
+  : forall (s : state C V hash),
     protocol_state s ->
-    forall (c : common.C) (v : common.V), 
+    forall (c : C) (v : V), 
     ~ In (c, v, hash_state s) s. 
 Proof.
   intros s about_s c v H_absurd.
@@ -562,8 +713,9 @@ Proof.
   contradiction.
 Qed.
 
-Lemma set_eq_protocol_state :
-  forall sigma,
+Lemma set_eq_protocol_state
+  {C V hash} `{HPS : ProtocolState C V hash}
+  : forall sigma : state C V hash,
   protocol_state sigma ->
   forall sigma',
     set_eq sigma sigma' ->
@@ -602,25 +754,10 @@ Proof.
 Abort. 
 *)
 
-Lemma in_correct {X} `{StrictlyComparable X} :
-  forall (l : list X) (x : X),
-    In x l <-> inb compare_eq_dec x l = true. 
-Proof.
-  intros s msg.
-  apply in_function.
-Qed.
-
-Lemma in_correct' {X} `{StrictlyComparable X} :
-  forall (l : list X) (x : X),
-    ~ In x l <-> inb compare_eq_dec x l = false. 
-Proof.
-  intros s msg.
-  symmetry. apply mirror_reflect_curry. 
-  symmetry; now apply in_correct. 
-Qed.
-
 (* The intuition is we can never satisfy that neither messages are contained in each other's justifications. *) 
-Lemma non_equivocating_messages_extend : forall msg sigma1 c v,
+Lemma non_equivocating_messages_extend
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmhi : InjectiveMessageHash (message C V hash) hash}
+  : forall (msg : message C V hash) sigma1 c v,
   In msg sigma1 ->
   equivocating_messages msg (c, v, hash_state sigma1) = false.
 Proof.
@@ -642,26 +779,9 @@ Proof.
     + assumption. 
 Qed.
 
-Lemma set_add_ignore {X} `{StrictlyComparable X} :
-  forall (l : list X) (x : X),
-    In x l ->
-    set_add compare_eq_dec x l = l. 
-Proof.
-  induction l as [|hd tl IHl]; intros x H_in. 
-  - inversion H_in.
-  - inversion H_in.
-    + subst. simpl.
-      destruct (compare_eq_dec x x). 
-      reflexivity.
-      contradiction.
-    + spec IHl x H0. simpl.
-      destruct (compare_eq_dec x hd).
-      reflexivity.
-      rewrite IHl. reflexivity.
-Qed.
-
-Lemma equivocating_in_state_extend :
-  forall c v s,
+Lemma equivocating_in_state_extend
+  {C V hash} `{Hsc3 : StrictlyComparable3 C V hash} `{Hmhi : InjectiveMessageHash (message C V hash) hash}
+  :  forall c v (s : state C V hash),
     ~ equivocating_in_state_prop (c, v, hash_state s) s.
 Proof. 
   intros c v s H_absurd.
@@ -672,7 +792,9 @@ Proof.
   contradiction.
 Qed.
 
-Lemma equivocating_senders_extend : forall sigma c v,
+Lemma equivocating_senders_extend
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmhi : InjectiveMessageHash (message C V hash) hash}
+  : forall (sigma : state C V hash) c v,
   equivocating_senders ((c, v, hash_state sigma) :: sigma) = equivocating_senders sigma.
 Proof. 
   unfold equivocating_senders. intros.
@@ -706,18 +828,22 @@ Proof.
   - apply orb_true_intro. tauto.
 Qed.
 
-Lemma protocol_state_not_heavy : forall sigma,
+Lemma protocol_state_not_heavy
+  {C V hash}  `{PS : ProtocolState C V hash}
+  : forall sigma : state C V hash,
   protocol_state sigma ->
   not_heavy sigma.
 Proof.
   intros. inversion H.
   - unfold not_heavy. unfold fault_weight_state. simpl.
-    apply Rge_le. destruct t_full; easy. 
+    apply Rge_le. destruct threshold; easy. 
   - assumption.
 Qed.
 
 (* Recording entire histories preserves protocol state-ness *)
-Lemma copy_protocol_state : forall s,
+Lemma copy_protocol_state
+  {C V hash}  `{PS : ProtocolState C V hash}
+  : forall s : state C V hash,
   protocol_state s ->
   forall v,
     protocol_state ((get_estimate s, v, hash_state s) :: s).
@@ -736,11 +862,12 @@ Proof.
     apply protocol_state_not_heavy in Hps. assumption.
 Qed.
 
-Lemma about_prot_state :
-  forall (s1 s2 : state),
+Lemma about_prot_state
+  {C V hash}  `{PS : ProtocolState C V hash}
+  : forall (s1 s2 : state C V hash),
     protocol_state s1 ->
     protocol_state s2 ->
-    (fault_weight_state (state_union s1 s2) <= proj1_sig t_full)%R ->
+    (fault_weight_state (state_union s1 s2) <= proj1_sig threshold)%R ->
     protocol_state (state_union s1 s2). 
 Proof.
   intros sig1 sig2 Hps1 Hps2.
@@ -772,8 +899,9 @@ Proof.
         apply set_eq_remove_union_not_in; assumption.
 Qed.
 
-Lemma equivocation_weight_compat :
-  forall s1 s2 : state,
+Lemma equivocation_weight_compat
+  {C V hash}  `{Hsc3 : StrictlyComparable3 C V hash} `{Hmh : MessageHash (message C V hash) hash} `{Hm : Measurable V}
+  : forall s1 s2 : state C V hash,
   (fault_weight_state s1 <= fault_weight_state (state_union s2 s1))%R. 
 Proof. 
   intros.
@@ -782,16 +910,19 @@ Proof.
   apply set_union_iff. tauto.
 Qed.
 
-Instance LightNode_seteq : CBC_protocol_eq :=
-  { consensus_values := common.C;  
-    about_consensus_values := common.about_C;
-    validators := common.V;
-    about_validators := common.about_V;
+Instance LightNode_seteq
+  {C V hash}  `{PS : ProtocolState C V hash}
+  : CBC_protocol_eq
+  :=
+  { consensus_values := C;  
+    about_consensus_values := HscC;
+    validators := V;
+    about_validators := HscV;
     weight := weight;
-    t := t_full;
-    suff_val := suff_val_full;
-    state := state;
-    state0 := state0;
+    t := threshold;
+    suff_val := reachable_threshold;
+    state := state C V hash;
+    state0 := state0 C V hash;
     state_eq := set_eq;
     about_state := about_state;
     state_union := state_union;

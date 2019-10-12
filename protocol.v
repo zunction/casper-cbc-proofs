@@ -39,9 +39,8 @@ Next Obligation.
 Defined.
 
 (* Level 0 : *)
-Class PartialOrder :=
-  { A : Type;
-    A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
+Class PartialOrder (A : Type) :=
+  { A_eq_dec : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2};
     A_inhabited : exists (a0 : A), True; (* ? *) 
     A_rel : A -> A -> Prop;
     A_rel_refl :> Reflexive A_rel;
@@ -49,7 +48,7 @@ Class PartialOrder :=
   }.
 
 (* Level 1 : *) 
-Class PartialOrderNonLCish `{PartialOrder} :=
+Class PartialOrderNonLCish (A : Type) `{PartialOrder A} :=
   { no_local_confluence_ish : exists (a a1 a2 : A),
         A_rel a a1 /\ A_rel a a2 /\
         ~ exists (a' : A), A_rel a1 a' /\ A_rel a2 a';
@@ -175,9 +174,8 @@ Proof.
   now apply reach_trans with p2.
 Qed.
 
-Instance level0 `{CBC_protocol_eq} : PartialOrder :=
-  { A := pstate;
-    A_eq_dec := pstate_eq_dec;
+Instance level0 `{CBC_protocol_eq} : PartialOrder pstate :=
+  { A_eq_dec := pstate_eq_dec;
     A_inhabited := pstate_inhabited;
     A_rel := pstate_rel;
     A_rel_refl := pstate_rel_refl;

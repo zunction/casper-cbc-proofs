@@ -264,10 +264,33 @@ Defined.
 (* A generic type class for inhabited types with a strictly ordered comparison operator *) 
 Class StrictlyComparable (X : Type) : Type :=
    {
-     inhabited : exists (x : X), True;
+     inhabited : { x : X | True};
      compare : X -> X -> comparison;
      compare_strictorder :> CompareStrictOrder compare;
     }.
+
+Lemma compare_two_cases
+  {M} `{Hsc : StrictlyComparable M}
+  : forall m1 m2 : M,
+    (compare m1 m2 = Eq /\ compare m2 m1 = Eq) \/
+    (compare m1 m2 = Lt /\ compare m2 m1 = Gt) \/
+    (compare m1 m2 = Gt /\ compare m2 m1 = Lt). 
+Proof.
+  intros m1 m2.
+  destruct (compare m1 m2) eqn:H_m.
+  left. split; try reflexivity.
+  rewrite compare_eq in H_m. subst.
+  apply compare_eq_refl.
+  right. left; split; try reflexivity.
+  now apply compare_asymmetric.
+  right; right; split; try reflexivity.
+  now apply compare_asymmetric.
+Qed.
+
+Tactic Notation "case_pair" constr(about_M) constr(m1) constr(m2) :=
+  assert (H_fresh := @compare_two_cases _ about_M m1 m2);
+  destruct H_fresh as [[H_eq1 H_eq2] | [[H_lt H_gt] | [H_gt H_lt]]]. 
+
 
 (* Composing StrictlyComparable types *)
 (* Constructing the compare function *)
@@ -284,13 +307,13 @@ Definition compare_compose (X Y : Type) `{StrictlyComparable X} `{StrictlyCompar
     end.
 
 (* Constructing the inhabited proof *) 
-Lemma inhabited_compose {X Y : Type} `{StrictlyComparable X} `{StrictlyComparable Y} :
-  exists (p : X * Y), True.
+Lemma inhabited_compose {X Y : Type} `{HscX : StrictlyComparable X} `{HscY : StrictlyComparable Y} :
+  { p : X * Y | True}.
 Proof.
-  destruct (@inhabited X) as [x _]. assumption. 
-  destruct (@inhabited Y) as [y _]. assumption.
-  exists (x, y). 
-  auto.
+  remember (proj1_sig (@inhabited _ HscX )) as x. 
+  remember (proj1_sig (@inhabited _ HscY)) as y.
+  split; try exact I.
+  exact (x,y).
 Qed.
 
 (* Constructing the strictorder proof *)
@@ -376,6 +399,154 @@ Instance TripleStrictlyComparable (X Y Z : Type) `{StrictlyComparable X} `{Stric
     compare := compare_compose (X * Y) Z;
     compare_strictorder := strictorder_compose;
   }.
+
+Definition triple_strictly_comparable_proj1_inhabited
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  : { x : X | True}.
+
+  split; try exact I.
+  destruct HscXYZ as [inhabited _ _].
+  remember (proj1_sig inhabited) as p.
+  destruct p as [(x, y) z].
+  exact x.
+Defined.
+
+Definition triple_strictly_comparable_proj1_compare
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  (x1 x2 : X) : comparison.
+
+  destruct HscXYZ as [inhabited compare _].
+  remember (proj1_sig inhabited) as p.
+  destruct p as [(x, y) z].
+  exact (compare (x1, y, z) (x2, y, z)).
+Defined.
+
+Lemma triple_strictly_comparable_proj1_strictorder
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  : CompareStrictOrder (@triple_strictly_comparable_proj1_compare X Y Z HscXYZ).
+Proof.
+  split.
+  - intros x y. 
+      unfold triple_strictly_comparable_proj1_compare.
+      destruct HscXYZ.
+      remember (proj1_sig inhabited0) as p. destruct p as [(x0, y0) z0].
+    split; intro.
+    + apply StrictOrder_Reflexive in H. inversion H. reflexivity.
+    + subst. apply StrictOrder_Reflexive . reflexivity.
+  - intros x1 x2 x3 cmp.
+    unfold triple_strictly_comparable_proj1_compare.
+    destruct HscXYZ.
+    remember (proj1_sig inhabited0) as p. destruct p as [(x0, y0) z0].
+    apply StrictOrder_Transitive.
+Qed.
+
+Definition triple_strictly_comparable_proj1
+  {X Y Z} (HscT :  StrictlyComparable (X * Y * Z))
+  : StrictlyComparable X
+  :=
+  {| inhabited := triple_strictly_comparable_proj1_inhabited;
+    compare := triple_strictly_comparable_proj1_compare;
+    compare_strictorder := triple_strictly_comparable_proj1_strictorder;
+  |}.
+
+Definition triple_strictly_comparable_proj2_inhabited
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  : { y : Y | True}.
+
+  split; try exact I.
+  destruct HscXYZ as [inhabited _ _].
+  remember (proj1_sig inhabited) as p.
+  destruct p as [(x, y) z].
+  exact y.
+Defined.
+
+Definition triple_strictly_comparable_proj2_compare
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  (y1 y2 : Y) : comparison.
+
+  destruct HscXYZ as [inhabited compare _].
+  remember (proj1_sig inhabited) as p.
+  destruct p as [(x, y) z].
+  exact (compare (x, y1, z) (x, y2, z)).
+Defined.
+
+Lemma triple_strictly_comparable_proj2_strictorder
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  : CompareStrictOrder (@triple_strictly_comparable_proj2_compare X Y Z HscXYZ).
+Proof.
+  split.
+  - intros x y. 
+      unfold triple_strictly_comparable_proj2_compare.
+      destruct HscXYZ.
+      remember (proj1_sig inhabited0) as p. destruct p as [(x0, y0) z0].
+    split; intro.
+    + apply StrictOrder_Reflexive in H. inversion H. reflexivity.
+    + subst. apply StrictOrder_Reflexive . reflexivity.
+  - intros x1 x2 x3 cmp.
+    unfold triple_strictly_comparable_proj2_compare.
+    destruct HscXYZ.
+    remember (proj1_sig inhabited0) as p. destruct p as [(x0, y0) z0].
+    apply StrictOrder_Transitive.
+Qed.
+
+Definition triple_strictly_comparable_proj2
+  {X Y Z} (HscT :  StrictlyComparable (X * Y * Z))
+  : StrictlyComparable Y
+  :=
+  {| inhabited := triple_strictly_comparable_proj2_inhabited;
+    compare := triple_strictly_comparable_proj2_compare;
+    compare_strictorder := triple_strictly_comparable_proj2_strictorder;
+  |}.
+
+Definition triple_strictly_comparable_proj3_inhabited
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  : { z : Z | True}.
+
+  split; try exact I.
+  destruct HscXYZ as [inhabited _ _].
+  remember (proj1_sig inhabited) as p.
+  destruct p as [(x, y) z].
+  exact z.
+Defined.
+
+Definition triple_strictly_comparable_proj3_compare
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  (z1 z2 : Z) : comparison.
+
+  destruct HscXYZ as [inhabited compare _].
+  remember (proj1_sig inhabited) as p.
+  destruct p as [(x, y) z].
+  exact (compare (x, y, z1) (x, y, z2)).
+Defined.
+
+Lemma triple_strictly_comparable_proj3_strictorder
+  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
+  : CompareStrictOrder (@triple_strictly_comparable_proj3_compare X Y Z HscXYZ).
+Proof.
+  split.
+  - intros x y. 
+      unfold triple_strictly_comparable_proj3_compare.
+      destruct HscXYZ.
+      remember (proj1_sig inhabited0) as p. destruct p as [(x0, y0) z0].
+    split; intro.
+    + apply StrictOrder_Reflexive in H. inversion H. reflexivity.
+    + subst. apply StrictOrder_Reflexive . reflexivity.
+  - intros x1 x2 x3 cmp.
+    unfold triple_strictly_comparable_proj3_compare.
+    destruct HscXYZ.
+    remember (proj1_sig inhabited0) as p. destruct p as [(x0, y0) z0].
+    apply StrictOrder_Transitive.
+Qed.
+
+Definition triple_strictly_comparable_proj3
+  {X Y Z} (HscT :  StrictlyComparable (X * Y * Z))
+  : StrictlyComparable Z
+  :=
+  {| inhabited := triple_strictly_comparable_proj3_inhabited;
+    compare := triple_strictly_comparable_proj3_compare;
+    compare_strictorder := triple_strictly_comparable_proj3_strictorder;
+  |}.
+
 
 (** Polymorphic list library **)
 Fixpoint is_member {W} `{StrictlyComparable W} (w : W) (l : list W) : bool :=

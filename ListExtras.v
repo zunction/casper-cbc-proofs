@@ -108,6 +108,23 @@ Proof.
     + right. apply IHxs. assumption.
 Qed.
 
+Lemma in_correct {X} `{StrictlyComparable X} :
+  forall (l : list X) (x : X),
+    In x l <-> inb compare_eq_dec x l = true. 
+Proof.
+  intros s msg.
+  apply in_function.
+Qed.
+
+Lemma in_correct' {X} `{StrictlyComparable X} :
+  forall (l : list X) (x : X),
+    ~ In x l <-> inb compare_eq_dec x l = false. 
+Proof.
+  intros s msg.
+  symmetry. apply mirror_reflect_curry. 
+  symmetry; now apply in_correct. 
+Qed.
+
 Lemma map_injective : forall A B (f : A -> B),
   Injective f -> Injective (map f).
 Proof.
@@ -175,8 +192,6 @@ Proof.
     + apply H1. right. assumption.
     + apply H2 in H. intro. apply H. right. assumption.
 Qed.
-
-
 
 (**
 

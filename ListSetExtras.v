@@ -27,6 +27,19 @@ Qed.
 Definition set_eq {A} (s1 s2 : set A) : Prop :=
   incl s1 s2 /\ incl s2 s1.
 
+Lemma set_eq_empty
+  {A}
+  : forall (l : list A),
+    set_eq l [] -> l = [].
+Proof.
+  intros.
+  destruct l as [|hd tl].
+  - reflexivity. 
+  - destruct H.
+    spec H hd (in_eq hd tl).
+    inversion H.
+Qed.
+
 Lemma set_eq_proj1 {A} : forall (s1 s2 : set A),
   set_eq s1 s2 ->
   incl s1 s2.
@@ -353,6 +366,26 @@ Proof.
     + case_eq (f hd); intro H_eq;
       simpl; rewrite H_eq; rewrite <- IHl; reflexivity.
 Qed.
+
+
+Lemma set_add_ignore {X} `{StrictlyComparable X} :
+  forall (l : list X) (x : X),
+    In x l ->
+    set_add compare_eq_dec x l = l. 
+Proof.
+  induction l as [|hd tl IHl]; intros x H_in. 
+  - inversion H_in.
+  - inversion H_in.
+    + subst. simpl.
+      destruct (compare_eq_dec x x). 
+      reflexivity.
+      contradiction.
+    + spec IHl x H0. simpl.
+      destruct (compare_eq_dec x hd).
+      reflexivity.
+      rewrite IHl. reflexivity.
+Qed.
+
 
 Lemma set_remove_not_in {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall x s,
   ~ In x s ->

@@ -5,13 +5,21 @@ Require Import preamble ListExtras ListSetExtras RealsExtras protocol common def
 
 (* Implementation -instantiates-> Level Specific *)
 (** Building blocks for instancing CBC_protocol with full node version **)
-Definition sorted_state : Type :=
-  { s : state | locally_sorted s }. 
-Definition sorted_state_proj1 (s : sorted_state) := proj1_sig s.
+Definition sorted_state
+  (C V : Type) `{about_M : StrictlyComparable (message C V)}
+  : Type
+  :=
+  { s : @state C V| locally_sorted s }. 
+Definition sorted_state_proj1
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (s : sorted_state C V)
+  :=
+  proj1_sig s.
 Coercion sorted_state_proj1 : sorted_state >-> state.
 
-Lemma state0_neutral :
-  forall (s : sorted_state),
+Lemma state0_neutral
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall (s : sorted_state C V),
     state_union s Empty = s.
 Proof.
   intros s. unfold state_union.
@@ -20,48 +28,74 @@ Proof.
   destruct s. assumption.
 Qed.
 
-Definition sorted_state0 : sorted_state :=
+Definition sorted_state0
+  (C V : Type) `{about_M : StrictlyComparable (message C V)}
+  : sorted_state C V
+  :=
   exist (fun s => locally_sorted s) Empty LSorted_Empty.
 
-Lemma sorted_state_inhabited : exists (s : sorted_state), True. 
-Proof. exists sorted_state0. auto. Qed.
+Lemma sorted_state_inhabited
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : { s : sorted_state C V | True }.
+Proof. split; try exact I. exact (sorted_state0 C V). Qed.
 
-Definition sorted_state_compare : sorted_state -> sorted_state -> comparison := sigify_compare locally_sorted.
 
-Lemma sorted_state_compare_reflexive : CompareReflexive sorted_state_compare.
+Instance state_strictly_comparable
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : StrictlyComparable (@state C V)
+  :=
+  triple_strictly_comparable_proj3 about_M.
+
+Definition sorted_state_compare
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : sorted_state C V -> sorted_state C V -> comparison
+  := sigify_compare locally_sorted.
+
+Lemma sorted_state_compare_reflexive
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : CompareReflexive (@sorted_state_compare _ _ about_M).
 Proof.
   red. intros s1 s2.  
   destruct s1 as [s1 about_s1];
     destruct s2 as [s2 about_s2].
-  simpl. split; intros.
-  apply state_compare_reflexive in H. subst.
+  simpl. assert (about_s : CompareStrictOrder triple_strictly_comparable_proj3_compare) by apply triple_strictly_comparable_proj3_strictorder.
+  destruct about_s. spec StrictOrder_Reflexive s1 s2. rewrite StrictOrder_Reflexive.
+  split; intros; subst.
   f_equal. apply proof_irrelevance.
-  apply state_compare_reflexive. 
   inversion H. reflexivity.
 Qed.
 
-Lemma sorted_state_compare_transitive : CompareTransitive sorted_state_compare.
+Lemma sorted_state_compare_transitive
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : CompareTransitive (@sorted_state_compare _ _ about_M).
 Proof. 
   red; intros s1 s2 s3 c H12 H23;
     destruct s1 as [s1 about_s1];
     destruct s2 as [s2 about_s2];
     destruct s3 as [s3 about_s3].
   simpl in *.
-  now apply (state_compare_transitive s1 s2 s3 c).
+  now apply (@StrictOrder_Transitive _ _ triple_strictly_comparable_proj3_strictorder s1 s2 s3 c).
 Qed.
 
-Instance sorted_state_strictorder : CompareStrictOrder sorted_state_compare :=
+Instance sorted_state_strictorder
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : CompareStrictOrder (@sorted_state_compare C V about_M)
+  :=
   { StrictOrder_Reflexive := sorted_state_compare_reflexive;
     StrictOrder_Transitive := sorted_state_compare_transitive; }. 
 
-Instance sorted_state_type : StrictlyComparable sorted_state :=
+Instance sorted_state_type
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : StrictlyComparable (sorted_state C V)
+  :=
   { inhabited := sorted_state_inhabited;
     compare := sigify_compare locally_sorted;
     compare_strictorder := sorted_state_strictorder;
   }. 
 
-Lemma sorted_state_union_comm :
-  forall (s1 s2 : sorted_state),
+Lemma sorted_state_union_comm
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall (s1 s2 : sorted_state C V),
     state_union s1 s2 = state_union s2 s1.
 Proof.
   intros s1 s2;
@@ -77,7 +111,10 @@ Proof.
   reflexivity. now apply state_union_comm_helper_helper.
 Qed.
 
-Program Definition sorted_state_union (sigma1 sigma2 : sorted_state) : sorted_state :=
+Program Definition sorted_state_union
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (sigma1 sigma2 : sorted_state C V) : sorted_state C V
+  :=
   exist _ (list_to_state (messages_union (get_messages sigma1) (get_messages sigma2))) _.
 Next Obligation.
   apply state_union_sorted.
@@ -85,8 +122,9 @@ Next Obligation.
   destruct sigma2; assumption. 
 Defined.
 
-Lemma sorted_state_sorted_union_comm :
-  forall (s1 s2 : sorted_state),
+Lemma sorted_state_sorted_union_comm
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall (s1 s2 : sorted_state C V),
     sorted_state_union s1 s2 = sorted_state_union s2 s1.
 Proof.
   intros s1 s2.
@@ -96,13 +134,19 @@ Proof.
 Qed.
 
 (* Defining the reachability relation *) 
-Definition reachable (s1 s2 : sorted_state) :=
+Definition reachable
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (s1 s2 : sorted_state C V) :=
   syntactic_state_inclusion (sorted_state_proj1 s1) (sorted_state_proj1 s2).
 
-Lemma reachable_refl : forall s, reachable s s.
+Lemma reachable_refl
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall s : sorted_state C V, reachable s s.
 Proof. intros; easy. Qed.
 
-Lemma reachable_trans : forall sigma1 sigma2 sigma3,
+Lemma reachable_trans
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall sigma1 sigma2 sigma3 : sorted_state C V,
   reachable sigma1 sigma2 ->
   reachable sigma2 sigma3 ->
   reachable sigma1 sigma3.
@@ -111,7 +155,9 @@ Proof.
   repeat (split; try assumption). apply incl_tran with (get_messages sigma2); assumption.
 Qed.
 
-Lemma reach_union : forall (s1 s2 : sorted_state), reachable s1 (sorted_state_union s1 s2).   
+Lemma reach_union
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall (s1 s2 : sorted_state C V), reachable s1 (sorted_state_union s1 s2).   
 Proof. 
   intros s1 s2. unfold state_union. 
   intros x H_in.
@@ -122,11 +168,18 @@ Proof.
   assumption.
 Qed.
 
-Lemma reachable_morphism : forall s1 s2 s3, reachable s1 s2 -> s2 = s3 -> reachable s1 s3.  
+Lemma reachable_morphism
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall s1 s2 s3 : sorted_state C V,
+  reachable s1 s2 ->
+  s2 = s3 ->
+  reachable s1 s3.  
 Proof. intros; subst; assumption. Qed. 
 
 (** Proof obligations from CBC_protocol **)
-Lemma equivocation_weight_compat : forall (s1 s2 : sorted_state), (fault_weight_state s1 <= fault_weight_state (state_union s2 s1))%R. 
+Lemma equivocation_weight_compat
+  {C V} `{about_M : StrictlyComparable (message C V)} `{Hm : Measurable V}
+  : forall (s1 s2 : sorted_state C V), (fault_weight_state s1 <= fault_weight_state (state_union s2 s1))%R. 
 Proof. 
   intros s1 s2.
   assert (H_useful := fault_weight_state_incl s1 (state_union s1 s2)).
@@ -141,42 +194,69 @@ Proof.
   assumption. 
 Qed.
 
-Lemma about_sorted_state0 : protocol_state sorted_state0.
+Lemma about_sorted_state0
+  {C V} `{PS : ProtocolState C V}
+  : protocol_state (sorted_state0 C V).
 Proof.
   unfold sorted_state0. 
   simpl. apply protocol_state_empty.
 Qed.
 
-Lemma union_protocol_states' :
-  forall s1 s2 : sorted_state,
+Lemma union_protocol_states'
+  {C V} `{PS : ProtocolState C V}
+  : forall s1 s2 : sorted_state C V,
   protocol_state s1 ->
   protocol_state s2 ->
-  (fault_weight_state (sorted_state_union s1 s2) <= proj1_sig common.t_full)%R ->
+  (fault_weight_state (sorted_state_union s1 s2) <= proj1_sig threshold)%R ->
   protocol_state (sorted_state_union s1 s2). 
 Proof.                  
   intros [s1 about_s1] [s2 about_s2] H_prot1 H_prot2 H_weight. 
   now apply union_protocol_states.
 Qed.
 
-Lemma reach_morphism :
-  forall (s1 s2 s3 : sorted_state),
+Lemma reach_morphism
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  : forall (s1 s2 s3 : sorted_state C V),
     reachable s1 s2 -> s2 = s3 -> reachable s1 s3. 
 Proof.
   intros s1 s2 s3 H_12 H_eq.
   subst. easy.
 Qed.
 
-Instance FullNode_syntactic : CBC_protocol_eq :=
-  { consensus_values := common.C;  
-    about_consensus_values := common.about_C;
-    validators := common.V;
-    about_validators := common.about_V;
-    weight := common.weight;
-    t := common.t_full;
-    suff_val := common.suff_val_full;
-    state := sorted_state;
+Definition sorted_estimator
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  (s : sorted_state C V) (c : C) : Prop
+  :=
+  estimator (proj1_sig s) c.
+
+Lemma sorted_estimator_total
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall s : sorted_state C V, exists c : C, sorted_estimator s c.
+Proof.
+  intros. destruct He. destruct s. destruct (estimator_total x).
+  exists x0. simpl. assumption.
+Qed. 
+
+Instance sorted_estimator_instance
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : Estimator (sorted_state C V) C
+  :=
+  { estimator := sorted_estimator
+  ; estimator_total := sorted_estimator_total
+  }.
+
+Instance FullNode_syntactic
+  {C V} `{PS : ProtocolState C V} : CBC_protocol_eq :=
+  { consensus_values := C;  
+    about_consensus_values := triple_strictly_comparable_proj1 about_M;
+    validators := V;
+    about_validators :=  triple_strictly_comparable_proj2 about_M;
+    weight := weight;
+    t := threshold;
+    suff_val := reachable_threshold;
+    state := sorted_state C V;
     about_state := sorted_state_type;
-    state0 := sorted_state0;
+    state0 := sorted_state0 C V;
     state_eq := eq;
     state_union_comm := sorted_state_sorted_union_comm;
     reach := reachable;
@@ -184,44 +264,61 @@ Instance FullNode_syntactic : CBC_protocol_eq :=
     reach_trans := reachable_trans;
     reach_union := reach_union;
     reach_morphism := reach_morphism;
-    E := estimator;
-    estimator_total := estimator_total; 
+    E := sorted_estimator;
+    estimator_total := sorted_estimator_total; 
     prot_state := protocol_state;
     about_state0 := about_sorted_state0;
     equivocation_weight := fault_weight_state; 
     equivocation_weight_compat := equivocation_weight_compat; 
     about_prot_state := union_protocol_states';
-    }. 
- 
-Check @level0 FullNode_syntactic.
+    }.
 
-Definition pstate : Type := {s : state | protocol_state s}. 
-Definition pstate_proj1 (p : pstate) : state :=
+Definition pstate
+  (C V : Type) `{PS : ProtocolState C V}
+  : Type
+  :=
+  {s : @state C V | protocol_state s}. 
+Definition pstate_proj1
+  {C V : Type} `{PS : ProtocolState C V}
+  (p : pstate C V) : state
+  :=
   proj1_sig p. 
 Coercion pstate_proj1 : pstate >-> state.
 
-Definition pstate_rel : pstate -> pstate -> Prop :=
+Definition pstate_rel
+  {C V : Type} `{PS : ProtocolState C V}
+  : pstate C V -> pstate C V -> Prop :=
   fun p1 p2 => syntactic_state_inclusion (pstate_proj1 p1) (pstate_proj1 p2).
 
-Definition non_trivial_pstate (P : pstate -> Prop) :=
-  (exists (s1 : pstate), forall (s : pstate), pstate_rel s1 s -> P s)
+Definition non_trivial_pstate
+  {C V : Type} `{PS : ProtocolState C V}
+  (P : pstate C V -> Prop)
+  :=
+  (exists (s1 : pstate C V), forall (s : pstate C V), pstate_rel s1 s -> P s)
   /\
-  (exists (s2 : pstate), forall (s : pstate), pstate_rel s2 s -> (P s -> False)).
+  (exists (s2 : pstate C V), forall (s : pstate C V), pstate_rel s2 s -> (P s -> False)).
 
-Theorem non_triviality_decisions_on_properties_of_protocol_states :
-  common.at_least_two_validators ->
-  exists (p : pstate -> Prop) , non_trivial_pstate p.
+Definition exists_pivotal_validator_ps
+  {C V}
+  `{PS : ProtocolState C V}
+  :=
+  @exists_pivotal_validator V (triple_strictly_comparable_proj2 about_M) Hm Hrt.
+
+Theorem non_triviality_decisions_on_properties_of_protocol_states
+  {C V : Type} `{PS : ProtocolState C V}
+  `{Hit : InhabitedTwice V}
+  : exists (p : pstate C V -> Prop) , non_trivial_pstate p.
 Proof.
-  intro H2v. 
+  assert (HscV : StrictlyComparable V) by apply (triple_strictly_comparable_proj2 about_M).
   destruct (estimator_total Empty) as [c Hc].
-  destruct common.exists_pivotal_validator as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
+  destruct exists_pivotal_validator_ps as [v [vs [Hnodup [Hnin [Hlt Hgt]]]]].
   destruct vs as [ | v' vs].
   - exists (in_state (c,v,Empty)).
     split.
     + assert (bleh : protocol_state (next (c,v,Empty) Empty)) by now apply protocol_state_singleton. 
       exists (exist protocol_state (next (c,v,Empty) Empty) bleh).
       intros sigma H. apply H. simpl. left. reflexivity.
-    + destruct (H2v v) as [v' Hv'].
+    + destruct (distinct_choice_total v) as [v' Hv'].
       remember (add_in_sorted_fn (c, v', Empty) Empty) as sigma0.
       assert (Hps0 : protocol_state sigma0) by (subst; now apply protocol_state_singleton).
       destruct (estimator_total sigma0) as [c0 Hc0].
@@ -230,7 +327,7 @@ Proof.
       intros sigma' H'. 
       intro.
       apply protocol_state_not_heavy in bleh as Hft'.
-      assert (Hnft' : (fault_weight_state sigma' > proj1_sig common.t_full)%R).
+      assert (Hnft' : (fault_weight_state sigma' > proj1_sig threshold)%R).
       { apply Rlt_le_trans with (fault_weight_state (add (c, v, Empty) to (add (c0, v, sigma0) to Empty))).
         - unfold fault_weight_state. unfold equivocating_senders. simpl.
           assert ( Hequiv : equivocating_in_state (c, v, Empty)
@@ -279,7 +376,7 @@ Proof.
           unfold pstate_rel in H'. apply H'. apply in_state_add_in_sorted_iff. left. reflexivity.
       }
       unfold Rgt in Hnft'.
-      apply (Rlt_irrefl (proj1_sig t_full)).
+      apply (Rlt_irrefl (proj1_sig threshold)).
       apply Rlt_le_trans with (fault_weight_state sigma'). assumption. destruct sigma' as [sigma' about_sigma'].
       inversion about_sigma'. subst. assumption.
       simpl in *. subst. assumption. 
@@ -309,7 +406,7 @@ Proof.
       assert (Hps' := about_sigma').
       apply protocol_state_not_heavy in Hps'.
       { apply (not_heavy_subset (add (c0, v, sigma0) to sigma2)) in Hps'.
-        - apply Rlt_irrefl with (proj1_sig t_full).
+        - apply Rlt_irrefl with (proj1_sig threshold).
           apply Rlt_le_trans with (fault_weight_state (add (c0, v, sigma0)to sigma2)); try assumption.
           unfold fault_weight_state.
           unfold Rminus in Hgt. apply (Rplus_gt_compat_r (proj1_sig (weight v))) in Hgt.
@@ -354,14 +451,14 @@ Proof.
       }
 Qed. 
 
-Theorem no_local_confluence_prot_state :
-  at_least_two_validators -> 
-  exists (a a1 a2 : pstate),
+Theorem no_local_confluence_prot_state
+  {C V : Type} `{PS : ProtocolState C V}
+  `{Hit : InhabitedTwice V}
+  : exists (a a1 a2 : pstate C V),
         pstate_rel a a1 /\ pstate_rel a a2 /\
-        ~ exists (a' : pstate), pstate_rel a1 a' /\ pstate_rel a2 a'. 
+        ~ exists (a' : pstate C V), pstate_rel a1 a' /\ pstate_rel a2 a'. 
 Proof.
-  intro H_vals. 
-  assert (H_useful := non_triviality_decisions_on_properties_of_protocol_states H_vals).
+  assert (H_useful := non_triviality_decisions_on_properties_of_protocol_states).
   destruct H_useful as [P [[ps1 about_ps1] [ps2 about_ps2]]].
   exists (exist protocol_state Empty protocol_state_empty).
   exists ps1, ps2. repeat split; try (red; simpl; easy).
@@ -370,25 +467,37 @@ Proof.
   spec about_ps2 s Hs2. contradiction.
 Qed.
 
-Parameter inhabited_two : at_least_two_validators. 
+Lemma pstate_inhabited
+  {C V : Type} `{PS : ProtocolState C V}
+  : exists (p1 : pstate C V), True.
+Proof. now exists (exist protocol_state Empty protocol_state_empty). Qed. 
 
-Lemma pstate_eq_dec : forall (p1 p2 : pstate), {p1 = p2} + {p1 <> p2}.
+Definition pstate_compare
+  {C V : Type} `{PS : ProtocolState C V}
+  (ps1 ps2 : pstate C V) : comparison
+  :=
+  compare (proj1_sig ps1) (proj1_sig ps2).
+
+
+Lemma pstate_eq_dec
+  {C V : Type} `{PS : ProtocolState C V}
+  : forall (p1 p2 : pstate C V), {p1 = p2} + {p1 <> p2}.
 Proof.
   intros p1 p2.
-  assert (H_useful := about_state). 
   now apply sigify_eq_dec. 
 Qed.
 
-Lemma pstate_inhabited : exists (p1 : pstate), True.
-Proof. now exists (exist protocol_state Empty protocol_state_empty). Qed. 
-
-Lemma pstate_rel_refl : Reflexive pstate_rel.
+Lemma pstate_rel_refl
+  {C V : Type} `{PS : ProtocolState C V}
+  : Reflexive (@pstate_rel C V _ _ _ _ _).
 Proof.
   red. intro p.
   destruct p as [p about_p].
   red. simpl. easy. Qed.
 
-Lemma pstate_rel_trans : Transitive pstate_rel. 
+Lemma pstate_rel_trans
+  {C V : Type} `{PS : ProtocolState C V}
+  : Transitive (@pstate_rel C V _ _ _ _ _).
 Proof. 
   red; intros p1 p2 p3 H_12 H_23.
   destruct p1 as [p1 about_p1];
@@ -399,9 +508,10 @@ Proof.
   now eapply incl_tran with (get_messages p2).
 Qed.
 
-Instance level0 : PartialOrder :=
-  { A := pstate;
-    A_eq_dec := pstate_eq_dec;
+Instance level0
+  {C V : Type} `{PS : ProtocolState C V}
+  : PartialOrder (pstate C V) :=
+  { A_eq_dec := pstate_eq_dec;
     A_inhabited := pstate_inhabited;
     A_rel := pstate_rel;
     A_rel_refl := pstate_rel_refl;
@@ -410,37 +520,58 @@ Instance level0 : PartialOrder :=
 
 (* Instance level0 : PartialOrder := @level0 FullNode_syntactic. *) 
 
-Instance level1 : PartialOrderNonLCish :=
-  { no_local_confluence_ish := no_local_confluence_prot_state inhabited_two; }.
+Instance level1
+  {C V : Type} `{PS : ProtocolState C V}
+  `{Hit : InhabitedTwice V}
+  : PartialOrderNonLCish (pstate C V)
+  :=
+  { no_local_confluence_ish := (@no_local_confluence_prot_state C V _ _ _ _ _ _)}.
 
 (** Strong non-triviality **)
 (* Defining reachablity in terms of message sending *)
-Definition in_future (s1 s2 : state) :=
+Definition in_future {C V} (s1 s2 : @state C V) :=
   syntactic_state_inclusion s1 s2. 
 
-Definition next_future (s1 s2 : state) :=
-   exists (msg : message), add_in_sorted_fn msg s1 = s2. 
+Definition next_future
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (s1 s2 : @state C V)
+  :=
+   exists (msg : message C V), add_in_sorted_fn msg s1 = s2. 
 
-Definition in_past (s1 s2 : state) :=
+Definition in_past
+  {C V}
+  (s1 s2 : @state C V)
+  :=
   syntactic_state_inclusion s2 s1. 
 
-Definition in_past_trace (s1 s2 : state) :=
-  exists (msg : message), in_state msg s1 /\ justification msg = s2. 
+Definition in_past_trace
+  {C V}
+  (s1 s2 : @state C V)
+  :=
+  exists (msg : message C V), in_state msg s1 /\ justification msg = s2. 
 
-Definition no_common_future (s1 s2 : pstate) :=
-  forall (s : pstate), in_future s1 s /\ in_future s2 s -> False. 
+Definition no_common_future
+  {C V : Type} `{PS : ProtocolState C V}
+  (s1 s2 : pstate C V)
+  :=
+  forall (s : pstate C V), in_future s1 s /\ in_future s2 s -> False. 
 
-Definition yes_common_future (s1 s2 : pstate) :=
-  exists (s : pstate), in_future s1 s /\ in_future s2 s. 
+Definition yes_common_future
+  {C V : Type} `{PS : ProtocolState C V}
+  (s1 s2 : pstate C V)
+  :=
+  exists (s : pstate C V), in_future s1 s /\ in_future s2 s. 
 
-Definition strong_nontriviality :=
+Definition strong_nontriviality
+  {C V : Type} `{PS : ProtocolState C V}
+  :=
   (* For every state, there exists a state *) 
-  forall (s1 : pstate),
-  exists (s2 : pstate),
+  forall (s1 : pstate C V),
+  exists (s2 : pstate C V),
     (* That is reachable in one step *) 
     next_future s1 s2 /\
     (* And there exists a third state *)
-    exists (s3 : pstate),
+    exists (s3 : pstate C V),
       (* Such that s1 and s3 share a common future *)
       yes_common_future s1 s3
       /\
@@ -448,8 +579,9 @@ Definition strong_nontriviality :=
       no_common_future s2 s3. 
 
 (* Here's how to construct an equivocation *) 
-Lemma about_equivocating_messages :
-  forall j v v',
+Lemma about_equivocating_messages
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : @state C V) v v',
       v <> v' ->  
       equivocating_messages_prop (get_estimate j, v, j)
                                  (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j). 
@@ -479,7 +611,9 @@ Proof.
 Qed.
 
 (* Defining the state that adds this minimal equivocation *)
-Definition next_equivocation_state (j : state) (v v' : common.V) : state :=
+Definition next_equivocation_state
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  (j : @state C V) (v v' : V) : state :=
   add_in_sorted_fn
     (* One equivocation partner *)
     (get_estimate j, v, j)
@@ -491,8 +625,9 @@ Definition next_equivocation_state (j : state) (v v' : common.V) : state :=
        (add_in_sorted_fn (get_estimate j, v', j) j)).
 
 (* Explicit instances of various incl results *) 
-Lemma next_equivocation_state_incl :
-  forall (j : state) (v v' : common.V),
+Lemma next_equivocation_state_incl
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : @state C V) (v v' : V),
     syntactic_state_inclusion j (next_equivocation_state j v v'). 
 Proof.
   intros j v v' msg H_in.
@@ -501,16 +636,18 @@ Proof.
   assumption.
 Qed.
 
-Lemma next_equivocation_state_keeps_messages :
-  forall (j : state) (v v' : common.V) (msg : message),
+Lemma next_equivocation_state_keeps_messages
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : state) (v v' : V) (msg : message C V),
     in_state msg j ->
     in_state msg (next_equivocation_state j v v'). 
 Proof.
   apply next_equivocation_state_incl.
 Qed.
 
-Lemma next_equivocation_state_keeps_equivocators :
-  forall (j : state) (v v' v0 : common.V),
+Lemma next_equivocation_state_keeps_equivocators
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : @state C V) (v v' v0 : V),
     In v (equivocating_senders j) ->
     In v (equivocating_senders (next_equivocation_state j v v')). 
 Proof.
@@ -520,19 +657,21 @@ Proof.
   now apply H_incl. 
 Qed.
 
-Lemma next_equivocation_state_keeps_equivocating_messages :
-  forall (j : state) (v v' : common.V) (msg : message),
+Lemma next_equivocation_state_keeps_equivocating_messages
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : state) (v v' : V) (msg : message C V),
     equivocating_in_state_prop msg j ->
     equivocating_in_state_prop msg (next_equivocation_state j v v'). 
 Proof.
   intros.
-  assert (H_incl := equivocating_in_state_incl).
+  assert (H_incl := @equivocating_in_state_incl C V).
   spec H_incl j (next_equivocation_state j v v') (next_equivocation_state_incl j v v').
   now apply H_incl. 
 Qed.
 
-Lemma about_equivocating_messages_in_state_l :
-  forall j v v',
+Lemma about_equivocating_messages_in_state_l
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : @state C V) v v',
       v <> v' ->
       equivocating_in_state_prop (get_estimate j, v, j)
                                  (next_equivocation_state j v v').
@@ -547,8 +686,9 @@ Proof.
   now apply about_equivocating_messages.
 Qed. 
 
-Lemma about_equivocating_messages_in_state_r :
-  forall j v v',
+Lemma about_equivocating_messages_in_state_r
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall j v v',
       v <> v' ->
       equivocating_in_state_prop (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, add_in_sorted_fn (get_estimate j, v', j) j)
                                  (next_equivocation_state j v v').
@@ -562,8 +702,9 @@ Proof.
   now apply about_equivocating_messages.
 Qed.
 
-Lemma about_equivocating_messages_add_equivocator :
-  forall j v v',
+Lemma about_equivocating_messages_add_equivocator
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (j : @state C V) v v',
       v <> v' ->
       In v (equivocating_senders (next_equivocation_state j v v')).
 Proof.
@@ -577,8 +718,9 @@ Proof.
   now apply about_equivocating_messages_in_state_l.
 Qed.
 
-Lemma equivocating_senders_sorted_extend :
-  forall s v,
+Lemma equivocating_senders_sorted_extend
+  {C V} `{about_M : StrictlyComparable (message C V)} `{He : Estimator (@state C V) C}
+  : forall (s : @state C V) v,
     set_eq (equivocating_senders s)
            (equivocating_senders (add_in_sorted_fn (get_estimate s, v, s) s)). 
 Proof.
@@ -594,8 +736,9 @@ Proof.
   apply set_eq_refl.
 Qed.
 
-Lemma add_weight_one :
-  forall (j : state) (v' : common.V),
+Lemma add_weight_one
+  {C V} `{PS : ProtocolState C V}
+  : forall (j : @state C V) (v' : V),
     fault_weight_state j =
     fault_weight_state (add_in_sorted_fn (get_estimate j, v', j) j). 
 Proof.
@@ -604,8 +747,9 @@ Proof.
   apply equivocating_senders_sorted_extend. 
 Qed.
 
-Lemma add_weight_two :
-  forall (j : state) (v v' : common.V),
+Lemma add_weight_two
+  {C V} `{PS : ProtocolState C V}
+  : forall (j : @state C V) (v v' : V),
     (fault_weight_state 
       (add_in_sorted_fn
          (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v, (add_in_sorted_fn (get_estimate j, v', j) j))
@@ -619,8 +763,9 @@ Proof.
   apply equivocating_senders_sorted_extend. 
 Qed.
 
-Lemma add_weight_three :
-  forall (j : state) (v v' : common.V),
+Lemma add_weight_three
+  {C V} `{PS : ProtocolState C V}
+  : forall (j : @state C V) (v v' : V),
     protocol_state j ->
     ~ In v (equivocating_senders j) -> 
     v <> v' -> 
@@ -657,6 +802,7 @@ Proof.
   split.
   rewrite in_state_add_in_sorted_iff.
   tauto. apply about_equivocating_messages; try assumption.
+  assert (HscV  := @triple_strictly_comparable_proj2 _ _ _ about_M).
   (* Now. *)
   assert (H_inter := senders_fault_weight_eq (equivocating_senders
                   (add_in_sorted_fn (get_estimate j, v, j)
@@ -664,7 +810,7 @@ Proof.
                         (get_estimate
                            (add_in_sorted_fn (get_estimate j, v', j) j), v,
                         add_in_sorted_fn (get_estimate j, v', j) j)
-                        (add_in_sorted_fn (get_estimate j, v', j) j)))) (set_add compare_eq_dec (sender (get_estimate j, v, j))
+                        (add_in_sorted_fn (get_estimate j, v', j) j)))) (set_add (compare_eq_dec_v about_M) (sender (get_estimate j, v, j))
                   (equivocating_senders
                      (add_in_sorted_fn
                         (get_estimate
@@ -682,7 +828,7 @@ Proof.
   unfold next_equivocation_state.
   rewrite H_inter.
   simpl. clear H_inter.
-  assert (H_rewrite := sum_weights_in v (set_add compare_eq_dec v
+  assert (H_rewrite := sum_weights_in v (set_add (compare_eq_dec_v about_M) v
        (equivocating_senders
           (add_in_sorted_fn
              (get_estimate (add_in_sorted_fn (get_estimate j, v', j) j), v,
@@ -695,27 +841,35 @@ Proof.
   rewrite H_rewrite. clear H_rewrite.
   rewrite Rplus_comm.
   apply Rplus_eq_compat_r.
-  rewrite add_remove_inverse. 
-  reflexivity.
-  assert (H_useful := equivocating_senders_sorted_extend). 
-  spec H_useful j v'.
-  assert (H_useful' := equivocating_senders_sorted_extend). 
-  spec H_useful' (add_in_sorted_fn (get_estimate j, v', j) j) v.
-  assert (H_tran := set_eq_tran _ _ _ H_useful H_useful').
-  clear H_useful H_useful'.
-  intros H_absurd.
-  destruct H_tran as [_ H_eq].
-  spec H_eq v H_absurd.
-  contradiction.
+  apply set_eq_nodup_sum_weight_eq
+  ; try apply set_remove_nodup
+  ; try apply set_add_nodup
+  ; try apply set_map_nodup.
+  split; intro x; intros.
+  - apply set_remove_iff in H; try (apply set_add_nodup; apply set_map_nodup).
+    destruct H as [Hin Hneq]; subst; try contradiction.
+    apply set_add_iff in Hin. destruct Hin as [Heq | Hin]; try contradiction.
+    assumption.
+  - apply set_remove_iff; try (apply set_add_nodup; apply set_map_nodup).
+    rewrite set_add_iff.
+    split; try (right; assumption).
+    intros H_absurd; subst.
+    apply H_notin. 
+    apply equivocating_senders_sorted_extend in H. apply equivocating_senders_sorted_extend in H.
+    assumption.
 Qed.
 
-Definition add_weight_under (s : state) (v : common.V) :=
-  (fault_weight_state s + proj1_sig (weight v) <= proj1_sig t_full)%R.
+Definition add_weight_under
+  {C V} `{about_M : StrictlyComparable (message C V)} `{Hm : Measurable V} `{Hrt : ReachableThreshold V}
+  (s : @state C V) (v : V)
+  :=
+  (fault_weight_state s + proj1_sig (weight v) <= proj1_sig threshold)%R.
 
-Lemma equivocation_adds_fault_weight : 
-  forall (j : state),
+Lemma equivocation_adds_fault_weight
+  {C V} `{PS : ProtocolState C V}
+  : forall (j : @state C V),
     protocol_state j ->
-    forall (v v' : common.V),
+    forall (v v' : V),
       ~ In v (equivocating_senders j) -> 
       v <> v' ->  
       fault_weight_state (next_equivocation_state j v v') = 
@@ -728,8 +882,9 @@ Proof.
 Qed.
 
 (* Under not-overweight conditions, the resulting state is a protocol state *) 
-Theorem next_equivocation_protocol_state :
-  forall j,
+Theorem next_equivocation_protocol_state
+  {C V} `{PS : ProtocolState C V}
+  : forall j : @state C V,
     protocol_state j ->
     forall v v',
       ~ In v (equivocating_senders j) -> 
@@ -762,15 +917,16 @@ Proof.
 Qed.
 
 (* Under additional not-already-equivocating conditions, the resulting state actually adds weight *)
-Lemma next_equivocation_adds_weight :
-  forall (s : state),
+Lemma next_equivocation_adds_weight
+  {C V} `{PS : ProtocolState C V}
+  : forall (s : @state C V),
     protocol_state s ->
-    forall (v : common.V),
+    forall (v : V),
       (* If the weight is not over *) 
       add_weight_under s v ->
       (* And the sender is not already equivocating *) 
       ~ In v (equivocating_senders s) -> 
-      forall (v' : common.V),
+      forall (v' : V),
         v <> v' ->
         (* Then we get a protocol state *) 
         protocol_state (next_equivocation_state s v v') /\
@@ -785,11 +941,15 @@ Proof.
 Qed.
 
 (* Now we want to add a series of equivocations *) 
-Fixpoint next_equivocation_rec (s : state) (vs : list common.V) : state :=
-  match vs with
-  | [] => s
-  | hd :: tl => next_equivocation_rec (next_equivocation_state s hd (get_distinct_sender hd)) tl
-  end.
+Fixpoint next_equivocation_rec
+  {C V} `{PS : ProtocolState C V} `{Hit : InhabitedTwice V}
+  (s : @state C V) (vs : list V) : state
+  :=
+  let HscV := triple_strictly_comparable_proj2 about_M in
+    match vs with
+    | [] => s
+    | hd :: tl => next_equivocation_rec (next_equivocation_state s hd (get_distinct_sender hd)) tl
+    end.
 
 (* 
 Fixpoint next_equivocation_rec' (s : state) (vs : list definitions.V) : state :=
@@ -800,15 +960,18 @@ Fixpoint next_equivocation_rec' (s : state) (vs : list definitions.V) : state :=
 *) 
 
 (* Tweaking this function to give an explicit distinct sender *) 
-Fixpoint next_equivocation_rec' (s : state) (vs : list common.V) (v0 : common.V) : state :=
+Fixpoint next_equivocation_rec'
+  {C V} `{PS : ProtocolState C V}
+  (s : @state C V) (vs : list V) (v0 : V) : state :=
   match vs with
   | [] => s
   | hd :: tl => next_equivocation_state (next_equivocation_rec' s tl v0) hd v0
   end.
 
-Lemma next_equivocations_keeps_messages :
-  forall (s : state) (vs : list common.V) (v0 : common.V),
-  forall (msg : message),
+Lemma next_equivocations_keeps_messages
+  {C V} `{PS : ProtocolState C V} `{Hit : InhabitedTwice V}
+  : forall (s : state) (vs : list V) (v0 : V),
+  forall (msg : message C V),
     in_state msg s ->
     in_state msg (next_equivocation_rec' s vs v0). 
 Proof.
@@ -819,9 +982,10 @@ Proof.
     now apply next_equivocation_state_keeps_messages.
 Qed.
 
-Lemma next_equivocations_keeps_equivocating_senders :
-  forall (s : state) (vs : list common.V) (v0 : common.V),
-  forall (v : common.V),
+Lemma next_equivocations_keeps_equivocating_senders
+  {C V} `{PS : ProtocolState C V} `{Hit : InhabitedTwice V}
+  : forall (s : @state C V) (vs : list V) (v0 : V),
+  forall (v : V),
     In v (equivocating_senders s) ->
     In v (equivocating_senders (next_equivocation_rec' s vs v0)). 
 Proof.
@@ -834,10 +998,11 @@ Proof.
     assumption. 
 Qed.
 
-Lemma next_equivocation_equivocating_sender_cons :
-  forall (s : state),
+Lemma next_equivocation_equivocating_sender_cons
+  {C V} `{PS : ProtocolState C V}
+  : forall (s : @state C V),
     protocol_state s ->
-    forall (hd : common.V) (v0 v : common.V),
+    forall (hd : V) (v0 v : V),
       v <> v0 -> 
       In v (equivocating_senders (next_equivocation_state s hd v0)) <->
       v = hd \/ In v (equivocating_senders s).
@@ -869,8 +1034,9 @@ Proof.
     now apply next_equivocation_state_keeps_equivocating_messages. 
 Qed.
 
-Lemma next_equivocations_equivocating_senders_iff :
-  forall (s : state) (vs : list common.V) (v0 v : common.V),
+Lemma next_equivocations_equivocating_senders_iff
+  {C V} `{PS : ProtocolState C V}
+  : forall (s : @state C V) (vs : list V) (v0 v : V),
     (In v vs -> v <> v0) ->
     In v (equivocating_senders (next_equivocation_rec' s vs v0)) <->
     In v vs \/ In v (equivocating_senders s). 
@@ -946,15 +1112,16 @@ Proof.
         assumption.
 Qed.    
 
-Lemma next_equivocations_add_weights : 
-  forall (s : state),
+Lemma next_equivocations_add_weights
+  {C V} `{PS : ProtocolState C V}
+  : forall (s : @state C V),
     protocol_state s ->
-    forall (vs : list common.V) (v0 : common.V),
+    forall (vs : list V) (v0 : V),
       NoDup vs -> 
       (* The sum weight is not over *)
-      (fault_weight_state s + sum_weights vs <= proj1_sig t_full)%R ->
+      (fault_weight_state s + sum_weights vs <= proj1_sig threshold)%R ->
       (* None of the senders are already equivocating *) 
-      (forall (v : common.V),
+      (forall (v : V),
           In v vs -> ~ In v (equivocating_senders s) /\ v <> v0) ->
       (* Then we end up with a protocol state *)
       protocol_state (next_equivocation_rec' s vs v0) /\
@@ -974,7 +1141,7 @@ Proof.
     (* Discharging second premise *)
     spec IHvs.
     simpl in H_underweight.
-    apply (Rplus_le_reg_pos_r (fault_weight_state s + sum_weights tl) (proj1_sig (weight hd)) (proj1_sig t_full)).
+    apply (Rplus_le_reg_pos_r (fault_weight_state s + sum_weights tl) (proj1_sig (weight hd)) (proj1_sig threshold)).
     destruct (weight hd). firstorder.
     rewrite Rplus_assoc.
     rewrite (Rplus_comm (sum_weights tl) (proj1_sig (weight hd))).
@@ -1019,37 +1186,43 @@ Proof.
       tauto. 
 Qed. 
 
-Definition potentially_pivotal_state (v : common.V) (s : state) :=
+Definition potentially_pivotal_state
+  {C V} `{about_M : StrictlyComparable (message C V)} `{Hrt : ReachableThreshold V}
+  (v : V) (s : @state C V)
+  :=
   (* We say that v is a pivotal validator for some state s iff : *)
   (* v is not already equivocating in s *) 
   ~ In v (equivocating_senders s) /\
   (* There is a remaining list of validators *) 
-  exists (vs : list common.V),
+  exists (vs : list V),
     (* That is duplicate-free *)
     NoDup vs /\
     (* Doesn't contain v *)
     ~ In v vs /\ 
     (* That are all not already equivocating in s *) 
-    (forall (v : common.V), In v vs -> ~ In v (equivocating_senders s)) /\
+    (forall (v : V), In v vs -> ~ In v (equivocating_senders s)) /\
     (* That tip over s's fault weight but only with the help of v *) 
-    (sum_weights ((equivocating_senders s) ++ vs) <= proj1_sig t_full)%R /\
+    (sum_weights ((equivocating_senders s) ++ vs) <= proj1_sig threshold)%R /\
     (sum_weights ((equivocating_senders s) ++ vs) >
-     proj1_sig t_full - proj1_sig (weight v))%R. 
+     proj1_sig threshold - proj1_sig (weight v))%R. 
 
 (* This is a critical lemma *) 
-Lemma all_pivotal_validator :
-  forall (s : state),
+Lemma all_pivotal_validator
+  {C V} `{PS : ProtocolState C V}
+  : forall (s : @state C V),
     protocol_state s -> 
-  exists (v : common.V),
+  exists (v : V),
     potentially_pivotal_state v s. 
 Proof.
+  remember (triple_strictly_comparable_proj2 about_M) as HscV.
+  remember (@compare _ HscV) as compare_v.
   intros s about_s.
   destruct suff_val as [vs [Hvs Hweight]].
   remember (equivocating_senders s) as eqv_s.
   remember (set_diff compare_eq_dec vs eqv_s) as vss.
-  assert (sum_weights (vss ++ eqv_s) > proj1_sig t_full)%R.
+  assert (sum_weights (vss ++ eqv_s) > proj1_sig threshold)%R.
   { apply Rge_gt_trans with (sum_weights vs); try assumption.
-    apply Rle_ge. apply sum_weights_incl; try assumption.
+    apply Rle_ge. apply (@sum_weights_incl V HscV) ; try assumption.
     - rewrite Heqvss. apply diff_app_nodup; try assumption.
       subst. unfold equivocating_senders. apply set_map_nodup.
     - rewrite Heqvss. intros a Hin. apply in_app_iff.
@@ -1086,8 +1259,12 @@ Proof.
     apply set_map_nodup.
 Qed.
 
-Theorem strong_nontriviality_full : strong_nontriviality.  
+Theorem strong_nontriviality_full
+  {C V : Type} `{PS : ProtocolState C V} `{Hit : InhabitedTwice V}
+  : @strong_nontriviality C V _ _ _ _ _.
 Proof.
+  remember (triple_strictly_comparable_proj2 about_M) as HscV.
+  remember (@compare _ HscV) as compare_v.
   intros [s1 about_s1]. 
   destruct (all_pivotal_validator s1 about_s1) as [v [H_v [vs [H_nodup [H_v_notin [H_disjoint [H_under H_over]]]]]]].
   remember (exist protocol_state (add_in_sorted_fn (get_estimate s1,v,s1) s1) (copy_protocol_state s1 about_s1  (get_estimate s1) (get_estimate_correct s1) v)) as s2.
@@ -1103,7 +1280,7 @@ Proof.
   remember (add_in_sorted_fn (get_estimate (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1), v, (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)) (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1)) as s1'.
   (* Book-keeping step *) 
   assert (H_eq_senders : set_eq (equivocating_senders s1') (equivocating_senders s1)).
-  { subst. 
+  { rewrite Heqs1'.
     assert (H_useful := equivocating_senders_sorted_extend (add_in_sorted_fn (get_estimate s1, get_distinct_sender v, s1) s1) v).
     eapply set_eq_tran.
     apply set_eq_comm. exact H_useful.
@@ -1238,7 +1415,7 @@ Proof.
     unfold fault_weight_state in H_s1_s2_weight at 1. 
     rewrite H_s1_s2_weight in H_over.
     apply (Rplus_gt_compat_l (proj1_sig (weight v))) in H_over. 
-    replace (proj1_sig (weight v) + (proj1_sig t_full - proj1_sig (weight v)))%R with (proj1_sig t_full)%R in H_over by ring.
+    replace (proj1_sig (weight v) + (proj1_sig threshold - proj1_sig (weight v)))%R with (proj1_sig threshold)%R in H_over by ring.
     rewrite <- Rplus_assoc in H_over. 
     apply Rgt_not_le in H_over.
     contradiction.
