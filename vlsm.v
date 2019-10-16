@@ -3,8 +3,8 @@ Import ListNotations.
 
 Class VLSM :=
   { state : Type
-  ; initial : state -> Prop
-  ; protocol_state_inhabited : { p : state | initial p}
+  ; initial_state_prop : state -> Prop
+  ; protocol_state_inhabited : { p : state | initial_state_prop p}
   ; message : Type
   ; message_inhabited : { _ : message | True }
   ; label : Type
@@ -13,6 +13,7 @@ Class VLSM :=
   ; valid : option message -> label -> state  -> Prop
   }.
 
+Definition initial_state `{VLSM} : Type := { i : state | initial_state_prop i }.
 
 Inductive
   protocol_state_prop
@@ -20,9 +21,8 @@ Inductive
   : state -> Prop
   := 
     | initial_protocol_state
-      : forall s : state,
-      initial s ->
-      protocol_state_prop s
+      : forall s : initial_state,
+      protocol_state_prop (proj1_sig s)
     | next_protocol_state_no_message
       : forall (s s' : state) (l : label) (om' : option message),
       protocol_state_prop s ->
@@ -59,6 +59,245 @@ Inductive
 Definition protocol_state `{VLSM} : Type := { s : state | protocol_state_prop s }.
 Definition protocol_message `{VLSM} : Type := { s : message | protocol_message_prop s }.
 
+Definition labeled_valid_transition
+  `{VLSM}
+  (opm : option protocol_message)
+  (l : label)
+  (ps ps' : protocol_state)
+  : Prop
+  :=
+  let om := option_map (@proj1_sig message protocol_message_prop) opm in
+  let s := proj1_sig ps in
+  let s' := proj1_sig ps' in
+    fst (transition om l s) = s'
+    /\ valid om l s.
+
+Definition valid_transition
+  `{VLSM}
+  (ps ps' : protocol_state)
+  : Prop
+  :=
+  exists opm : option protocol_message,
+  exists l : label,
+  labeled_valid_transition opm l ps ps'.
+
+Inductive valid_trace `{VLSM} : protocol_state -> protocol_state -> Prop :=
+  | valid_trace_one
+    : forall s s',
+    valid_transition s s' ->
+    valid_trace s s'
+  | valid_trace_more
+    : forall s s' s'',
+    valid_transition s s' ->
+    valid_trace s' s'' ->
+    valid_trace s s''
+  .
+
+Lemma extend_valid_trace `{VLSM}
+  : forall s1 s2 s3,
+  valid_trace s1 s2 ->
+  valid_transition s2 s3 ->
+  valid_trace s1 s3.
+Proof.
+  intros s1 s2 s3 Htrace.
+  induction Htrace as [s1 s2 Ht12| s1 s1' s2 Ht11' Htrace1'2 IHtrace1'3]; intros Ht23.
+  - apply valid_trace_more with s2; try assumption.
+    apply valid_trace_one. assumption.
+  - specialize (IHtrace1'3 Ht23).
+    apply valid_trace_more with s1'; assumption.
+Qed.
+
+Definition valid_reflexive_trace
+ `{VLSM}
+  (s s' : protocol_state)
+  : Prop
+  :=
+  s = s' \/ valid_trace s s'.
+
+Lemma extend_valid_reflexive_trace `{VLSM}
+  : forall s1 s2 s3,
+  valid_reflexive_trace s1 s2 ->
+  valid_transition s2 s3 ->
+  valid_trace s1 s3.
+Proof.
+  intros s1 s2 s3 Htrace12 Ht23.
+  destruct Htrace12 as [Heq | Htrace12].
+  - subst. apply valid_trace_one. assumption.
+  - apply extend_valid_trace with s2; assumption.
+Qed.
+
+
+Definition labeled_valid_message_production
+  `{VLSM}
+  (opm : option protocol_message)
+  (l : label)
+  (ps : protocol_state)
+  (pm' : protocol_message)
+  : Prop
+  :=
+  let om := option_map (@proj1_sig message protocol_message_prop) opm in
+  let s := proj1_sig ps in
+  let m' := proj1_sig pm' in
+    snd (transition om l s) = Some m'
+    /\ valid om l s.
+
+Definition valid_message_production
+  `{VLSM}
+  (s : protocol_state)
+  (m' : protocol_message)
+  : Prop
+  :=
+  exists opm : option protocol_message,
+  exists l : label,
+  labeled_valid_message_production opm l s m'.
+
+Definition valid_trace_message
+ `{VLSM}
+  (s : protocol_state)
+  (m' : protocol_message)
+  : Prop
+  :=
+  exists s', valid_reflexive_trace s s' /\ valid_message_production s' m'.
+
+Lemma valid_protocol_message
+ `{VLSM}
+  : forall (pm : protocol_message),
+  exists (s : protocol_state),
+  exists (pm' : protocol_message),
+  valid_trace_message s pm' /\ proj1_sig pm = proj1_sig pm'.
+Proof.
+  intros. destruct pm as [m Hpm].  simpl. destruct Hpm as [s s' l m' Hps Hv Ht | s s' l m m' Hps Hpm Hv Ht ]
+  ; exists (exist _ s Hps)
+  ; ( exists (exist _ m' (create_protocol_message s s' l m' Hps Hv Ht))
+    || exists (exist _ m' (receive_protocol_message s s' l m m' Hps Hpm Hv Ht))
+    )
+  ; simpl
+  ; split; try reflexivity
+  ; exists (exist _ s Hps)
+  ; split; try (left; reflexivity)
+  .
+  - exists None; exists l; unfold labeled_valid_message_production; simpl; rewrite Ht; simpl; split; try assumption; reflexivity.
+  - exists (Some (exist _ m Hpm)); exists l; unfold labeled_valid_message_production; simpl; rewrite Ht; simpl; split; try assumption; reflexivity.
+Qed.
+
+Inductive filtered_trace_from
+  `{VLSM}
+  (subset : protocol_state -> Prop)
+  : protocol_state -> list protocol_state -> Prop
+  :=
+  | filtered_trace_one
+    : forall s1 s2, subset s1 -> subset s2 -> valid_transition s1 s2 -> filtered_trace_from subset s1 [s1; s2]
+  | filtered_trace_more
+    : forall s1 s2 ts, subset s1 -> valid_transition s1 s2 -> filtered_trace_from subset s2 ts -> filtered_trace_from subset s1 (s1 :: ts)
+  .
+
+Definition filtered_trace
+  `{VLSM}
+  (subset : protocol_state -> Prop)
+  (ts : list protocol_state)
+  : Prop
+  :=
+  match ts with
+  | [] => False
+  | s :: _ => filtered_trace_from subset s ts
+  end.
+
+Definition protocol_trace_prop
+  `{VLSM}
+  (ts : list protocol_state)
+  : Prop
+  := filtered_trace (fun ps => initial_state_prop (proj1_sig ps)) ts.
+
+Definition protocol_trace `{VLSM} : Type := { ts : list protocol_state | protocol_trace_prop ts}.
+
+Lemma procotol_state_reachable
+  `{VLSM}
+  : forall ps : protocol_state,
+  exists is0 : initial_state,
+  exists ps' : protocol_state,
+  valid_reflexive_trace (exist _ (proj1_sig is0) (initial_protocol_state is0)) ps' /\ proj1_sig ps = proj1_sig ps'.
+Proof.
+  intros. destruct ps as [s Hps]. simpl.
+  induction Hps as
+    [ is
+    | s s' l om' Hps IHps Hv Ht
+    | s s' l m om' Hps IHps Hpm Hv Ht
+    ].
+  - exists is. exists (exist _ (proj1_sig is) (initial_protocol_state is)).
+    split; try reflexivity.
+    left. reflexivity.
+  - destruct IHps as [is [ps [Htrace Heq]]].
+    exists is.
+    remember (exist _ s' (next_protocol_state_no_message s s' l om' Hps Hv Ht)) as ps'.
+    assert (Hvt : valid_transition ps ps').
+    { subst; exists None. exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
+    exists ps'.
+    split ; try (subst; reflexivity).
+    right. apply extend_valid_reflexive_trace with ps; assumption.
+  - destruct IHps as [is [ps [Htrace Heq]]].
+    exists is.
+    remember (exist _ s' (next_protocol_state_with_message s s' l m om' Hps Hpm Hv Ht)) as ps'.
+    assert (Hvt : valid_transition ps ps').
+    { subst; exists (Some (exist _ m Hpm)). exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
+    exists ps'.
+    split ; try (subst; reflexivity).
+    right. apply extend_valid_reflexive_trace with ps; assumption.
+Qed.
+
+
+(*
+Inductive in_state `{VLSM} : state -> list protocol_message -> Prop :=
+  | initial_empty
+    : forall s : state,
+      initial s -> message_list_prop' s []
+  | lambda_transition
+    : forall (s s' : state) (l : label) (msgs : list protocol_message),
+    valid None l s ->
+    transition None l s = (s', None) ->
+    message_list_prop' s msgs ->
+    message_list_prop' s' msgs
+  | create_message
+    : forall (s s' : state) (l : label) (m' : message) (msgs : list protocol_message)
+    (ps : protocol_state_prop s)
+    (v : valid None l s)
+    (e : transition None l s = (s', Some m')),
+    message_list_prop' s msgs ->
+    message_list_prop'
+      s'
+      ((exist _ m' (create_protocol_message s s' l m' ps v e)) :: msgs)
+  | receive_message
+    : forall (s s' : state) (l : label) (m : protocol_message) (v : valid (Some (proj1_sig m)) l s)
+    (e : transition (Some (proj1_sig m)) l s = (s', None)) (msgs : list protocol_message),
+    message_list_prop' s msgs ->
+    message_list_prop' s'  (m :: msgs)
+  | receive_create_message
+    : forall (s s' : state) (l : label) (m : protocol_message) (m' : message)
+    (ps : protocol_state_prop s)
+    (v : valid (Some (proj1_sig m)) l s) 
+    (e : transition (Some (proj1_sig m)) l s = (s', Some m')) (msgs : list protocol_message),
+    message_list_prop' s msgs ->
+    message_list_prop'
+      s'
+      ((exist _ m' (receive_protocol_message s s' l (proj1_sig m) m' ps (proj2_sig m) v e)) :: m :: msgs)
+  .
+
+Lemma message_list_functional
+  `{VLSM}
+  : forall (s : state) (PS : protocol_state_prop s),
+  exists! msgs : list protocol_message, message_list_prop' s msgs.
+Proof.
+  intros. 
+  induction PS; rewrite <- unique_existence; split.
+  - exists []. constructor; assumption.
+  - intros x y Hx Hy.
+    specialize (initial_prop s H0) as Hinit.
+    inversion Hx; inversion Hy; subst; try reflexivity.
+    + specialize (Hinit None l s1 None). contradiction.
+    + specialize (Hinit None l s1 (Some m')). contradiction.
+    + specialize (Hinit (Some (proj1_sig m)) l s1 None). contradiction.
+    + specialize (Hinit (Some (proj1_sig m)) l s1 (Some m')). contradiction.
+Qed.
+
 Inductive message_list_prop `{VLSM} : protocol_state -> list protocol_message -> Prop :=
   | initial_empty
     : forall (s : state) (i : initial s),
@@ -90,3 +329,4 @@ Inductive message_list_prop `{VLSM} : protocol_state -> list protocol_message ->
       (exist _ s' (next_protocol_state_with_message (proj1_sig p) s' l (proj1_sig m) (Some m') (proj2_sig p) (proj2_sig m) v e))
       ((exist _ m' (receive_protocol_message (proj1_sig p) s' l (proj1_sig m) m' (proj2_sig p) (proj2_sig m) v e)) :: m :: msgs)
   .
+*)
