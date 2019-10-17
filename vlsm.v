@@ -1,6 +1,9 @@
 Require Import List Streams.
 Import ListNotations.
 
+From Casper
+Require Import ListExtras.
+
 Class VLSM :=
   { state : Type
   ; initial_state_prop : state -> Prop
@@ -184,11 +187,38 @@ Inductive trace_from_to
   `{VLSM}
   : protocol_state -> protocol_state -> list protocol_state -> Prop
   :=
-  | filtered_trace_one
+  | trace_from_to_one
     : forall s1 s2, valid_transition s1 s2 -> trace_from_to s1 s2 [s1; s2]
-  | filtered_trace_more
+  | trace_from_to_more
     : forall s1 s3 ts s2, valid_transition s1 s2 -> trace_from_to s2 s3 ts -> trace_from_to s1 s3 (s1 :: ts)
   .
+
+Lemma extend_trace_from_to_left
+  `{VLSM}
+  : forall s1 s2 s3 ls,
+  trace_from_to s2 s3 ls ->
+  valid_transition s1 s2 ->
+  trace_from_to s1 s3 (s1 :: ls).
+Proof.
+  intros s1 s2 s3 ls Ht23 Hv12.
+  apply trace_from_to_more with s2; assumption.
+Qed.
+
+Lemma extend_trace_from_to_right
+  `{VLSM}
+  : forall s1 s2 s3 ls,
+  trace_from_to s1 s2 ls ->
+  valid_transition s2 s3 ->
+  trace_from_to s1 s3 (ls ++ [s3]).
+Proof.
+  intros s1 s2 s3 ls Ht12 Hv23.
+  induction Ht12 as [s1 s2 Hv12 | s1 s2 ls s1' Hv11' Ht1'2 Ht1'3].
+  - simpl. apply trace_from_to_more with s2; try assumption.
+    apply trace_from_to_one. assumption.
+  - specialize (Ht1'3 Hv23).
+    rewrite <- app_comm_cons.
+    apply extend_trace_from_to_left with s1'; assumption.
+Qed.
 
 CoInductive infinite_trace_from
   `{VLSM}
@@ -289,19 +319,19 @@ Proof.
     | s s' l m om' Hps IHps Hpm Hv Ht
     ].
   - left. destruct is as [s His]. assumption.
-  - right. destruct IHps.
+  - right. destruct IHps as [His | Hmore].
     + remember (exist _ s' (next_protocol_state_no_message s s' l om' Hps Hv Ht)) as ps'.
-      remember (exist _ s H0) as is.
-      remember (exist _ s (initial_protocol_state (exist _ s H0))) as ps.
+      remember (exist _ s His) as is.
+      remember (exist _ s (initial_protocol_state (exist _ s His))) as ps.
       assert (Hips : initial_protocol_state_prop ps)
         by (subst; unfold initial_protocol_state_prop; assumption).
       assert (Hvt : valid_transition ps ps').
       { subst; exists None. exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
-      assert (Pt : trace_from_to ps ps' [ps; ps']) by (apply filtered_trace_one; assumption).
+      assert (Pt : trace_from_to ps ps' [ps; ps']) by (apply trace_from_to_one; assumption).
       assert (Hpt : protocol_trace_prop (Finite [ps; ps']))
         by (split; assumption).
       exists (exist _ (Finite [ps; ps']) Hpt). exists ps'. subst. simpl. split; reflexivity.
-    + destruct H0 as [pt [ps' [Heq_last Heq_s]]].
+    + destruct Hmore as [pt [ps [Heq_last Heq_s]]].
       destruct pt as [t Hpt].
       destruct t as [t | t].
       * unfold protocol_trace_prop in Hpt. unfold protocol_finite_trace_prop in Hpt.
@@ -309,26 +339,58 @@ Proof.
         destruct t as [|h t]; try contradiction.
         destruct t as [|h' t]; try contradiction.
         destruct Hpt as [Hhi Htrace].
-        
-
+        assert (Hlast : last (exist (fun t : Trace => protocol_trace_prop t) (Finite (h :: h' :: t)) (conj Hhi Htrace)) = Some (List.last (h' :: t) h))
+          by reflexivity.
+        rewrite Hlast in Heq_last. inversion Heq_last as [Heq_last'].
+        simpl in Htrace. assert (Htrace' := Htrace). rewrite Heq_last' in Htrace'.
+        remember (exist _ s' (next_protocol_state_no_message s s' l om' Hps Hv Ht)) as ps'.
+        assert (Hvss' : valid_transition ps ps').
+        { exists None. exists l. split; simpl; rewrite <- Heq_s; try assumption. rewrite Ht; subst; reflexivity. }
+        assert (Hts' : trace_from_to h ps' (h :: h' :: (t ++ [ps']))).
+        { repeat rewrite app_comm_cons. apply extend_trace_from_to_right with ps; assumption. }
+        assert (Hhs'pt : protocol_trace_prop (Finite (h :: h' :: t ++ [ps']))).
+        { split; try assumption. rewrite app_comm_cons. rewrite last_is_last. assumption. }
+        remember (exist (fun t : Trace => protocol_trace_prop t) (Finite (h :: h' :: t ++ [ps'])) Hhs'pt) as ths'.
+        exists ths'. exists ps'.
+        rewrite Heqps' at 2; simpl. split; try reflexivity.
+        rewrite Heqths'. simpl. rewrite last_is_last. destruct t; reflexivity.
       * simpl in Heq_last. inversion Heq_last.
-
-destruct IHps as [is [ps [Htrace Heq]]].
-    exists is.
-    remember (exist _ s' (next_protocol_state_no_message s s' l om' Hps Hv Ht)) as ps'.
-    assert (Hvt : valid_transition ps ps').
-    { subst; exists None. exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
-    exists ps'.
-    split ; try (subst; reflexivity).
-    right. apply extend_valid_reflexive_trace with ps; assumption.
-  - destruct IHps as [is [ps [Htrace Heq]]].
-    exists is.
-    remember (exist _ s' (next_protocol_state_with_message s s' l m om' Hps Hpm Hv Ht)) as ps'.
-    assert (Hvt : valid_transition ps ps').
-    { subst; exists (Some (exist _ m Hpm)). exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
-    exists ps'.
-    split ; try (subst; reflexivity).
-    right. apply extend_valid_reflexive_trace with ps; assumption.
+  - right. destruct IHps as [His | Hmore].
+    + remember (exist _ s' (next_protocol_state_with_message s s' l m om' Hps Hpm Hv Ht)) as ps'.
+      remember (exist _ s His) as is.
+      remember (exist _ s (initial_protocol_state (exist _ s His))) as ps.
+      assert (Hips : initial_protocol_state_prop ps)
+        by (subst; unfold initial_protocol_state_prop; assumption).
+      assert (Hvt : valid_transition ps ps').
+      { subst; exists (Some (exist _ m Hpm)). exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
+      assert (Pt : trace_from_to ps ps' [ps; ps']) by (apply trace_from_to_one; assumption).
+      assert (Hpt : protocol_trace_prop (Finite [ps; ps']))
+        by (split; assumption).
+      exists (exist _ (Finite [ps; ps']) Hpt). exists ps'. subst. simpl. split; reflexivity.
+    + destruct Hmore as [pt [ps [Heq_last Heq_s]]].
+      destruct pt as [t Hpt].
+      destruct t as [t | t].
+      * unfold protocol_trace_prop in Hpt. unfold protocol_finite_trace_prop in Hpt.
+        unfold filtered_finite_trace in Hpt.
+        destruct t as [|h t]; try contradiction.
+        destruct t as [|h' t]; try contradiction.
+        destruct Hpt as [Hhi Htrace].
+        assert (Hlast : last (exist (fun t : Trace => protocol_trace_prop t) (Finite (h :: h' :: t)) (conj Hhi Htrace)) = Some (List.last (h' :: t) h))
+          by reflexivity.
+        rewrite Hlast in Heq_last. inversion Heq_last as [Heq_last'].
+        simpl in Htrace. assert (Htrace' := Htrace). rewrite Heq_last' in Htrace'.
+        remember (exist _ s' (next_protocol_state_with_message s s' l m om' Hps Hpm Hv Ht)) as ps'.
+        assert (Hvss' : valid_transition ps ps').
+        { exists (Some (exist _ m Hpm)). exists l. split; simpl; rewrite <- Heq_s; try assumption. rewrite Ht; subst; reflexivity. }
+        assert (Hts' : trace_from_to h ps' (h :: h' :: (t ++ [ps']))).
+        { repeat rewrite app_comm_cons. apply extend_trace_from_to_right with ps; assumption. }
+        assert (Hhs'pt : protocol_trace_prop (Finite (h :: h' :: t ++ [ps']))).
+        { split; try assumption. rewrite app_comm_cons. rewrite last_is_last. assumption. }
+        remember (exist (fun t : Trace => protocol_trace_prop t) (Finite (h :: h' :: t ++ [ps'])) Hhs'pt) as ths'.
+        exists ths'. exists ps'.
+        rewrite Heqps' at 2; simpl. split; try reflexivity.
+        rewrite Heqths'. simpl. rewrite last_is_last. destruct t; reflexivity.
+      * simpl in Heq_last. inversion Heq_last.
 Qed.
 
 Definition final_state_prop
@@ -340,99 +402,27 @@ Definition final_state_prop
 
 Definition final_state `{VLSM} : Type := { s : protocol_state | final_state_prop s}.
 
-Definition filtered_terminating_trace
+Definition terminating_trace
   `{VLSM}
-  (subset : protocol_state -> Prop)
-  (i : protocol_state)
-  (f : final_state)
-  (t : list protocol_state)
+  (t : protocol_trace)
   : Prop
   :=
-  filtered_trace_from_to subset i (proj1_sig f) t.
+  match last t with
+  | Some ps => final_state_prop ps
+  | None => False
+  end.
 
-
-(*
-Inductive in_state `{VLSM} : state -> list protocol_message -> Prop :=
-  | initial_empty
-    : forall s : state,
-      initial s -> message_list_prop' s []
-  | lambda_transition
-    : forall (s s' : state) (l : label) (msgs : list protocol_message),
-    valid None l s ->
-    transition None l s = (s', None) ->
-    message_list_prop' s msgs ->
-    message_list_prop' s' msgs
-  | create_message
-    : forall (s s' : state) (l : label) (m' : message) (msgs : list protocol_message)
-    (ps : protocol_state_prop s)
-    (v : valid None l s)
-    (e : transition None l s = (s', Some m')),
-    message_list_prop' s msgs ->
-    message_list_prop'
-      s'
-      ((exist _ m' (create_protocol_message s s' l m' ps v e)) :: msgs)
-  | receive_message
-    : forall (s s' : state) (l : label) (m : protocol_message) (v : valid (Some (proj1_sig m)) l s)
-    (e : transition (Some (proj1_sig m)) l s = (s', None)) (msgs : list protocol_message),
-    message_list_prop' s msgs ->
-    message_list_prop' s'  (m :: msgs)
-  | receive_create_message
-    : forall (s s' : state) (l : label) (m : protocol_message) (m' : message)
-    (ps : protocol_state_prop s)
-    (v : valid (Some (proj1_sig m)) l s) 
-    (e : transition (Some (proj1_sig m)) l s = (s', Some m')) (msgs : list protocol_message),
-    message_list_prop' s msgs ->
-    message_list_prop'
-      s'
-      ((exist _ m' (receive_protocol_message s s' l (proj1_sig m) m' ps (proj2_sig m) v e)) :: m :: msgs)
-  .
-
-Lemma message_list_functional
+Definition infinite_trace
   `{VLSM}
-  : forall (s : state) (PS : protocol_state_prop s),
-  exists! msgs : list protocol_message, message_list_prop' s msgs.
-Proof.
-  intros. 
-  induction PS; rewrite <- unique_existence; split.
-  - exists []. constructor; assumption.
-  - intros x y Hx Hy.
-    specialize (initial_prop s H0) as Hinit.
-    inversion Hx; inversion Hy; subst; try reflexivity.
-    + specialize (Hinit None l s1 None). contradiction.
-    + specialize (Hinit None l s1 (Some m')). contradiction.
-    + specialize (Hinit (Some (proj1_sig m)) l s1 None). contradiction.
-    + specialize (Hinit (Some (proj1_sig m)) l s1 (Some m')). contradiction.
-Qed.
+  (t : protocol_trace)
+  : Prop
+  :=
+  last t = None.
 
-Inductive message_list_prop `{VLSM} : protocol_state -> list protocol_message -> Prop :=
-  | initial_empty
-    : forall (s : state) (i : initial s),
-    message_list_prop (exist _ s (initial_protocol_state s i)) []
-  | lambda_transition
-    : forall (p : protocol_state) (l : label) (v : valid None l (proj1_sig p)) (s:state)
-      (e : transition None l (proj1_sig p) = (s, None)) (msgs : list protocol_message),
-    message_list_prop p msgs ->
-    message_list_prop (exist _ s (next_protocol_state_no_message (proj1_sig p) s l None (proj2_sig p) v e)) msgs
-  | create_message
-    : forall (p : protocol_state) (l : label) (v : valid None l (proj1_sig p)) (s:state) (m : message)
-      (e : transition None l (proj1_sig p) = (s, Some m)) (msgs : list protocol_message),
-    message_list_prop p msgs ->
-    message_list_prop
-      (exist _ s (next_protocol_state_no_message (proj1_sig p) s l (Some m) (proj2_sig p) v e))
-      ((exist _ m (create_protocol_message (proj1_sig p) s l m (proj2_sig p) v e)) :: msgs)
-  | receive_message
-    : forall (p : protocol_state) (l : label) (m : protocol_message) (v : valid (Some (proj1_sig m)) l (proj1_sig p)) (s:state)
-      (e : transition (Some (proj1_sig m)) l (proj1_sig p) = (s, None)) (msgs : list protocol_message),
-    message_list_prop p msgs ->
-    message_list_prop
-      (exist _ s (next_protocol_state_with_message (proj1_sig p) s l (proj1_sig m) None (proj2_sig p) (proj2_sig m) v e))
-      (m :: msgs)
-  | receive_create_message
-    : forall (p : protocol_state) (l : label) (m : protocol_message) (v : valid (Some (proj1_sig m)) l (proj1_sig p)) (s':state) (m' : message)
-      (e : transition (Some (proj1_sig m)) l (proj1_sig p) = (s', Some m')) (msgs : list protocol_message),
-      message_list_prop p msgs ->
-    message_list_prop
-      (exist _ s' (next_protocol_state_with_message (proj1_sig p) s' l (proj1_sig m) (Some m') (proj2_sig p) (proj2_sig m) v e))
-      ((exist _ m' (receive_protocol_message (proj1_sig p) s' l (proj1_sig m) m' (proj2_sig p) (proj2_sig m) v e)) :: m :: msgs)
-  .
-*)
+Definition complete_trace
+  `{VLSM}
+  (t : protocol_trace)
+  : Prop
+  :=
+  infinite_trace t \/ terminating_trace t.
+

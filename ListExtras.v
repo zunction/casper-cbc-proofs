@@ -193,6 +193,15 @@ Proof.
     + apply H2 in H. intro. apply H. right. assumption.
 Qed.
 
+Lemma last_is_last {A} : forall (l : list A) (x dummy: A),
+  last (l ++ [x]) dummy = x.
+Proof.
+  induction l; try reflexivity; intros.
+  rewrite <- app_comm_cons. specialize (IHl x dummy). rewrite <- IHl at 2. simpl.
+  destruct l; simpl; reflexivity.
+Qed.
+  
+
 (**
 
 
