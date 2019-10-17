@@ -1,4 +1,4 @@
-Require Import List.
+Require Import List Streams.
 Import ListNotations.
 
 Class VLSM :=
@@ -180,18 +180,33 @@ Proof.
   - exists (Some (exist _ m Hpm)); exists l; unfold labeled_valid_message_production; simpl; rewrite Ht; simpl; split; try assumption; reflexivity.
 Qed.
 
-Inductive filtered_trace_from
+Inductive trace_from_to
   `{VLSM}
-  (subset : protocol_state -> Prop)
-  : protocol_state -> list protocol_state -> Prop
+  : protocol_state -> protocol_state -> list protocol_state -> Prop
   :=
   | filtered_trace_one
-    : forall s1 s2, subset s1 -> subset s2 -> valid_transition s1 s2 -> filtered_trace_from subset s1 [s1; s2]
+    : forall s1 s2, valid_transition s1 s2 -> trace_from_to s1 s2 [s1; s2]
   | filtered_trace_more
-    : forall s1 s2 ts, subset s1 -> valid_transition s1 s2 -> filtered_trace_from subset s2 ts -> filtered_trace_from subset s1 (s1 :: ts)
+    : forall s1 s3 ts s2, valid_transition s1 s2 -> trace_from_to s2 s3 ts -> trace_from_to s1 s3 (s1 :: ts)
   .
 
-Definition filtered_trace
+CoInductive infinite_trace_from
+  `{VLSM}
+  : protocol_state -> Stream protocol_state -> Prop
+  :=
+  | infinite_trace_first
+    : forall s1 ts s2,
+    valid_transition s1 s2 ->
+    infinite_trace_from s2 ts ->
+    infinite_trace_from s1 (Cons s1 ts)
+  .
+
+Inductive Trace `{VLSM} : Type :=
+  | Finite : list protocol_state -> Trace
+  | Infinite : Stream protocol_state -> Trace
+  .
+
+Definition filtered_finite_trace
   `{VLSM}
   (subset : protocol_state -> Prop)
   (ts : list protocol_state)
@@ -199,23 +214,73 @@ Definition filtered_trace
   :=
   match ts with
   | [] => False
-  | s :: _ => filtered_trace_from subset s ts
+  | [s] => False
+  | s :: t => subset s /\ trace_from_to s (last t s) ts
   end.
 
-Definition protocol_trace_prop
+Definition initial_protocol_state_prop
+  `{VLSM}
+  (ps : protocol_state)
+  : Prop
+  :=
+  initial_state_prop (proj1_sig ps).
+
+Definition protocol_finite_trace_prop
   `{VLSM}
   (ts : list protocol_state)
   : Prop
-  := filtered_trace (fun ps => initial_state_prop (proj1_sig ps)) ts.
+  := filtered_finite_trace initial_protocol_state_prop ts.
 
-Definition protocol_trace `{VLSM} : Type := { ts : list protocol_state | protocol_trace_prop ts}.
+Definition filtered_infinite_trace
+  `{VLSM}
+  (subset : protocol_state -> Prop)
+  (ts : Stream protocol_state)
+  : Prop
+  :=
+  subset (hd ts) /\ infinite_trace_from (hd ts) ts.
+
+Definition protocol_infinite_trace_prop
+  `{VLSM}
+  (ts : Stream protocol_state)
+  : Prop
+  := filtered_infinite_trace initial_protocol_state_prop ts.
+
+Definition protocol_trace_prop
+  `{VLSM}
+  (t : Trace)
+  : Prop
+  :=
+  match t with
+  | Finite ts => protocol_finite_trace_prop ts
+  | Infinite ts => protocol_infinite_trace_prop ts
+  end.
+
+Definition protocol_trace `{VLSM} : Type := { t : Trace | protocol_trace_prop t}.
+
+Definition first `{VLSM} (pt : protocol_trace) : protocol_state.
+  destruct pt as [[t | t] Hpt]; simpl in Hpt.
+  - unfold protocol_finite_trace_prop in Hpt.
+    destruct t as [| h t]; simpl in Hpt; try contradiction.
+    exact h.
+  - destruct t as [h t].
+    exact h.
+Defined.
+
+Definition last `{VLSM}  (pt : protocol_trace) : option protocol_state.
+  destruct pt as [[t | t] Hpt]; simpl in Hpt.
+  - unfold protocol_finite_trace_prop in Hpt.
+    destruct t as [| h t]; simpl in Hpt; try contradiction.
+    exact (Some (last t h)).
+  - exact None.
+Defined.
 
 Lemma procotol_state_reachable
   `{VLSM}
   : forall ps : protocol_state,
-  exists is0 : initial_state,
+  initial_state_prop (proj1_sig ps) \/
+  exists t : protocol_trace,
   exists ps' : protocol_state,
-  valid_reflexive_trace (exist _ (proj1_sig is0) (initial_protocol_state is0)) ps' /\ proj1_sig ps = proj1_sig ps'.
+  last t = Some ps' /\ proj1_sig ps = proj1_sig ps'.
 Proof.
   intros. destruct ps as [s Hps]. simpl.
   induction Hps as
@@ -223,10 +288,32 @@ Proof.
     | s s' l om' Hps IHps Hv Ht
     | s s' l m om' Hps IHps Hpm Hv Ht
     ].
-  - exists is. exists (exist _ (proj1_sig is) (initial_protocol_state is)).
-    split; try reflexivity.
-    left. reflexivity.
-  - destruct IHps as [is [ps [Htrace Heq]]].
+  - left. destruct is as [s His]. assumption.
+  - right. destruct IHps.
+    + remember (exist _ s' (next_protocol_state_no_message s s' l om' Hps Hv Ht)) as ps'.
+      remember (exist _ s H0) as is.
+      remember (exist _ s (initial_protocol_state (exist _ s H0))) as ps.
+      assert (Hips : initial_protocol_state_prop ps)
+        by (subst; unfold initial_protocol_state_prop; assumption).
+      assert (Hvt : valid_transition ps ps').
+      { subst; exists None. exists l. unfold labeled_valid_transition. simpl. split; try assumption. rewrite Ht. reflexivity. }
+      assert (Pt : trace_from_to ps ps' [ps; ps']) by (apply filtered_trace_one; assumption).
+      assert (Hpt : protocol_trace_prop (Finite [ps; ps']))
+        by (split; assumption).
+      exists (exist _ (Finite [ps; ps']) Hpt). exists ps'. subst. simpl. split; reflexivity.
+    + destruct H0 as [pt [ps' [Heq_last Heq_s]]].
+      destruct pt as [t Hpt].
+      destruct t as [t | t].
+      * unfold protocol_trace_prop in Hpt. unfold protocol_finite_trace_prop in Hpt.
+        unfold filtered_finite_trace in Hpt.
+        destruct t as [|h t]; try contradiction.
+        destruct t as [|h' t]; try contradiction.
+        destruct Hpt as [Hhi Htrace].
+        
+
+      * simpl in Heq_last. inversion Heq_last.
+
+destruct IHps as [is [ps [Htrace Heq]]].
     exists is.
     remember (exist _ s' (next_protocol_state_no_message s s' l om' Hps Hv Ht)) as ps'.
     assert (Hvt : valid_transition ps ps').
@@ -243,6 +330,25 @@ Proof.
     split ; try (subst; reflexivity).
     right. apply extend_valid_reflexive_trace with ps; assumption.
 Qed.
+
+Definition final_state_prop
+  `{VLSM}
+  (s : protocol_state)
+  : Prop
+  :=
+  ~ exists s' : protocol_state, valid_transition s s'.
+
+Definition final_state `{VLSM} : Type := { s : protocol_state | final_state_prop s}.
+
+Definition filtered_terminating_trace
+  `{VLSM}
+  (subset : protocol_state -> Prop)
+  (i : protocol_state)
+  (f : final_state)
+  (t : list protocol_state)
+  : Prop
+  :=
+  filtered_trace_from_to subset i (proj1_sig f) t.
 
 
 (*
