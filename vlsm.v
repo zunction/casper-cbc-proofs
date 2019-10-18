@@ -74,6 +74,8 @@ Inductive
         protocol_message_prop m'
   .
 
+(* Consider using optional protocol message above, if possible *)
+
 Definition protocol_state
   {message}
   `{V : VLSM message}
@@ -631,6 +633,9 @@ End Composing2VLSMs.
 
 Section ComposingVLSMs.
 
+(* TODO: minimal assumptions for communication. Do we really need that messages are shared.
+    maybe add a ptoto_message predicate defining a subset for each VLSM.
+  *)
 Definition composed_state {message} (Ss : list (VLSM message)) : Type :=
   fold_right prod unit (List.map (@state message) Ss).
 
