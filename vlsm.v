@@ -4,66 +4,76 @@ Import ListNotations.
 From Casper
 Require Import ListExtras.
 
-Class VLSM :=
-  { state : Type
-  ; initial_state_prop : state -> Prop
+Class VLSM (state message label : Type) :=
+  { initial_state_prop : state -> Prop
   ; protocol_state_inhabited : { p : state | initial_state_prop p}
-  ; message : Type
   ; message_inhabited : { _ : message | True }
-  ; label : Type
   ; label_inhabited : { _ : label | True }
   ; transition : option message -> label -> state -> (state * option message)%type
   ; valid : option message -> label -> state  -> Prop
   }.
 
-Definition initial_state `{VLSM} : Type := { i : state | initial_state_prop i }.
+Definition initial_state
+  {state message label : Type}
+  `{V : VLSM state message label}
+  : Type := { i : state | initial_state_prop  i }.
 
 Inductive
   protocol_state_prop
-  `{VLSM}
-  : state -> Prop
-  := 
-    | initial_protocol_state
-      : forall s : initial_state,
-      protocol_state_prop (proj1_sig s)
-    | next_protocol_state_no_message
-      : forall (s s' : state) (l : label) (om' : option message),
-      protocol_state_prop s ->
-      valid None l s ->
-      transition None l s = (s', om') ->
-      protocol_state_prop s'
-    | next_protocol_state_with_message
-      : forall (s s' : state) (l : label) (m : message) (om' : option message),
-      protocol_state_prop s ->
-      protocol_message_prop m ->
-      valid (Some m) l s ->
-      transition (Some m) l s = (s', om') ->
-      protocol_state_prop s'
+    {state message label}
+    `{V : VLSM state message label}
+    : state -> Prop
+    := 
+      | initial_protocol_state
+        : forall s : initial_state,
+        protocol_state_prop (proj1_sig s)
+      | next_protocol_state_no_message
+        : forall (s s' : state) (l : label) (om' : option message),
+        protocol_state_prop s ->
+        valid None l s ->
+        transition None l s = (s', om') ->
+        protocol_state_prop s'
+      | next_protocol_state_with_message
+        : forall (s s' : state) (l : label) (m : message) (om' : option message),
+        protocol_state_prop s ->
+        protocol_message_prop m ->
+        valid (Some m) l s ->
+        transition (Some m) l s = (s', om') ->
+        protocol_state_prop s'
   with
   protocol_message_prop
-  `{VLSM}
-  : message -> Prop
-  := 
-    | create_protocol_message
-      : forall (s s' : state) (l : label) (m' : message),
-      protocol_state_prop s ->
-      valid None l s ->
-      transition None l s = (s', Some m') ->
-      protocol_message_prop m'
-    | receive_protocol_message
-      : forall (s s' : state) (l : label) (m m' : message),
-      protocol_state_prop s ->
-      protocol_message_prop m ->
-      valid (Some m) l s ->
-      transition (Some m) l s = (s', Some m') ->
-      protocol_message_prop m'
+    {state message label}
+    `{V : VLSM state message label}
+    : message -> Prop
+    := 
+      | create_protocol_message
+        : forall (s s' : state) (l : label) (m' : message),
+        protocol_state_prop s ->
+        valid None l s ->
+        transition None l s = (s', Some m') ->
+        protocol_message_prop m'
+      | receive_protocol_message
+        : forall (s s' : state) (l : label) (m m' : message),
+        protocol_state_prop s ->
+        protocol_message_prop m ->
+        valid (Some m) l s ->
+        transition (Some m) l s = (s', Some m') ->
+        protocol_message_prop m'
   .
 
-Definition protocol_state `{VLSM} : Type := { s : state | protocol_state_prop s }.
-Definition protocol_message `{VLSM} : Type := { s : message | protocol_message_prop s }.
+Definition protocol_state
+  {state message label}
+  `{V : VLSM state message label}
+  : Type := { s : state | protocol_state_prop s }.
+
+Definition protocol_message
+  {state message label}
+  `{V : VLSM state message label}
+  : Type := { s : message | protocol_message_prop s }.
 
 Definition labeled_valid_transition
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (opm : option protocol_message)
   (l : label)
   (ps ps' : protocol_state)
@@ -76,7 +86,8 @@ Definition labeled_valid_transition
     /\ valid om l s.
 
 Definition valid_transition
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (ps ps' : protocol_state)
   : Prop
   :=
@@ -84,7 +95,10 @@ Definition valid_transition
   exists l : label,
   labeled_valid_transition opm l ps ps'.
 
-Inductive valid_trace `{VLSM} : protocol_state -> protocol_state -> Prop :=
+Inductive valid_trace
+  {state message label}
+  `{V : VLSM state message label}
+  : protocol_state -> protocol_state -> Prop :=
   | valid_trace_one
     : forall s s',
     valid_transition s s' ->
@@ -96,7 +110,9 @@ Inductive valid_trace `{VLSM} : protocol_state -> protocol_state -> Prop :=
     valid_trace s s''
   .
 
-Lemma extend_valid_trace `{VLSM}
+Lemma extend_valid_trace
+  {state message label}
+  `{V : VLSM state message label}
   : forall s1 s2 s3,
   valid_trace s1 s2 ->
   valid_transition s2 s3 ->
@@ -111,13 +127,16 @@ Proof.
 Qed.
 
 Definition valid_reflexive_trace
- `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (s s' : protocol_state)
   : Prop
   :=
   s = s' \/ valid_trace s s'.
 
-Lemma extend_valid_reflexive_trace `{VLSM}
+Lemma extend_valid_reflexive_trace
+  {state message label}
+  `{V : VLSM state message label}
   : forall s1 s2 s3,
   valid_reflexive_trace s1 s2 ->
   valid_transition s2 s3 ->
@@ -131,7 +150,8 @@ Qed.
 
 
 Definition labeled_valid_message_production
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (opm : option protocol_message)
   (l : label)
   (ps : protocol_state)
@@ -145,7 +165,8 @@ Definition labeled_valid_message_production
     /\ valid om l s.
 
 Definition valid_message_production
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (s : protocol_state)
   (m' : protocol_message)
   : Prop
@@ -155,7 +176,8 @@ Definition valid_message_production
   labeled_valid_message_production opm l s m'.
 
 Definition valid_trace_message
- `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (s : protocol_state)
   (m' : protocol_message)
   : Prop
@@ -163,7 +185,8 @@ Definition valid_trace_message
   exists s', valid_reflexive_trace s s' /\ valid_message_production s' m'.
 
 Lemma valid_protocol_message
- `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   : forall (pm : protocol_message),
   exists (s : protocol_state),
   exists (pm' : protocol_message),
@@ -184,7 +207,8 @@ Proof.
 Qed.
 
 Inductive trace_from_to
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   : protocol_state -> protocol_state -> list protocol_state -> Prop
   :=
   | trace_from_to_one
@@ -194,7 +218,8 @@ Inductive trace_from_to
   .
 
 Lemma extend_trace_from_to_left
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   : forall s1 s2 s3 ls,
   trace_from_to s2 s3 ls ->
   valid_transition s1 s2 ->
@@ -205,7 +230,8 @@ Proof.
 Qed.
 
 Lemma extend_trace_from_to_right
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   : forall s1 s2 s3 ls,
   trace_from_to s1 s2 ls ->
   valid_transition s2 s3 ->
@@ -221,7 +247,8 @@ Proof.
 Qed.
 
 CoInductive infinite_trace_from
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   : protocol_state -> Stream protocol_state -> Prop
   :=
   | infinite_trace_first
@@ -237,7 +264,8 @@ Inductive Trace `{VLSM} : Type :=
   .
 
 Definition filtered_finite_trace
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (subset : protocol_state -> Prop)
   (ts : list protocol_state)
   : Prop
@@ -249,20 +277,23 @@ Definition filtered_finite_trace
   end.
 
 Definition initial_protocol_state_prop
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (ps : protocol_state)
   : Prop
   :=
   initial_state_prop (proj1_sig ps).
 
 Definition protocol_finite_trace_prop
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (ts : list protocol_state)
   : Prop
   := filtered_finite_trace initial_protocol_state_prop ts.
 
 Definition filtered_infinite_trace
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (subset : protocol_state -> Prop)
   (ts : Stream protocol_state)
   : Prop
@@ -270,13 +301,15 @@ Definition filtered_infinite_trace
   subset (hd ts) /\ infinite_trace_from (hd ts) ts.
 
 Definition protocol_infinite_trace_prop
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (ts : Stream protocol_state)
   : Prop
   := filtered_infinite_trace initial_protocol_state_prop ts.
 
 Definition protocol_trace_prop
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (t : Trace)
   : Prop
   :=
@@ -285,9 +318,15 @@ Definition protocol_trace_prop
   | Infinite ts => protocol_infinite_trace_prop ts
   end.
 
-Definition protocol_trace `{VLSM} : Type := { t : Trace | protocol_trace_prop t}.
+Definition protocol_trace
+  {state message label}
+  `{V : VLSM state message label}
+  : Type := { t : Trace | protocol_trace_prop t}.
 
-Definition first `{VLSM} (pt : protocol_trace) : protocol_state.
+Definition first
+  {state message label}
+  `{V : VLSM state message label}
+  (pt : protocol_trace) : protocol_state.
   destruct pt as [[t | t] Hpt]; simpl in Hpt.
   - unfold protocol_finite_trace_prop in Hpt.
     destruct t as [| h t]; simpl in Hpt; try contradiction.
@@ -296,7 +335,10 @@ Definition first `{VLSM} (pt : protocol_trace) : protocol_state.
     exact h.
 Defined.
 
-Definition last `{VLSM}  (pt : protocol_trace) : option protocol_state.
+Definition last
+  {state message label}
+  `{V : VLSM state message label}
+  (pt : protocol_trace) : option protocol_state.
   destruct pt as [[t | t] Hpt]; simpl in Hpt.
   - unfold protocol_finite_trace_prop in Hpt.
     destruct t as [| h t]; simpl in Hpt; try contradiction.
@@ -305,7 +347,8 @@ Definition last `{VLSM}  (pt : protocol_trace) : option protocol_state.
 Defined.
 
 Lemma procotol_state_reachable
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   : forall ps : protocol_state,
   initial_state_prop (proj1_sig ps) \/
   exists t : protocol_trace,
@@ -394,16 +437,21 @@ Proof.
 Qed.
 
 Definition final_state_prop
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (s : protocol_state)
   : Prop
   :=
   ~ exists s' : protocol_state, valid_transition s s'.
 
-Definition final_state `{VLSM} : Type := { s : protocol_state | final_state_prop s}.
+Definition final_state
+  {state message label}
+  `{V : VLSM state message label}
+  : Type := { s : protocol_state | final_state_prop s}.
 
 Definition terminating_trace
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (t : protocol_trace)
   : Prop
   :=
@@ -413,14 +461,16 @@ Definition terminating_trace
   end.
 
 Definition infinite_trace
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (t : protocol_trace)
   : Prop
   :=
   last t = None.
 
 Definition complete_trace
-  `{VLSM}
+  {state message label}
+  `{V : VLSM state message label}
   (t : protocol_trace)
   : Prop
   :=
