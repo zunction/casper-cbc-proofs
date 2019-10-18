@@ -11,6 +11,7 @@ Class VLSM (message : Type) :=
   ; label : Type
   ; initial_state_prop : state -> Prop
   ; protocol_state_inhabited : { p : state | initial_state_prop p}
+  ; initial_message_prop : message -> Prop
   ; message_inhabited : { _ : message | True }
   ; label_inhabited : { _ : label | True }
   ; transition : option message -> label -> state -> (state * option message)%type
@@ -21,6 +22,11 @@ Definition initial_state
   {message : Type}
   `{V : VLSM message}
   : Type := { i : state | initial_state_prop  i }.
+
+Definition initial_message
+  {message : Type}
+  `{V : VLSM message}
+  : Type := { i : message | initial_message_prop  i }.
 
 Inductive
   protocol_state_prop
@@ -50,6 +56,9 @@ Inductive
     `{V : VLSM message}
     : message -> Prop
     := 
+      | initial_protocol_message
+        : forall m : initial_message,
+        protocol_message_prop (proj1_sig m)
       | create_protocol_message
         : forall (s s' : state) (l : label) (m' : message),
         protocol_state_prop s ->
@@ -192,20 +201,26 @@ Lemma valid_protocol_message
   {message}
   `{V : VLSM message}
   : forall (pm : protocol_message),
-  exists (s : protocol_state),
-  exists (pm' : protocol_message),
-  valid_trace_message s pm' /\ proj1_sig pm = proj1_sig pm'.
+  (exists im : initial_message, proj1_sig pm = proj1_sig im)
+  \/
+  (exists (s : protocol_state),
+   exists (pm' : protocol_message),
+   valid_trace_message s pm' /\ proj1_sig pm = proj1_sig pm').
 Proof.
-  intros. destruct pm as [m Hpm].  simpl. destruct Hpm as [s s' l m' Hps Hv Ht | s s' l m m' Hps Hpm Hv Ht ]
-  ; exists (exist _ s Hps)
-  ; ( exists (exist _ m' (create_protocol_message s s' l m' Hps Hv Ht))
-    || exists (exist _ m' (receive_protocol_message s s' l m m' Hps Hpm Hv Ht))
+  intros. destruct pm as [m Hpm].  simpl. destruct Hpm as [im | s s' l m' Hps Hv Ht | s s' l m m' Hps Hpm Hv Ht ]
+  ; try (
+      right
+    ; exists (exist _ s Hps)
+    ; ( exists (exist _ m' (create_protocol_message s s' l m' Hps Hv Ht))
+      || exists (exist _ m' (receive_protocol_message s s' l m m' Hps Hpm Hv Ht))
+      )
+    ; simpl
+    ; split; try reflexivity
+    ; exists (exist _ s Hps)
+    ; split; try (left; reflexivity)
     )
-  ; simpl
-  ; split; try reflexivity
-  ; exists (exist _ s Hps)
-  ; split; try (left; reflexivity)
   .
+  - left. exists im. reflexivity.
   - exists None; exists l; unfold labeled_valid_message_production; simpl; rewrite Ht; simpl; split; try assumption; reflexivity.
   - exists (Some (exist _ m Hpm)); exists l; unfold labeled_valid_message_production; simpl; rewrite Ht; simpl; split; try assumption; reflexivity.
 Qed.
@@ -506,6 +521,14 @@ Proof.
   exists (x, x0). split; assumption.
 Qed.
 
+Definition composed2_initial_message_prop
+  {message}
+  (S1 : VLSM message)
+  (S2 : VLSM message)
+  (m : message)
+  :=
+  @initial_message_prop _ S1 m \/ @initial_message_prop _ S2 m.
+
 Lemma composed2_message_inhabited
   {message}
   (S1 : VLSM message)
@@ -579,6 +602,7 @@ Definition compose2_vlsm
   ; label := (@label message S1) + (@label message S2)
   ; initial_state_prop := composed2_initial_state_prop S1 S2
   ; protocol_state_inhabited := composed2_protocol_state_inhabited S1 S2
+  ; initial_message_prop := composed2_initial_message_prop S1 S2
   ; message_inhabited := composed2_message_inhabited S1 S2
   ; label_inhabited := composed2_label_inhabited S1 S2
   ; transition := composed2_transition S1 S2
@@ -596,6 +620,7 @@ Definition compose2_vlsm_constrained
   ; label := (@label message S1) + (@label message S2)
   ; initial_state_prop := composed2_initial_state_prop S1 S2
   ; protocol_state_inhabited := composed2_protocol_state_inhabited S1 S2
+  ; initial_message_prop := composed2_initial_message_prop S1 S2
   ; message_inhabited := composed2_message_inhabited S1 S2
   ; label_inhabited := composed2_label_inhabited S1 S2
   ; transition := composed2_transition S1 S2
@@ -633,6 +658,15 @@ Proof.
     destruct (@protocol_state_inhabited _ Sh) as [sh Hh].
     exists (sh, st). split; assumption.
 Qed.
+
+Fixpoint composed_initial_message_prop
+  {message}
+  (Ss : list (VLSM message))
+  : message -> Prop.
+destruct Ss as [|Sh St]; unfold composed_state; simpl; intros.
+- exact False.
+- exact (@initial_message_prop _ Sh X \/ composed_initial_message_prop _ St X).
+Defined.
 
 Lemma composed_message_inhabited
   {message}
@@ -704,6 +738,7 @@ Definition composed_vlsm
   ; label := composed_label Ss
   ; initial_state_prop := composed_initial_state_prop Ss
   ; protocol_state_inhabited := composed_protocol_state_inhabited Ss
+  ; initial_message_prop := composed_initial_message_prop Ss
   ; message_inhabited := composed_message_inhabited Ss Ssnn
   ; label_inhabited := composed_label_inhabited Ss Ssnn
   ; transition := composed_transition Ss
@@ -721,6 +756,7 @@ Definition composed_vlsm_constrained
   ; label := composed_label Ss
   ; initial_state_prop := composed_initial_state_prop Ss
   ; protocol_state_inhabited := composed_protocol_state_inhabited Ss
+  ; initial_message_prop := composed_initial_message_prop Ss
   ; message_inhabited := composed_message_inhabited Ss Ssnn
   ; label_inhabited := composed_label_inhabited Ss Ssnn
   ; transition := composed_transition Ss
