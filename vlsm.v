@@ -4,6 +4,8 @@ Import ListNotations.
 From Casper
 Require Import ListExtras.
 
+Section GenericVLSM.
+
 Class VLSM (state message label : Type) :=
   { initial_state_prop : state -> Prop
   ; protocol_state_inhabited : { p : state | initial_state_prop p}
@@ -476,3 +478,134 @@ Definition complete_trace
   :=
   infinite_trace t \/ terminating_trace t.
 
+
+End GenericVLSM.
+
+Section Composing2VLSMs.
+
+Definition composed_initial_state_prop
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  (s : state1 * state2) : Prop
+  :=
+  match s with
+  | (s1, s2) => initial_state_prop s1 /\ initial_state_prop s2
+  end.
+
+Lemma composed_protocol_state_inhabited
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  : { p : state1 * state2 | composed_initial_state_prop S1 S2 p}.
+Proof.
+  destruct (@protocol_state_inhabited state1 message1 label1 S1).
+  destruct (@protocol_state_inhabited state2 message2 label2 S2).
+  exists (x, x0). split; assumption.
+Qed.
+
+Lemma composed_message_inhabited
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  : { _ : message1 + message2 | True }
+  .
+Proof.
+  split; try exact I.
+  left.
+  destruct (@message_inhabited state1 message1 label1 S1).
+  assumption.
+Qed.
+
+Lemma composed_label_inhabited
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  : { _ : label1 + label2 | True }.
+Proof.
+  split; try exact I.
+  left.
+  destruct (@label_inhabited state1 message1 label1 S1).
+  exact x.
+Qed.
+
+Definition composed_transition
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  (om : option (message1 + message2))
+  (l : label1+ label2)
+  (s : state1 * state2)
+  : ((state1 * state2) * option (message1 + message2))%type
+  :=
+  match om,l,s with
+  | None, inl l1, (s1, s2) =>
+    ((fst (transition None l1 s1), s2), option_map inl (snd (transition None l1 s1)))
+  | None, inr l2, (s1, s2) =>
+    (s1, (fst (transition None l2 s2)), option_map inr (snd (transition None l2 s2)))
+  | Some (inl m1), inl l1, (s1, s2) =>
+    ((fst (transition (Some m1) l1 s1), s2), option_map inl (snd (transition (Some m1) l1 s1)))
+  | Some (inr m2), inr l2, (s1, s2) =>
+    (s1, (fst (transition (Some m2) l2 s2)), option_map inr (snd (transition (Some m2) l2 s2)))
+  | Some (inl m1), inr l2, s => (s, None)
+  | Some (inr m2), inl l1, s => (s, None)
+  end.
+
+Definition composed_valid
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  (om : option (message1 + message2))
+  (l : label1 + label2)
+  (s : state1 * state2)
+  : Prop
+  :=
+  match om,l,s with
+  | None, inl l1, (s1, s2) => valid None l1 s1
+  | None, inr l2, (s1, s2) => valid None l2 s2
+  | Some (inl m1), inl l1, (s1, s2) => valid (Some m1) l1 s1
+  | Some (inr m2), inr l2, (s1, s2) => valid (Some m2) l2 s2
+  | _ , _, _ => False
+  end.
+
+Definition composed_valid_constrained
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  (constraint : option (message1 + message2) -> label1 + label2 -> state1 * state2 -> Prop)
+  (om : option (message1 + message2))
+  (l : label1 + label2)
+  (s : state1 * state2)
+  :=
+  composed_valid S1 S2 om l s /\ constraint om l s.
+
+Definition compose2_vlsm
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  : VLSM (state1 * state2) (message1 + message2) (label1 + label2)
+  :=
+  {| initial_state_prop := composed_initial_state_prop S1 S2
+  ; protocol_state_inhabited := composed_protocol_state_inhabited S1 S2
+  ; message_inhabited := composed_message_inhabited S1 S2
+  ; label_inhabited := composed_label_inhabited S1 S2
+  ; transition := composed_transition S1 S2
+  ; valid := composed_valid S1 S2
+  |}.
+
+Definition compose2_vlsm_constrained
+  {state1 message1 label1 state2 message2 label2}
+  (S1 : VLSM state1 message1 label1)
+  (S2 : VLSM state2 message2 label2)
+  (constraint : option (message1 + message2) -> label1 + label2 -> state1 * state2 -> Prop)
+  : VLSM (state1 * state2) (message1 + message2) (label1 + label2)
+  :=
+  {| initial_state_prop := composed_initial_state_prop S1 S2
+  ; protocol_state_inhabited := composed_protocol_state_inhabited S1 S2
+  ; message_inhabited := composed_message_inhabited S1 S2
+  ; label_inhabited := composed_label_inhabited S1 S2
+  ; transition := composed_transition S1 S2
+  ; valid := composed_valid_constrained S1 S2 constraint
+  |}.
+
+End Composing2VLSMs.
