@@ -628,7 +628,3 @@ Proof.
     simpl. destruct (compare_eq_dec v hd).
     contradiction. reflexivity.
 Qed.
-
-
-
-
