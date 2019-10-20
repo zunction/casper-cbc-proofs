@@ -1,4 +1,4 @@
-Require Import List Streams.
+Require Import List Streams Bool.
 Import ListNotations.
 
 From Casper
@@ -9,13 +9,15 @@ Section GenericVLSM.
 Class VLSM (message : Type) :=
   { state : Type
   ; label : Type
+  ; proto_message_prop : message -> bool
+  ; proto_message := { m : message | proto_message_prop m  = true }
   ; initial_state_prop : state -> Prop
   ; protocol_state_inhabited : { p : state | initial_state_prop p}
-  ; initial_message_prop : message -> Prop
-  ; message_inhabited : { _ : message | True }
+  ; initial_message_prop : proto_message -> Prop
+  ; message_inhabited : { _ : proto_message | True }
   ; label_inhabited : { _ : label | True }
-  ; transition : option message -> label -> state -> (state * option message)%type
-  ; valid : option message -> label -> state  -> Prop
+  ; transition : label -> state *  option proto_message -> (state * option proto_message)%type
+  ; valid : label -> state * option proto_message -> Prop
   }.
 
 Definition initial_state
@@ -26,7 +28,7 @@ Definition initial_state
 Definition initial_message
   {message : Type}
   `{V : VLSM message}
-  : Type := { i : message | initial_message_prop  i }.
+  : Type := { i : proto_message | initial_message_prop  i }.
 
 Inductive
   protocol_state_prop
@@ -38,39 +40,39 @@ Inductive
         : forall s : initial_state,
         protocol_state_prop (proj1_sig s)
       | next_protocol_state_no_message
-        : forall (s s' : state) (l : label) (om' : option message),
+        : forall (s s' : state) (l : label) (om' : option proto_message),
         protocol_state_prop s ->
-        valid None l s ->
-        transition None l s = (s', om') ->
+        valid l (s, None) ->
+        transition l (s,None) = (s', om') ->
         protocol_state_prop s'
       | next_protocol_state_with_message
-        : forall (s s' : state) (l : label) (m : message) (om' : option message),
+        : forall (s s' : state) (l : label) (m : proto_message) (om' : option proto_message),
         protocol_state_prop s ->
         protocol_message_prop m ->
-        valid (Some m) l s ->
-        transition (Some m) l s = (s', om') ->
+        valid l (s, Some m) ->
+        transition l (s, Some m) = (s', om') ->
         protocol_state_prop s'
   with
   protocol_message_prop
     {message}
     `{V : VLSM message}
-    : message -> Prop
+    : proto_message -> Prop
     := 
       | initial_protocol_message
         : forall m : initial_message,
         protocol_message_prop (proj1_sig m)
       | create_protocol_message
-        : forall (s s' : state) (l : label) (m' : message),
+        : forall (s s' : state) (l : label) (m' : proto_message),
         protocol_state_prop s ->
-        valid None l s ->
-        transition None l s = (s', Some m') ->
+        valid l (s, None) ->
+        transition l (s, None) = (s', Some m') ->
         protocol_message_prop m'
       | receive_protocol_message
-        : forall (s s' : state) (l : label) (m m' : message),
+        : forall (s s' : state) (l : label) (m m' : proto_message),
         protocol_state_prop s ->
         protocol_message_prop m ->
-        valid (Some m) l s ->
-        transition (Some m) l s = (s', Some m') ->
+        valid l (s, Some m) ->
+        transition l (s, Some m) = (s', Some m') ->
         protocol_message_prop m'
   .
 
@@ -84,7 +86,7 @@ Definition protocol_state
 Definition protocol_message
   {message}
   `{V : VLSM message}
-  : Type := { s : message | protocol_message_prop s }.
+  : Type := { s : proto_message | protocol_message_prop s }.
 
 Definition labeled_valid_transition
   {message}
@@ -94,11 +96,11 @@ Definition labeled_valid_transition
   (ps ps' : protocol_state)
   : Prop
   :=
-  let om := option_map (@proj1_sig message protocol_message_prop) opm in
+  let om := option_map (@proj1_sig _ protocol_message_prop) opm in
   let s := proj1_sig ps in
   let s' := proj1_sig ps' in
-    fst (transition om l s) = s'
-    /\ valid om l s.
+    fst (transition l (s, om)) = s'
+    /\ valid l (s, om).
 
 Definition valid_transition
   {message}
@@ -173,11 +175,11 @@ Definition labeled_valid_message_production
   (pm' : protocol_message)
   : Prop
   :=
-  let om := option_map (@proj1_sig message protocol_message_prop) opm in
+  let om := option_map (@proj1_sig _ protocol_message_prop) opm in
   let s := proj1_sig ps in
   let m' := proj1_sig pm' in
-    snd (transition om l s) = Some m'
-    /\ valid om l s.
+    snd (transition l (s, om)) = Some m'
+    /\ valid l (s, om).
 
 Definition valid_message_production
   {message}
@@ -502,6 +504,21 @@ End GenericVLSM.
 
 Section Composing2VLSMs.
 
+Definition composed2_proto_message_prop
+  {message}
+  (S1 : VLSM message)
+  (S2 : VLSM message)
+  (m : message) : bool
+  :=
+  @proto_message_prop _ S1 m || @proto_message_prop _ S2 m.
+
+Definition composed2_proto_message
+  {message}
+  (S1 : VLSM message)
+  (S2 : VLSM message)
+  :=
+  { m : message | composed2_proto_message_prop S1 S2 m = true}. 
+
 Definition composed2_initial_state_prop
   {message}
   (S1 : VLSM message)
@@ -527,18 +544,24 @@ Definition composed2_initial_message_prop
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
-  (m : message)
+  (m : composed2_proto_message S1 S2)
+  : Prop
   :=
-  @initial_message_prop _ S1 m \/ @initial_message_prop _ S2 m.
+  (exists m1 : @proto_message _ S1, initial_message_prop m1 /\ (@proj1_sig message _ m1) = @proj1_sig message _ m)
+  \/
+  (exists m2 : @proto_message _ S2, initial_message_prop m2 /\ (@proj1_sig message _ m2) = @proj1_sig message _ m)
+  .
 
 Lemma composed2_message_inhabited
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
-  : { _ : message | True }
+  : { _ : composed2_proto_message S1 S2 | True }
   .
 Proof.
-  exact (@message_inhabited message S1).
+  destruct (@message_inhabited message S1) as [m1 _].
+  split; try exact I. unfold composed2_proto_message. 
+  destruct m1 as [m1 Hm1]. exists m1. apply orb_true_iff. left. assumption.
 Qed.
 
 Lemma composed2_label_inhabited
@@ -553,46 +576,81 @@ Proof.
   exact x.
 Qed.
 
+Definition lift_proto_message1
+  {message}
+  (S1 : VLSM message)
+  (S2 : VLSM message)
+  (m1 : @proto_message _ S1)
+  : composed2_proto_message S1 S2.
+destruct m1 as [m1 Hm1].
+exists m1.
+unfold composed2_proto_message_prop. rewrite Hm1. simpl. reflexivity.
+Defined.
+
+
+Definition lift_proto_message2
+  {message}
+  (S1 : VLSM message)
+  (S2 : VLSM message)
+  (m2 : @proto_message _ S2)
+  : composed2_proto_message S1 S2.
+destruct m2 as [m2 Hm2].
+exists m2.
+unfold composed2_proto_message_prop. rewrite Hm2. apply orb_comm.
+Defined.
+
 Definition composed2_transition
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
-  (om : option message)
   (l : (@label message S1) + (@label message S2))
-  (s : (@state message S1) * (@state message S2))
-  : (((@state message S1) * (@state message S2)) * option message)%type
-  :=
-  match l,s with
-  | inl l1, (s1, s2) =>
-    ((fst (transition om l1 s1), s2), snd (transition om l1 s1))
-  | inr l2, (s1, s2) =>
-    (s1, (fst (transition om l2 s2)), snd (transition om l2 s2))
-  end.
+  (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2))
+  : (((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2))%type
+  .
+destruct som as [[s1 s2] om].
+destruct l as [l1 | l2]; destruct om as [[m Hm]|].
+- destruct (@proto_message_prop _ S1 m) eqn:Hm1.
+  + destruct (transition l1 (s1, Some (exist _ m Hm1))) as [s1' om1'].
+    exact ((s1', s2), option_map (lift_proto_message1 S1 S2) om1').
+  + exact ((s1, s2), None).
+- destruct (transition l1 (s1, None)) as [s1' om1'].
+  exact ((s1', s2), option_map (lift_proto_message1 S1 S2) om1').
+- destruct (@proto_message_prop _ S2 m) eqn:Hm2.
+  + destruct (transition l2 (s2, Some (exist _ m Hm2))) as [s2' om2'].
+    exact ((s1, s2'), option_map (lift_proto_message2 S1 S2) om2').
+  + exact ((s1, s2), None).
+- destruct (transition l2 (s2, None)) as [s2' om2'].
+  exact ((s1, s2'), option_map (lift_proto_message2 S1 S2) om2').
+Defined.
+
 
 Definition composed2_valid
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
-  (om : option message)
   (l : (@label message S1) + (@label message S2))
-  (s : (@state message S1) * (@state message S2))
-  : Prop
-  :=
-  match l,s with
-  | inl l1, (s1, s2) => valid om l1 s1
-  | inr l2, (s1, s2) => valid om l2 s2
-  end.
+  (som : ((@state message S1) * (@state message S2) * option (composed2_proto_message S1 S2)))
+  : Prop .
+destruct l as [l1 | l2]; destruct som as [[s1 s2] [[m Hm] |]].
+- destruct (@proto_message_prop _ S1 m) eqn:Hm1.
+  + exact (valid l1 (s1, Some (exist _ m Hm1))).
+  + exact False.
+- exact (valid l1 (s1, None)).
+- destruct (@proto_message_prop _ S2 m) eqn:Hm2.
+  + exact (valid l2 (s2, Some (exist _ m Hm2))).
+  + exact False.
+- exact (valid l2 (s2, None)).
+Defined.
 
 Definition composed2_valid_constrained
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
-  (constraint : option message -> (@label message S1) + (@label message S2) -> (@state message S1) * (@state message S2) -> Prop)
-  (om : option message )
+  (constraint : (@label message S1) + (@label message S2) -> ((@state message S1) * (@state message S2)) *  option (composed2_proto_message S1 S2) -> Prop)
   (l : (@label message S1) + (@label message S2))
-  (s : (@state message S1) * (@state message S2))
+  (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2))
   :=
-  composed2_valid S1 S2 om l s /\ constraint om l s.
+  composed2_valid S1 S2 l som /\ constraint l som.
 
 Definition compose2_vlsm
   {message}
@@ -615,7 +673,7 @@ Definition compose2_vlsm_constrained
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
-  (constraint : option message -> (@label message S1) + (@label message S2) -> (@state message S1) * (@state message S2) -> Prop)
+  (constraint : (@label message S1) + (@label message S2) -> ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2) -> Prop)
   : VLSM message
   :=
   {| state := (@state message S1) * (@state message S2)
@@ -633,14 +691,20 @@ End Composing2VLSMs.
 
 Section ComposingVLSMs.
 
-(* TODO: minimal assumptions for communication. Do we really need that messages are shared.
-    maybe add a ptoto_message predicate defining a subset for each VLSM.
-  *)
 Definition composed_state {message} (Ss : list (VLSM message)) : Type :=
   fold_right prod unit (List.map (@state message) Ss).
 
 Definition composed_label {message} (Ss : list (VLSM message)) : Type :=
   fold_right sum Empty_set (List.map (@label message) Ss).
+
+Definition composed_proto_message_prop
+  {message} (Ss : list (VLSM message)) 
+  (m : message) : bool
+  :=
+  existsb (fun S => @proto_message_prop _ S m) Ss.
+
+Definition composed_proto_message  {message} (Ss : list (VLSM message)) : Type :=
+  { m : message | composed_proto_message_prop Ss m = true }.
 
 Fixpoint composed_initial_state_prop
   {message}
@@ -667,21 +731,27 @@ Qed.
 Fixpoint composed_initial_message_prop
   {message}
   (Ss : list (VLSM message))
-  : message -> Prop.
+  : composed_proto_message Ss -> Prop.
 destruct Ss as [|Sh St]; unfold composed_state; simpl; intros.
 - exact False.
-- exact (@initial_message_prop _ Sh X \/ composed_initial_message_prop _ St X).
+- inversion X as [m Hm]. 
+  destruct (@proto_message_prop _ Sh m) eqn:Hh; destruct (composed_proto_message_prop St m) eqn:Ht.
+  + exact (@initial_message_prop _ Sh (exist _ m Hh) \/ composed_initial_message_prop _ St (exist _ m Ht)).
+  + exact (@initial_message_prop _ Sh (exist _ m Hh)).
+  + exact (composed_initial_message_prop _ St (exist _ m Ht)).
+  + unfold composed_proto_message_prop in *. unfold existsb in *. rewrite Hh in Hm. simpl in Hm. rewrite Ht in Hm. inversion Hm.
 Defined.
 
 Lemma composed_message_inhabited
   {message}
   (Ss : list (VLSM message))
   (Ssnn : Ss <> [])
-  : { _ : message | True }
+  : { _ : composed_proto_message Ss | True }
   .
 Proof.
   destruct Ss as [| Sh St]; try contradiction.
-  exact (@message_inhabited _ Sh).
+  split; try exact I. destruct (@message_inhabited _ Sh) as [[mh Hmh] _].
+  exists mh. apply orb_true_iff. left. assumption.
 Qed.
 
 Lemma composed_label_inhabited
@@ -697,41 +767,78 @@ Proof.
   exact x.
 Qed.
 
+
+Definition lift_proto_message_h
+  {message}
+  (Sh : VLSM message)
+  (St : list (VLSM message))
+  (mh : @proto_message _ Sh)
+  : composed_proto_message (Sh :: St).
+destruct mh as [mh Hmh].
+exists mh.
+unfold composed_proto_message_prop. unfold existsb. rewrite Hmh. reflexivity.
+Defined.
+
+
+Definition lift_proto_message_t
+  {message}
+  (Sh : VLSM message)
+  (St : list (VLSM message))
+  (mt : composed_proto_message St)
+  : composed_proto_message (Sh :: St).
+destruct mt as [mt Hmt].
+exists mt.
+unfold composed_proto_message_prop in *. unfold existsb in *. rewrite Hmt. apply orb_comm.
+Defined.
+
 Fixpoint composed_transition
   {message}
   (Ss : list (VLSM message))
-  : option message -> composed_label Ss -> composed_state Ss -> (composed_state Ss * option message)%type.
+  : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> composed_state Ss * option (composed_proto_message Ss).
 destruct Ss as [| Sh St]; unfold composed_label; unfold composed_state; simpl
-; intros om l s.
+; intros l [s om].
 - inversion l.
-- destruct s as [sh st]. destruct l as [lh | lt].
-  + destruct (transition om lh sh) as [sh' om'].
-    exact ((sh', st), om').
-  + destruct (composed_transition message St om lt st) as  [st' om'].
-    exact ((sh, st'), om').
+- destruct s as [sh st]. destruct l as [lh | lt]; destruct om as [[m Hm]|].
+  + destruct (@proto_message_prop _ Sh m) eqn:Hh.
+    * destruct (transition lh (sh, Some (exist _ m Hh))) as [sh' om'].
+      exact ((sh', st), option_map (lift_proto_message_h Sh St) om').
+    * exact ((sh, st), None).
+  + destruct (transition lh (sh, None)) as [sh' om'].
+    exact ((sh', st), option_map (lift_proto_message_h Sh St) om').
+  + destruct (@composed_proto_message_prop _ St m) eqn:Ht.
+    * destruct (composed_transition message St lt (st, Some (exist _ m Ht))) as  [st' om'].
+      exact ((sh, st'), option_map (lift_proto_message_t Sh St) om').
+    * exact ((sh, st), None).
+  + destruct (composed_transition message St lt (st, None)) as  [st' om'].
+    exact ((sh, st'), option_map (lift_proto_message_t Sh St) om').
 Defined.
 
 Fixpoint composed_valid
   {message}
   (Ss : list (VLSM message))
-  : option message -> composed_label Ss -> composed_state Ss -> Prop.
+  : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> Prop.
 destruct Ss as [| Sh St]; unfold composed_label; unfold composed_state; simpl
-; intros om l s.
+; intros l [s om].
 - inversion l.
-- destruct s as [sh st]. destruct l as [lh | lt].
-  + exact (valid om lh sh).
-  + exact (composed_valid message St om lt st).
+- destruct s as [sh st]. destruct l as [lh | lt]; destruct om as [[m Hm]|].
+  + destruct (@proto_message_prop _ Sh m) eqn:Hh.
+    * exact (valid lh (sh, Some (exist _ m Hh))).
+    * exact False.
+  + exact (valid lh (sh, None)).
+  + destruct (@composed_proto_message_prop _ St m) eqn:Ht.
+    * exact (composed_valid message St lt (st, Some (exist _ m Ht))).
+    * exact False.
+  + exact (composed_valid message St lt (st, None)).
 Defined.
 
 Definition composed_valid_constrained
   {message}
   (Ss : list (VLSM message))
-  (constraint : option message -> composed_label Ss -> composed_state Ss -> Prop)
-  (om : option message )
+  (constraint : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> Prop)
   (l : composed_label Ss)
-  (s : composed_state Ss)
+  (som : composed_state Ss * option (composed_proto_message Ss))
   :=
-  composed_valid Ss om l s /\ constraint om l s.
+  composed_valid Ss l som /\ constraint l som.
 
 Definition composed_vlsm
   {message}
@@ -741,6 +848,7 @@ Definition composed_vlsm
   :=
   {| state := composed_state Ss
   ; label := composed_label Ss
+  ; proto_message_prop := composed_proto_message_prop Ss
   ; initial_state_prop := composed_initial_state_prop Ss
   ; protocol_state_inhabited := composed_protocol_state_inhabited Ss
   ; initial_message_prop := composed_initial_message_prop Ss
@@ -754,7 +862,7 @@ Definition composed_vlsm_constrained
   {message}
   (Ss : list (VLSM message))
   (Ssnn : Ss <> [])
-  (constraint : option message -> composed_label Ss -> composed_state Ss -> Prop)
+  (constraint : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> Prop)
   : VLSM message
   :=
   {| state := composed_state Ss
