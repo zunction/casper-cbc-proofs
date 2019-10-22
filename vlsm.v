@@ -89,6 +89,70 @@ Definition protocol_message
   `{V : VLSM message}
   : Type := { m : proto_message | protocol_message_prop m }.
 
+Definition protocol_valid
+  {message}
+  `{V : VLSM message}
+  (l : label)
+  (ps_opm : protocol_state * option protocol_message)
+  : Prop
+  :=
+  valid l (@proj1_sig _ _ (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
+
+Definition protocol_transition
+  {message}
+  `{V : VLSM message}
+  (l : label)
+  (ps_opm : protocol_state * option protocol_message)
+  : state * option proto_message
+  :=
+  transition l (@proj1_sig _ _ (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
+
+Lemma protocol_state_prop_iff
+  {message}
+  `{V : VLSM message}
+  : forall s' : state,
+  protocol_state_prop s'
+  <-> (exists is : initial_state, s' = proj1_sig is)
+  \/ exists (s : protocol_state) (l : label) (om : option protocol_message),
+    protocol_valid l (s, om)
+    /\ s' = fst (protocol_transition l (s, om)).
+Proof.
+  intros; split.
+  - intro Hps'. inversion Hps' as [is His | s s'' l om' Hps Hv Ht Heq| s s'' l m om' Hps Hpm Hv Ht Heq]; try (left; exists is; reflexivity)
+    ; right; subst; exists (exist _ s Hps); exists l; unfold protocol_transition; unfold protocol_valid; simpl
+    ; (exists (Some (exist _ m Hpm)) || exists None)
+    ; simpl ; rewrite Ht; split; auto.
+  - intros [[[s His] Heq] | [[s Hps] [l [[[m Hpm]|] [Hv Ht]]]]]; try (subst; apply initial_protocol_state)
+    ; unfold protocol_valid in Hv; simpl in Hv; unfold protocol_transition in Ht; simpl in Ht.
+    + destruct (transition l (s, Some m)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
+      apply (next_protocol_state_with_message s s'' l m om'); try assumption.
+    + destruct (transition l (s, None)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
+      apply (next_protocol_state_no_message s s'' l om'); try assumption.
+Qed.
+
+Lemma protocol_message_prop_iff
+  {message}
+  `{V : VLSM message}
+  : forall m' : proto_message,
+  protocol_message_prop m'
+  <-> (exists im : initial_message, m' = proj1_sig im)
+  \/ exists (s : protocol_state) (l : label) (om : option protocol_message),
+    protocol_valid l (s, om)
+    /\ Some m' = snd (protocol_transition l (s, om)).
+Proof.
+  intros; split.
+  - intro Hpm'. inversion Hpm' as [im Him | s s'' l om' Hps Hv Ht Heq| s s'' l m om' Hps Hpm Hv Ht Heq]; try (left; exists im; reflexivity)
+    ; right; subst; exists (exist _ s Hps); exists l; unfold protocol_transition; unfold protocol_valid; simpl
+    ; (exists (Some (exist _ m Hpm)) || exists None)
+    ; simpl ; rewrite Ht; split; auto.
+  - intros [[[m Him] Heq] | [[s Hps] [l [[[m Hpm]|] [Hv Ht]]]]]; try (subst; apply initial_protocol_message)
+    ; unfold protocol_valid in Hv; simpl in Hv; unfold protocol_transition in Ht; simpl in Ht.
+    + destruct (transition l (s, Some m)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
+      apply (receive_protocol_message s s'' l m m'); try assumption.
+    + destruct (transition l (s, None)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
+      apply (create_protocol_message s s'' l m'); try assumption.
+Qed.
+
 Definition labeled_valid_transition
   {message}
   `{V : VLSM message}
@@ -713,9 +777,6 @@ End Composing2VLSMs.
 
 Section ComposingVLSMs.
 
-(* TODO: minimal assumptions for communication. Do we really need that messages are shared.
-    maybe add a ptoto_message predicate defining a subset for each VLSM.
-  *)
 Definition composed_state {message} (Ss : list (VLSM message)) : Type :=
   fold_right prod unit (List.map (@state message) Ss).
 
