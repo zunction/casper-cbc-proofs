@@ -204,8 +204,7 @@ Qed.
 
 Instance message_strictorder
   {C} `{about_C : StrictlyComparable C} {V} `{about_V : StrictlyComparable V}
-  : CompareStrictOrder (@message_compare C about_C V about_V)
-  := _. 
+  : CompareStrictOrder (@message_compare C about_C V about_V).
 split.
   - intros msg1 msg2. unfold message_compare.
     rewrite (state_compare_reflexive (next msg1 Empty) (next msg2 Empty)).
@@ -232,8 +231,7 @@ Definition message_lt
 
 Instance message_lt_strictorder
   {C V} `{about_M : StrictlyComparable (message C V)}
-  : StrictOrder (@message_lt C V about_M) :=
-  _. 
+  : StrictOrder (@message_lt C V about_M). 
 split. apply compare_lt_irreflexive.
 apply compare_lt_transitive.
 Defined.

@@ -22,6 +22,7 @@ Class ReachableThreshold V `{Hm : Measurable V} :=
 Class DistinctChoice V `{HscV : StrictlyComparable V} `{Hit : InhabitedTwice V}.
 
 Instance distinct_choice {V} `{HscV : StrictlyComparable V} `{Hit : InhabitedTwice V} : DistinctChoice V.
+Defined.
 
 Lemma distinct_choice_total
   {V} `{Hdc : DistinctChoice V}
