@@ -1,5 +1,5 @@
 
-Require Import ClassicalDescription.
+Require Import ClassicalDescription ClassicalChoice ChoiceFacts.
 
 From Casper
 Require Import vlsm.
@@ -49,27 +49,24 @@ Definition icomposed_initial_state_prop
   :=
   forall i : index, @initial_state_prop _ (IS i) (s i).
 
-Require Import ClassicalChoice ChoiceFacts.
-
-Print DependentFunctionalChoice_on.
+Definition icomposed_initial_state
+  {index : Set} {message : Type}
+  (IS : index -> VLSM message)
+  := { s : icomposed_state IS | icomposed_initial_state_prop IS s }.
 
 Lemma icomposed_protocol_state_inhabited
   {index : Set} {message : Type}
   (IS : index -> VLSM message)
-  : exists s : icomposed_state IS, icomposed_initial_state_prop IS s.
+  : inhabited (icomposed_initial_state IS).
 Proof.
-  unfold icomposed_state.
-  unfold icomposed_initial_state_prop.
-  assert (Hchoice : forall i : index, exists s : (@state _ (IS i)),
-    @initial_state_prop _ (IS i) s).
-  { intros. destruct (@protocol_state_inhabited _ (IS i)) as [s His].
+  unfold icomposed_initial_state. unfold icomposed_state. unfold icomposed_initial_state_prop.
+  assert (Hchoice : exists s : forall i : index, @state _ (IS i), forall i : index, @initial_state_prop _ (IS i) (s i)).
+  { apply (non_dep_dep_functional_choice choice). simpl.
+    intros i. destruct (@protocol_state_inhabited _ (IS i)) as [[s His]].
     exists s. assumption.
   }
-  specialize (non_dep_dep_functional_choice choice); intros depFunChoice.
-  specialize (depFunChoice index (fun i => (@state _ (IS i)))).
-  specialize (depFunChoice (fun i => @initial_state_prop _ (IS i))).
-  simpl in depFunChoice.
-  specialize (depFunChoice Hchoice). assumption.
+  destruct Hchoice as [s His].
+  constructor. exists s. assumption.
 Qed.
 
 Definition icomposed_initial_message_prop
@@ -81,13 +78,6 @@ Definition icomposed_initial_message_prop
   exists (i : index) (mi : @initial_message _ (IS i)), proj1_sig (proj1_sig mi) = proj1_sig m.
 
 
-Lemma inhabited_exists : forall A, inhabited A <-> exists x : A, True.
-Proof.
-  intros; split; intros.
-  - destruct H. exists X. exact I.
-  - destruct H as [a _]. constructor. exact a.
-Qed.
-
 Lemma icomposed_message_inhabited
   {index : Set} {message : Type}
   (IS : index -> VLSM message)
@@ -96,12 +86,11 @@ Lemma icomposed_message_inhabited
   .
 Proof.
   unfold icomposed_proto_message. unfold icomposed_proto_message_prop.
-  destruct Hi as [i]. specialize (@message_inhabited _ (IS i)).
-  intros. destruct X as [m _]. destruct m as [m Hpm].
-  split. exists m. exists i. assumption.
+  destruct Hi as [i]. destruct (@message_inhabited _ (IS i)) as [[m Hpm]].
+  constructor. exists m. exists i. assumption.
 Qed.
 
-Lemma composed_label_inhabited
+Lemma icomposed_label_inhabited
   {index : Set} {message : Type}
   (IS : index -> VLSM message)
   (Hi : inhabited index)
@@ -109,7 +98,7 @@ Lemma composed_label_inhabited
 Proof.
   unfold icomposed_label.
   destruct Hi as [i].
-  destruct (@label_inhabited message (IS i)) as [l _].
+  destruct (@label_inhabited message (IS i)) as [l].
   constructor.
   exists i. exact l.
 Qed.
@@ -124,8 +113,11 @@ destruct mi as [m Hm].
 exists m. exists i. assumption.
 Defined.
 
+Class EqDec X :=
+  eq_dec : forall x y : X, {x = y} + {x <> y}.
+
 Definition icomposed_transition
-  {index : Set} {message : Type} 
+  {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
   (l : icomposed_label IS)
   (som : icomposed_state IS * option (icomposed_proto_message IS))
@@ -137,97 +129,83 @@ destruct om as [[m _]|].
   + remember (transition li (s i, Some (exist _ m Hi))) as som'.
     destruct som' as [si' om'].
     split.
-    * intros j. 
-destruct Ss as [| Sh St]; unfold composed_label; unfold composed_state; simpl
-; intros l [s om].
-- inversion l.
-- destruct s as [sh st]. destruct om as [[m Hm]|].
-  + destruct l as [lh | lt].
-    * destruct (@proto_message_decidable _ Sh m) as [Hh | _].
-      { remember (transition lh (sh, Some (exist _ m Hh))) as som'.
-        exact ((fst som', st), option_map (lift_proto_messageH Sh St) (snd som')).
-      }
-      exact ((sh, st), None).
-    * destruct (composed_proto_message_decidable St m) as [Ht | _].
-      { remember (composed_transition _ St lt (st, Some (exist _ m Ht))) as som'.
-        exact ((sh, fst som'), option_map (lift_proto_messageT Sh St) (snd som')).
-      }
-      exact ((sh, st), None).
-  + destruct l as [lh | lt].
-    * remember (transition lh (sh, None)) as som'.
-      exact ((fst som', st), option_map (lift_proto_messageH Sh St) (snd som')).
-    * remember (composed_transition _ St lt (st, None)) as som'.
-      exact ((sh, fst som'), option_map (lift_proto_messageT Sh St) (snd som')).
+    * intros j. destruct (eq_dec j i).
+      { subst. exact si' . }
+      exact (s j).
+    * exact (option_map (lift_proto_messageI IS i) om').
+  + exact (s, None).
+- remember (transition li (s i, None)) as som'.
+    destruct som' as [si' om'].
+    split.
+    * intros j. destruct (eq_dec j i).
+      { subst. exact si' . }
+      exact (s j).
+    * exact (option_map (lift_proto_messageI IS i) om').
 Defined.
 
-Fixpoint composed_valid
-  {message}
-  (Ss : list (VLSM message))
-  : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> Prop.
-destruct Ss as [| Sh St]; unfold composed_label; unfold composed_state; simpl
-; intros l [s om].
-- inversion l.
-- destruct s as [sh st]. destruct om as [[m Hm]|].
-  + destruct l as [lh | lt].
-    * destruct (@proto_message_decidable _ Sh m) as [Hh | _].
-      { exact (valid lh (sh, Some (exist _ m Hh))). }
-      exact False.
-    * destruct (composed_proto_message_decidable St m) as [Ht | _].
-      { exact (composed_valid _ St lt (st, Some (exist _ m Ht))). }
-      exact False.
-  + destruct l as [lh | lt].
-    * exact (valid lh (sh, None)).
-    * exact (composed_valid _ St lt (st, None)).
+Definition icomposed_valid
+  {index : Set} {message : Type} `{Heqd : EqDec index}
+  (IS : index -> VLSM message)
+  (l : icomposed_label IS)
+  (som : icomposed_state IS * option (icomposed_proto_message IS))
+  : Prop.
+destruct som as [s om].
+destruct l as [i li].
+destruct om as [[m _]|].
+- destruct (@proto_message_decidable _ (IS i) m) as [Hi | _].
+  + exact (valid li (s i, Some (exist _ m Hi))).
+  + exact False.
+- exact (valid li (s i, None)).
 Defined.
 
 Definition composed_valid_constrained
-  {message}
-  (Ss : list (VLSM message))
-  (constraint : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> Prop)
-  (l : composed_label Ss)
-  (som : composed_state Ss * option (composed_proto_message Ss) )
+  {index : Set} {message : Type} `{Heqd : EqDec index}
+  (IS : index -> VLSM message)
+  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
+  (l : icomposed_label IS)
+  (som : icomposed_state IS * option (icomposed_proto_message IS))
   :=
-  composed_valid Ss l som /\ constraint l som.
+  icomposed_valid IS l som /\ constraint l som.
 
 Definition composed_vlsm
-  {message}
-  (Ss : list (VLSM message))
-  (Ssnn : Ss <> [])
+  {index : Set} {message : Type} `{Heqd : EqDec index}
+  (IS : index -> VLSM message)
+  (Hi : inhabited index)
   : VLSM message
   :=
-  {| state := composed_state Ss
-  ; label := composed_label Ss
-  ; proto_message_prop := composed_proto_message_prop Ss
-  ; proto_message_decidable := composed_proto_message_decidable Ss
-  ; initial_state_prop := composed_initial_state_prop Ss
-  ; protocol_state_inhabited := composed_protocol_state_inhabited Ss
-  ; initial_message_prop := composed_initial_message_prop Ss
-  ; message_inhabited := composed_message_inhabited Ss Ssnn
-  ; label_inhabited := composed_label_inhabited Ss Ssnn
-  ; transition := composed_transition Ss
-  ; valid := composed_valid Ss
+  {| state := icomposed_state IS
+  ; label := icomposed_label IS
+  ; proto_message_prop := icomposed_proto_message_prop IS
+  ; proto_message_decidable := icomposed_proto_message_decidable IS
+  ; initial_state_prop := icomposed_initial_state_prop IS
+  ; protocol_state_inhabited := icomposed_protocol_state_inhabited IS
+  ; initial_message_prop := icomposed_initial_message_prop IS
+  ; message_inhabited := icomposed_message_inhabited IS Hi
+  ; label_inhabited := icomposed_label_inhabited IS Hi
+  ; transition := icomposed_transition IS
+  ; valid := icomposed_valid IS
   |}.
 
 Definition composed_vlsm_constrained
-  {message}
-  (Ss : list (VLSM message))
-  (Ssnn : Ss <> [])
-  (constraint : composed_label Ss -> composed_state Ss * option (composed_proto_message Ss) -> Prop)
+  {index : Set} {message : Type} `{Heqd : EqDec index}
+  (IS : index -> VLSM message)
+  (Hi : inhabited index)
+  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
   : VLSM message
   :=
-  {| state := composed_state Ss
-  ; label := composed_label Ss
-  ; proto_message_prop := composed_proto_message_prop Ss
-  ; proto_message_decidable := composed_proto_message_decidable Ss
-  ; initial_state_prop := composed_initial_state_prop Ss
-  ; protocol_state_inhabited := composed_protocol_state_inhabited Ss
-  ; initial_message_prop := composed_initial_message_prop Ss
-  ; message_inhabited := composed_message_inhabited Ss Ssnn
-  ; label_inhabited := composed_label_inhabited Ss Ssnn
-  ; transition := composed_transition Ss
-  ; valid := composed_valid_constrained Ss constraint
+  {| state := icomposed_state IS
+  ; label := icomposed_label IS
+  ; proto_message_prop := icomposed_proto_message_prop IS
+  ; proto_message_decidable := icomposed_proto_message_decidable IS
+  ; initial_state_prop := icomposed_initial_state_prop IS
+  ; protocol_state_inhabited := icomposed_protocol_state_inhabited IS
+  ; initial_message_prop := icomposed_initial_message_prop IS
+  ; message_inhabited := icomposed_message_inhabited IS Hi
+  ; label_inhabited := icomposed_label_inhabited IS Hi
+  ; transition := icomposed_transition IS
+  ; valid := composed_valid_constrained IS constraint
   |}.
 
-End ComposingVLSMs.
+End ComposingIndexedVLSMs.
 
 

@@ -9,4 +9,6 @@ fullnode.v
 lightnode.v
 binary.v
 vlsm.v
+two_vlsms.v
+list_of_vlsms.v
 indexed_vlsm.v
