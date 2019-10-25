@@ -8,9 +8,19 @@ RealsExtras.vo RealsExtras.glob RealsExtras.v.beautified: RealsExtras.v
 RealsExtras.vio: RealsExtras.v
 sorted_lists.vo sorted_lists.glob sorted_lists.v.beautified: sorted_lists.v
 sorted_lists.vio: sorted_lists.v
-locally_sorted.vo locally_sorted.glob locally_sorted.v.beautified: locally_sorted.v
-locally_sorted.vio: locally_sorted.v
-fault_weights.vo fault_weights.glob fault_weights.v.beautified: fault_weights.v
-fault_weights.vio: fault_weights.v
-protocol_states.vo protocol_states.glob protocol_states.v.beautified: protocol_states.v
-protocol_states.vio: protocol_states.v
+protocol.vo protocol.glob protocol.v.beautified: protocol.v
+protocol.vio: protocol.v
+common.vo common.glob common.v.beautified: common.v
+common.vio: common.v
+definitions.vo definitions.glob definitions.v.beautified: definitions.v
+definitions.vio: definitions.v
+fullnode.vo fullnode.glob fullnode.v.beautified: fullnode.v
+fullnode.vio: fullnode.v
+lightnode.vo lightnode.glob lightnode.v.beautified: lightnode.v
+lightnode.vio: lightnode.v
+binary.vo binary.glob binary.v.beautified: binary.v
+binary.vio: binary.v
+ctl.vo ctl.glob ctl.v.beautified: ctl.v
+ctl.vio: ctl.v
+vlsm.vo vlsm.glob vlsm.v.beautified: vlsm.v
+vlsm.vio: vlsm.v
