@@ -4,7 +4,11 @@ Require Import ClassicalDescription ClassicalChoice ChoiceFacts.
 From Casper
 Require Import vlsm.
 
-Section ComposingIndexedVLSMs.
+(*
+Composition of indexed VLSMs.
+
+Assumes classical logic (excluded middle) and the axiom of choice.
+*)
 
 Definition icomposed_state
   {index : Set} {message : Type}
@@ -167,6 +171,9 @@ Definition composed_valid_constrained
   :=
   icomposed_valid IS l som /\ constraint l som.
 
+
+(* Free VLSM composition *)
+
 Definition composed_vlsm
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
@@ -185,6 +192,9 @@ Definition composed_vlsm
   ; transition := icomposed_transition IS
   ; valid := icomposed_valid IS
   |}.
+
+
+(* Constrained VLSM composition *)
 
 Definition composed_vlsm_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
@@ -205,7 +215,4 @@ Definition composed_vlsm_constrained
   ; transition := icomposed_transition IS
   ; valid := composed_valid_constrained IS constraint
   |}.
-
-End ComposingIndexedVLSMs.
-
 
