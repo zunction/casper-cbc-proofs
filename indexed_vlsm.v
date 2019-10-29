@@ -142,7 +142,7 @@ destruct om as [[m _]|].
     destruct som' as [si' om'].
     split.
     * intros j. destruct (eq_dec j i).
-      { subst. exact si' . }
+      { subst. exact si'. }
       exact (s j).
     * exact (option_map (lift_proto_messageI IS i) om').
 Defined.
