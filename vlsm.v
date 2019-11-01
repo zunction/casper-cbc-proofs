@@ -4,6 +4,8 @@ Import ListNotations.
 From Casper
 Require Import ListExtras.
 
+Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
+
 (* 2.2.1 VLSM Parameters *)
 
 Class VLSM (message : Type) :=
@@ -97,16 +99,6 @@ Definition protocol_valid
   :=
   valid l (proj1_sig (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
 
-Lemma protocol_valid_state_irrelevance
-  {message}
-  `{V : VLSM message}
-  : forall l ps ps' opm,
-  proj1_sig ps = proj1_sig ps' ->
-  protocol_valid l (ps, opm) <-> protocol_valid l (ps', opm).
-Proof.
-  intros. unfold protocol_valid. simpl. rewrite H. apply iff_refl.
-Qed.
-
 Definition protocol_transition
   {message}
   `{V : VLSM message}
@@ -115,16 +107,6 @@ Definition protocol_transition
   : state * option proto_message
   :=
   transition l (proj1_sig (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
-
-Lemma protocol_transition_state_irrelevance
-  {message}
-  `{V : VLSM message}
-  : forall l ps ps' opm,
-  proj1_sig ps = proj1_sig ps' ->
-  protocol_transition l (ps, opm) = protocol_transition l (ps', opm).
-Proof.
-  intros. unfold protocol_transition. simpl. rewrite H. reflexivity.
-Qed.
 
 (* Protocol state characterization - similar to the definition in the report. *)
 
@@ -235,23 +217,6 @@ Definition valid_transition
   exists opm : option protocol_message,
   exists l : label,
   labeled_valid_transition opm l ps ps'.
-
-Lemma valid_transition_state_irrelevance
-  {message}
-  `{V : VLSM message}
-  : forall ps1 ps1' ps2 ps2' : protocol_state,
-  proj1_sig ps1 = proj1_sig ps1' ->
-  proj1_sig ps2 = proj1_sig ps2' ->
-  valid_transition ps1 ps2 <-> valid_transition ps1' ps2'.
-Proof.
-  intros ps1 ps1' ps2 ps2' Heq1 Heq2.
-  unfold valid_transition. unfold labeled_valid_transition.
-  split; intro
-  ; destruct H as [opm [l [Hv Ht]]]; exists opm; exists l
-  ; rewrite (protocol_valid_state_irrelevance l _ _ opm Heq1) in *; split; try assumption.
-  - rewrite <-  Heq2. rewrite <- Ht. apply f_equal. apply protocol_transition_state_irrelevance. auto.
-  - rewrite Heq2. rewrite <- Ht. apply f_equal. apply protocol_transition_state_irrelevance. assumption.
-Qed.
 
 (* Valid  VLSM trace *)
 
@@ -573,10 +538,10 @@ Proof.
       assert (Hpt : protocol_trace_prop (Finite [s; ps']))  by (split; assumption).
       exists (exist _ (Finite [s; ps']) Hpt). exists ps'. subst. simpl. split; reflexivity.
     + destruct Hstep as [pt [ps [Heq_last Heq_s]]].
-      assert (Hvt' : valid_transition ps ps')
-        by (rewrite (valid_transition_state_irrelevance ps s ps' ps'); auto). 
-      apply (extend_protocol_trace pt ps ps') in Hvt'; try assumption.
-      destruct Hvt' as [pt' Hlast].
+      assert (s = ps) by (destruct s; destruct ps; simpl in Heq_s; subst; apply f_equal; apply proof_irrelevance).
+      rewrite H in Hvt.
+      apply (extend_protocol_trace pt ps ps') in Hvt; try assumption.
+      destruct Hvt as [pt' Hlast].
       exists pt'. exists ps'. split; subst; auto.
 Qed.
 
