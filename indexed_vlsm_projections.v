@@ -1,16 +1,22 @@
 From Casper
 Require Import vlsm indexed_vlsm.
 
-
 Definition indexed_vlsm_projection_initial_message_prop
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  (IS : index -> VLSM message)
-  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (iproto_message_prop : message -> Prop)
   (i : index)
-  (m : @proto_message _ (IS i))
+  (m : {x : message | iproto_message_prop x})
   : Prop
-  := 
-  @protocol_message_prop _ (composed_vlsm_constrained IS (inhabits i) constraint) (lift_proto_messageI IS i m).
+  :=
+  let m0 := proj1_sig m in
+  match proto_message_decidable m0 with
+  | left Hcm => protocol_message_prop (exist _ m0 Hcm)
+  | _ => False
+  end
+  .
+
+Print indexed_vlsm_projection_initial_message_prop.
 
 Definition indexed_vlsm_projection_valid
   {index : Set} {message : Type} `{Heqd : EqDec index}

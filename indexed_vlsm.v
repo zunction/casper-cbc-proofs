@@ -216,3 +216,37 @@ Definition composed_vlsm_constrained
   ; valid := composed_valid_constrained IS constraint
   |}.
 
+Class composed_vlsm_class (message : Type) `{VLSM message} :=
+  { index : Set
+  ; istate : state -> index -> Type
+  ; ilabel : label -> index
+  }.
+
+Definition composed_vlsm_istate
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  {IS : oindex -> VLSM message}
+  {Hi : inhabited oindex}
+  (s : @state message (composed_vlsm IS Hi))
+  (i : oindex)
+  : Type
+  := @state message (IS i).
+
+Definition composed_vlsm_ilabel
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  {IS : oindex -> VLSM message}
+  {Hi : inhabited oindex}
+  (s : @label message (composed_vlsm IS Hi))
+  : oindex
+  :=
+  projT1 s.
+
+Instance composed_vlsm_class_instance
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  {IS : oindex -> VLSM message}
+  {Hi : inhabited oindex}
+  : @composed_vlsm_class message (composed_vlsm IS Hi)
+  :=
+  { index := oindex
+  ; istate := composed_vlsm_istate
+  ; ilabel := composed_vlsm_ilabel
+  }.
