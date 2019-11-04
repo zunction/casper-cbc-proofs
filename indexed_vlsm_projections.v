@@ -1,36 +1,96 @@
 From Casper
 Require Import vlsm indexed_vlsm.
 
+Definition lift_proto_message
+  {message : Type}
+  `{V : VLSM message}
+  {iproto_message_prop : message -> Prop}
+  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
+  (m : {x : message | iproto_message_prop x})
+  : proto_message
+  :=
+  let m0 := proj1_sig m in
+  let Hcm := iproto_message_consistent m0 (proj2_sig m) in
+  (exist _ m0 Hcm).
+
 Definition indexed_vlsm_projection_initial_message_prop
   {message : Type}
   `{CV : composed_vlsm_class message}
-  (iproto_message_prop : message -> Prop)
+  {iproto_message_prop : message -> Prop}
+  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
   (m : {x : message | iproto_message_prop x})
   : Prop
   :=
-  let m0 := proj1_sig m in
-  match proto_message_decidable m0 with
-  | left Hcm => protocol_message_prop (exist _ m0 Hcm)
-  | _ => False
-  end
-  .
+  protocol_message_prop (lift_proto_message iproto_message_consistent m).
 
-Print indexed_vlsm_projection_initial_message_prop.
+Definition ilabel_type 
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  :=
+  { l : label | ilabel l = i }.
+
+Definition noneOrAll
+  (op : option Prop)
+  : Prop
+  :=
+  match op with
+  | None => True
+  | (Some p) => p
+  end.
 
 Definition indexed_vlsm_projection_valid
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  (IS : index -> VLSM message)
-  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  {iproto_message_prop : message -> Prop}
+  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
-  (l : @label _ (IS i))
-  (som : @state _ (IS i) * option (@proto_message _ (IS i)))
+  (il : ilabel_type i)
+  (isom : istate i * option {m : message | iproto_message_prop m})
   : Prop
-  := @valid _ (IS i) l som
-  /\ exists (s' : @protocol_state _ (composed_vlsm_constrained IS (inhabits i) constraint))
-            (om' : option (@protocol_message _ (composed_vlsm_constrained IS (inhabits i) constraint))),
-      fst (@transition _ (IS i) l som) = (proj1_sig s') i
-      /\ option_map (@proj1_sig message _) (snd (@transition _ (IS i) l som)) = option_map (@proj1_sig message _) (option_map (@proj1_sig proto_message _) om').
+  :=
+  let l := proj1_sig il in
+  let (is, oim) := isom in
+  let om := option_map (lift_proto_message iproto_message_consistent) oim in
+  exists s : state, istate_proj i s = proj1_sig is /\ valid l (s, om)
+  /\ noneOrAll (option_map iproto_message_prop (option_map (@proj1_sig message proto_message_prop) (snd (transition l (s, om)))))
+  /\
+  forall s' : state, istate_proj i s' = proj1_sig is -> valid l (s', om) ->
+    (   snd (transition l (s, om)) = snd (transition l (s', om))
+    /\  istate_proj i (fst (transition l (s, om))) = istate_proj i (fst (transition l (s, om)))
+    ).
+
+
+Lemma indexed_vlsm_projection_valid_decidable
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  {iproto_message_prop : message -> Prop}
+  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
+  (i : index)
+  : forall (il : ilabel_type i) (isom : istate i * option {m : message | iproto_message_prop m}),
+  {indexed_vlsm_projection_valid iproto_message_consistent i il isom} + {~indexed_vlsm_projection_valid iproto_message_consistent i il isom}.
+Admitted.
+
+Require Import ClassicalChoice.
+
+
+Definition indexed_vlsm_projection_transition
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  {iproto_message_prop : message -> Prop}
+  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
+  (i : index)
+  (il : ilabel_type i)
+  (isom : istate i * option {m : message | iproto_message_prop m})
+  : istate i * option {m : message | iproto_message_prop m}.
+remember (option_map (lift_proto_message iproto_message_consistent) (snd isom)) as om.
+destruct (indexed_vlsm_projection_valid_decidable iproto_message_consistent i il isom) as [Hv | Hnv].
+- unfold indexed_vlsm_projection_valid in Hv.
+  destruct isom as [is oim].
+  destruct Hv as [s Hv].
+- exact (fst isom, None).
+Defined.
 
 Definition indexed_vlsm_projection
   {index : Set} {message : Type} `{Heqd : EqDec index}

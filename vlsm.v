@@ -23,6 +23,7 @@ Class VLSM (message : Type) :=
   ; label_inhabited : inhabited label
   ; transition : label -> state * option proto_message -> state * option proto_message
   ; valid : label -> state * option proto_message -> Prop
+  ; valid_decidable : forall l som, {valid l som} + {~valid l som}
   }.
 
 (* 2.2.2 VLSM protocol states and protocol messages *)
