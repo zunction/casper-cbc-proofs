@@ -267,6 +267,17 @@ Definition istate
   :=
   { is : iproto_state i | exists s : state, istate_proj i s = is }.
 
+Definition proj_istate
+  { message : Type }
+  `{composed_vlsm_class message}
+  (s : state)
+  (i : index)
+  : istate i.
+remember (istate_proj i s) as is.
+assert (His : exists s', istate_proj i s' = is) by (exists s; subst; reflexivity).
+exact (exist _ is His).
+Defined.
+
 Definition composed_vlsm_istate
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> VLSM message}
