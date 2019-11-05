@@ -289,18 +289,57 @@ Definition composed_vlsm_ilabel
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> VLSM message}
   {Hi : inhabited oindex}
-  (s : @label message (composed_vlsm IS Hi))
+  (l : @label message (composed_vlsm IS Hi))
   : oindex
   :=
-  projT1 s.
+  projT1 l.
 
-Instance composed_vlsm_class_instance
+Definition composed_vlsm_class_instance
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> VLSM message}
   {Hi : inhabited oindex}
   : @composed_vlsm_class message (composed_vlsm IS Hi) :=
-  { index := oindex
+  {| index := oindex
   ; iproto_state := @composed_vlsm_istate oindex message Heqd IS Hi
   ; istate_proj := @composed_vlsm_istate_proj oindex message Heqd IS Hi
   ; ilabel := composed_vlsm_ilabel
-  }.
+  |}.
+
+
+
+Definition composed_vlsm_constrained_istate_proj
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  {IS : oindex -> VLSM message}
+  {Hi : inhabited oindex}
+  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
+  (i : oindex)
+  (s : @state _ (composed_vlsm_constrained IS Hi constraint constraint_decidable))
+  : @composed_vlsm_istate oindex message Heqd IS Hi i
+  :=
+  s i.
+
+Definition composed_vlsm_constrained_ilabel
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  {IS : oindex -> VLSM message}
+  {Hi : inhabited oindex}
+  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
+  (l : @label message (composed_vlsm_constrained IS Hi constraint constraint_decidable))
+  : oindex
+  :=
+  projT1 l.
+
+
+Definition composed_vlsm_constrained_instance
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  (IS : oindex -> VLSM message)
+  (Hi : inhabited oindex)
+  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
+  : @composed_vlsm_class message (composed_vlsm_constrained IS Hi constraint constraint_decidable) :=
+  {| index := oindex
+  ; iproto_state := @composed_vlsm_istate oindex message Heqd IS Hi
+  ; istate_proj := @composed_vlsm_constrained_istate_proj oindex message Heqd IS Hi constraint constraint_decidable
+  ; ilabel := composed_vlsm_constrained_ilabel constraint constraint_decidable
+  |}.
