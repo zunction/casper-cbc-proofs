@@ -208,7 +208,7 @@ Proof.
   - right. intros [_ Hc]. contradiction.
 Qed.
 
-Definition compose2_vlsm
+Definition composed2_vlsm
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
@@ -228,7 +228,7 @@ Definition compose2_vlsm
   ; valid_decidable := composed2_valid_decidable S1 S2
   |}.
 
-Definition compose2_vlsm_constrained
+Definition composed2_vlsm_constrained
   {message}
   (S1 : VLSM message)
   (S2 : VLSM message)
