@@ -12,4 +12,5 @@ vlsm.v
 two_vlsms.v
 list_of_vlsms.v
 indexed_vlsm.v
+composed_vlsm.v
 indexed_vlsm_projections.v

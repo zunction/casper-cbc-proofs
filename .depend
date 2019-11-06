@@ -30,3 +30,5 @@ list_of_vlsms.vo list_of_vlsms.glob list_of_vlsms.v.beautified: list_of_vlsms.v 
 list_of_vlsms.vio: list_of_vlsms.v vlsm.vio
 indexed_vlsm.vo indexed_vlsm.glob indexed_vlsm.v.beautified: indexed_vlsm.v vlsm.vo
 indexed_vlsm.vio: indexed_vlsm.v vlsm.vio
+indexed_vlsm_projections.vo indexed_vlsm_projections.glob indexed_vlsm_projections.v.beautified: indexed_vlsm_projections.v vlsm.vo indexed_vlsm.vo
+indexed_vlsm_projections.vio: indexed_vlsm_projections.v vlsm.vio indexed_vlsm.vio

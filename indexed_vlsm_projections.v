@@ -1,5 +1,5 @@
 From Casper
-Require Import vlsm indexed_vlsm.
+Require Import vlsm indexed_vlsm composed_vlsm.
 
 
 Definition vlsm_projection_initial_state_prop
@@ -192,21 +192,23 @@ Lemma indexed_vlsm_projection_proto_message_consistent
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
   (i : index)
-  : forall m : message, indexed_vlsm_projection_proto_message_prop IS i m -> @proto_message_prop message (composed_vlsm IS (inhabits i)) m.
+  : forall m : message,
+  indexed_vlsm_projection_proto_message_prop IS i m ->
+  @proto_message_prop message (indexed_vlsm IS (inhabits i)) m.
 Proof.
   unfold indexed_vlsm_projection_proto_message_prop.
   intros m Hmi.
-  unfold proto_message_prop; simpl. unfold icomposed_proto_message_prop. exists i. assumption.
+  unfold proto_message_prop; simpl. unfold indexed_proto_message_prop. exists i. assumption.
 Qed.
 
 Lemma indexed_vlsm_projection_label_inhabited
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> VLSM message)
   (i : oindex)
-  : inhabited (@ilabel_type message (composed_vlsm IS (inhabits i)) (@composed_vlsm_class_instance oindex message Heqd IS (inhabits i)) i).
+  : inhabited (@ilabel_type message (indexed_vlsm IS (inhabits i)) (@indexed_vlsm_composed_instance oindex message Heqd IS (inhabits i)) i).
 Proof.
   destruct (@label_inhabited message (IS i)) as [l].
-  unfold ilabel_type. unfold label; simpl. unfold composed_vlsm_ilabel. unfold icomposed_label.
+  unfold ilabel_type. unfold label; simpl. unfold indexed_vlsm_ilabel. unfold indexed_label.
   constructor.
   exists (existT _ i l).
   reflexivity.
@@ -219,7 +221,9 @@ Definition indexed_vlsm_projection
   (i : oindex)
   : VLSM (message : Type)
   :=
-  @vlsm_projection message (composed_vlsm IS (inhabits i)) (@composed_vlsm_class_instance oindex message Heqd IS (inhabits i))
+  @vlsm_projection message
+    (indexed_vlsm IS (inhabits i))
+    (@indexed_vlsm_composed_instance oindex message Heqd IS (inhabits i))
     (indexed_vlsm_projection_proto_message_prop IS i)
     (indexed_vlsm_projection_proto_message_decidable IS i)
     (indexed_vlsm_projection_message_inhabited IS i)
@@ -231,26 +235,28 @@ Definition indexed_vlsm_projection
 Lemma indexed_vlsm_constrained_projection_proto_message_consistent
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
-  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
+  (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (i : index)
-  : forall m : message, indexed_vlsm_projection_proto_message_prop IS i m -> @proto_message_prop message (composed_vlsm_constrained IS (inhabits i) constraint constraint_decidable) m.
+  : forall m : message,
+  indexed_vlsm_projection_proto_message_prop IS i m ->
+  @proto_message_prop message (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable) m.
 Proof.
   unfold indexed_vlsm_projection_proto_message_prop.
   intros m Hmi.
-  unfold proto_message_prop; simpl. unfold icomposed_proto_message_prop. exists i. assumption.
+  unfold proto_message_prop; simpl. unfold indexed_proto_message_prop. exists i. assumption.
 Qed.
 
 Lemma indexed_vlsm_constrained_projection_label_inhabited
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> VLSM message)
-  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
+  (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (i : oindex)
-  : inhabited (@ilabel_type message (composed_vlsm_constrained IS (inhabits i) constraint constraint_decidable) (@composed_vlsm_constrained_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable) i).
+  : inhabited (@ilabel_type message (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable) (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable) i).
 Proof.
   destruct (@label_inhabited message (IS i)) as [l].
-  unfold ilabel_type. unfold label; simpl. unfold composed_vlsm_ilabel. unfold icomposed_label.
+  unfold ilabel_type. unfold label; simpl. unfold indexed_vlsm_ilabel. unfold indexed_label.
   constructor.
   exists (existT _ i l).
   reflexivity.
@@ -259,14 +265,14 @@ Qed.
 Definition indexed_vlsm_constrained_projection
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> VLSM message)
-  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
+  (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (i : oindex)
   : VLSM (message : Type)
   :=
   @vlsm_projection message
-    (composed_vlsm_constrained IS (inhabits i) constraint constraint_decidable)
-    (@composed_vlsm_constrained_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable)
+    (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable)
+    (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable)
     (indexed_vlsm_projection_proto_message_prop IS i)
     (indexed_vlsm_projection_proto_message_decidable IS i)
     (indexed_vlsm_projection_message_inhabited IS i)
@@ -278,46 +284,46 @@ Definition indexed_vlsm_constrained_projection
 Lemma protocol_state_projection
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
-  (constraint : icomposed_label IS -> icomposed_state IS * option (icomposed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : icomposed_label IS) (som : icomposed_state IS * option (icomposed_proto_message IS)), {constraint l som} + {~constraint l som})
-  : forall (j : index) (s :  @protocol_state _ (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)),
+  (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
+  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
+  : forall (j : index) (s :  @protocol_state _ (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)),
   @protocol_state_prop message
     (indexed_vlsm_constrained_projection IS constraint constraint_decidable j)
     (@proj_istate
       message
-      (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@composed_vlsm_constrained_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
       (proj1_sig s)
       j
     ).
 Proof.
   intro.
-  apply (protocol_state_ind (fun s : @state _ (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)  => @protocol_state_prop message
+  apply (protocol_state_ind (fun s : @state _ (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)  => @protocol_state_prop message
     (indexed_vlsm_constrained_projection IS constraint constraint_decidable j)
     (@proj_istate
       message
-      (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@composed_vlsm_constrained_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
       s
       j
     ))); intros.
   - apply protocol_state_prop_iff. left. 
     remember (@proj_istate
       message
-      (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@composed_vlsm_constrained_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
       (proj1_sig is)
       j
     ) as js.
     unfold initial_state.
     unfold initial_state_prop; simpl. unfold vlsm_projection_initial_state_prop.
     assert (His : exists s0 : initial_state, @istate_proj message
-      (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@composed_vlsm_constrained_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
        j (proj1_sig s0) = proj1_sig js)
       by (exists is; subst; reflexivity).
     exists (exist _ js His); reflexivity.
-  - assert (Hps' : @protocol_state_prop message (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable) (fst (protocol_transition l (s, om)))).
+  - assert (Hps' : @protocol_state_prop message (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable) (fst (protocol_transition l (s, om)))).
     { apply protocol_state_prop_iff. right. exists s. exists l. exists om. split; try assumption. reflexivity. }
     destruct (protocol_transition l (s, om)) as (s', om') eqn:Ht. simpl.
     destruct l as [i li]; destruct s as [s Hps]. destruct om as [[[m Hm] Hpm]|]; simpl in Ht.
@@ -325,8 +331,8 @@ Proof.
       destruct (proto_message_decidable m) as [Hpmi | Hpmi]; simpl ; try (inversion Ht; subst; assumption).
       remember (@proj_istate
         message
-        (composed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-        (@composed_vlsm_constrained_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+        (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
+        (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
         s
         i
       ) as si.
