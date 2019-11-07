@@ -1,7 +1,6 @@
 From Casper
 Require Import vlsm indexed_vlsm composed_vlsm.
 
-
 Definition vlsm_projection_initial_state_prop
   {message : Type}
   `{CV : composed_vlsm_class message}
@@ -33,26 +32,23 @@ Qed.
 
 Definition lift_proto_message
   {message : Type}
-  `{V : VLSM message}
-  {iproto_message_prop : message -> Prop}
-  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
-  (m : {x : message | iproto_message_prop x})
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  (m : {x : message | iproto_message_prop i x})
   : proto_message
   :=
   let m0 := proj1_sig m in
-  let Hcm := iproto_message_consistent m0 (proj2_sig m) in
+  let Hcm := iproto_message_consistent i m0 (proj2_sig m) in
   (exist _ m0 Hcm).
 
 Definition vlsm_projection_initial_message_prop
   {message : Type}
   `{CV : composed_vlsm_class message}
-  {iproto_message_prop : message -> Prop}
-  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
-  (m : {x : message | iproto_message_prop x})
+  (m : {x : message | iproto_message_prop i x})
   : Prop
   :=
-  protocol_message_prop (lift_proto_message iproto_message_consistent m).
+  protocol_message_prop (lift_proto_message i m).
 
 Definition ilabel_type 
   {message : Type}
@@ -61,45 +57,28 @@ Definition ilabel_type
   :=
   { l : label | ilabel l = i }.
 
-Definition noneOrAll
-  (op : option Prop)
-  : Prop
-  :=
-  match op with
-  | None => True
-  | (Some p) => p
-  end.
-
 Definition vlsm_projection_valid
   {message : Type}
   `{CV : composed_vlsm_class message}
-  {iproto_message_prop : message -> Prop}
-  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
   (il : ilabel_type i)
-  (isom : istate i * option {m : message | iproto_message_prop m})
+  (isom : istate i * option {m : message | iproto_message_prop i m})
   : Prop
   :=
   let l := proj1_sig il in
   let (is, oim) := isom in
-  let om := option_map (lift_proto_message iproto_message_consistent) oim in
+  let om := option_map (lift_proto_message i) oim in
   exists s : state, istate_proj i s = proj1_sig is /\ valid l (s, om)
-  /\ noneOrAll (option_map iproto_message_prop (option_map (@proj1_sig message proto_message_prop) (snd (transition l (s, om)))))
-  /\
-  forall s' : state, istate_proj i s' = proj1_sig is -> valid l (s', om) ->
-    (   snd (transition l (s, om)) = snd (transition l (s', om))
-    /\  istate_proj i (fst (transition l (s, om))) = istate_proj i (fst (transition l (s, om)))
-    ).
+  /\ noneOrAll (option_map (iproto_message_prop i) (option_map (@proj1_sig message proto_message_prop) (snd (transition l (s, om)))))
+  .
 
 
 Lemma vlsm_projection_valid_decidable
   {message : Type}
   `{CV : composed_vlsm_class message}
-  {iproto_message_prop : message -> Prop}
-  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
-  : forall (il : ilabel_type i) (isom : istate i * option {m : message | iproto_message_prop m}),
-  {vlsm_projection_valid iproto_message_consistent i il isom} + {~vlsm_projection_valid iproto_message_consistent i il isom}.
+  : forall (il : ilabel_type i) (isom : istate i * option {m : message | iproto_message_prop i m}),
+  {vlsm_projection_valid i il isom} + {~vlsm_projection_valid i il isom}.
 Admitted.
 
 Require Import ClassicalChoice ClassicalEpsilon.
@@ -108,19 +87,33 @@ Require Import ClassicalChoice ClassicalEpsilon.
 Definition vlsm_projection_transition
   {message : Type}
   `{CV : composed_vlsm_class message}
-  {iproto_message_prop : message -> Prop}
-  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
   (il : ilabel_type i)
-  (isom : istate i * option {m : message | iproto_message_prop m})
-  : istate i * option {m : message | iproto_message_prop m}.
-remember (option_map (lift_proto_message iproto_message_consistent) (snd isom)) as om.
-destruct (vlsm_projection_valid_decidable iproto_message_consistent i il isom) as [Hv | Hnv].
+  (isom : istate i * option {m : message | iproto_message_prop i m})
+  : istate i * option {m : message | iproto_message_prop i m}.
+remember (option_map (lift_proto_message i) (snd isom)) as om.
+destruct (vlsm_projection_valid_decidable i il isom) as [Hv | Hnv].
+
+(*
+destruct isom as [is iom].
+destruct il as [l Hl].
+
+destruct is as [is His].
+apply constructive_indefinite_description in His.
+destruct His as [s His].
+
+remember (option_map (lift_proto_message i) iom) as om.
+
+remember (transition l (s, om)) as t.
+destruct t as [s' om'].
+
+exact (proj_istate s' i, None).
+*)
 - unfold vlsm_projection_valid in Hv.
   remember (proj1_sig il) as l.
   destruct isom as [is oim].
   apply constructive_indefinite_description in Hv.
-  destruct Hv as [s [Heq [Hv [Hmsg Hall]]]].
+  destruct Hv as [s [Heq [Hv Hmsg]]].
   simpl in Heqom. rewrite <- Heqom in *.
   remember (transition l (s,om)) as som'.
   destruct som' as [s' om']. simpl in Hmsg.
@@ -134,72 +127,23 @@ Defined.
 Definition vlsm_projection
   {message : Type}
   `{CV : composed_vlsm_class message}
-  {iproto_message_prop : message -> Prop}
-  {iproto_message_decidable : forall m : message, {iproto_message_prop m} + {~iproto_message_prop m}}
-  {iproto_message_inhabited : inhabited {m : message | iproto_message_prop m}}
-  (iproto_message_consistent : forall m : message, iproto_message_prop m -> proto_message_prop m)
   (i : index)
   (ilabel_inhabited : inhabited (ilabel_type i))
   : VLSM (message : Type)
   :=
   {|  state := istate i
   ;   label := ilabel_type i
-  ;   proto_message_prop := iproto_message_prop
-  ;   proto_message_decidable := iproto_message_decidable
+  ;   proto_message_prop := iproto_message_prop i
+  ;   proto_message_decidable := iproto_message_decidable i
   ;   initial_state_prop := vlsm_projection_initial_state_prop i
-  ;   initial_message_prop := vlsm_projection_initial_message_prop iproto_message_consistent i
-  ;   transition := vlsm_projection_transition iproto_message_consistent i
+  ;   initial_message_prop := vlsm_projection_initial_message_prop i
+  ;   transition := vlsm_projection_transition i
   ;   protocol_state_inhabited := vlsm_projection_protocol_state_inhabited i
-  ;   message_inhabited := iproto_message_inhabited
+  ;   message_inhabited := iproto_message_inhabited i
   ;   label_inhabited := ilabel_inhabited
-  ;   valid := vlsm_projection_valid iproto_message_consistent i
-  ;   valid_decidable := vlsm_projection_valid_decidable iproto_message_consistent i
+  ;   valid := vlsm_projection_valid i
+  ;   valid_decidable := vlsm_projection_valid_decidable i
   |}.
-
-Definition indexed_vlsm_projection_proto_message_prop
-  {index : Set} {message : Type}
-  (IS : index -> VLSM message)
-  (i : index)
-  : message -> Prop
-  :=
-  @proto_message_prop message (IS i).
-
-Definition indexed_vlsm_projection_proto_message
-  {index : Set} {message : Type}
-  (IS : index -> VLSM message)
-  (i : index)
-  : Type
-  :=
-  {m : message | indexed_vlsm_projection_proto_message_prop IS i m}.
-
-Definition indexed_vlsm_projection_proto_message_decidable
-  {index : Set} {message : Type}
-  (IS : index -> VLSM message)
-  (i : index)
-  : forall m : message, {indexed_vlsm_projection_proto_message_prop IS i m} + {~indexed_vlsm_projection_proto_message_prop IS i m}
-  :=
-  @proto_message_decidable message (IS i).
-
-Definition indexed_vlsm_projection_message_inhabited
-  {index : Set} {message : Type}
-  (IS : index -> VLSM message)
-  (i : index)
-  : inhabited (indexed_vlsm_projection_proto_message IS i)
-  :=
-  @message_inhabited message (IS i).
-
-Lemma indexed_vlsm_projection_proto_message_consistent
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  (IS : index -> VLSM message)
-  (i : index)
-  : forall m : message,
-  indexed_vlsm_projection_proto_message_prop IS i m ->
-  @proto_message_prop message (indexed_vlsm IS (inhabits i)) m.
-Proof.
-  unfold indexed_vlsm_projection_proto_message_prop.
-  intros m Hmi.
-  unfold proto_message_prop; simpl. unfold indexed_proto_message_prop. exists i. assumption.
-Qed.
 
 Lemma indexed_vlsm_projection_label_inhabited
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
@@ -224,28 +168,9 @@ Definition indexed_vlsm_projection
   @vlsm_projection message
     (indexed_vlsm IS (inhabits i))
     (@indexed_vlsm_composed_instance oindex message Heqd IS (inhabits i))
-    (indexed_vlsm_projection_proto_message_prop IS i)
-    (indexed_vlsm_projection_proto_message_decidable IS i)
-    (indexed_vlsm_projection_message_inhabited IS i)
-    (indexed_vlsm_projection_proto_message_consistent IS i)
     i
     (indexed_vlsm_projection_label_inhabited IS i)
   .
-
-Lemma indexed_vlsm_constrained_projection_proto_message_consistent
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  (IS : index -> VLSM message)
-  (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
-  (i : index)
-  : forall m : message,
-  indexed_vlsm_projection_proto_message_prop IS i m ->
-  @proto_message_prop message (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable) m.
-Proof.
-  unfold indexed_vlsm_projection_proto_message_prop.
-  intros m Hmi.
-  unfold proto_message_prop; simpl. unfold indexed_proto_message_prop. exists i. assumption.
-Qed.
 
 Lemma indexed_vlsm_constrained_projection_label_inhabited
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
@@ -273,10 +198,6 @@ Definition indexed_vlsm_constrained_projection
   @vlsm_projection message
     (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable)
     (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable)
-    (indexed_vlsm_projection_proto_message_prop IS i)
-    (indexed_vlsm_projection_proto_message_decidable IS i)
-    (indexed_vlsm_projection_message_inhabited IS i)
-    (indexed_vlsm_constrained_projection_proto_message_consistent IS constraint constraint_decidable i)
     i
     (indexed_vlsm_constrained_projection_label_inhabited IS constraint constraint_decidable i)
   .
