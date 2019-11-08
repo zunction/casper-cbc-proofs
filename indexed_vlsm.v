@@ -163,22 +163,6 @@ destruct om as [[m _]|].
 Defined.
 
 
-Definition indexed_valid_decidable
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  (IS : index -> VLSM message)
-  : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)),
-  {indexed_valid IS l som} + {~indexed_valid IS l som}.
-Proof.
-  destruct som as [s om].
-  destruct l as [i li]; simpl.
-  destruct om as [[m _]|]; simpl.
-  - destruct (@proto_message_decidable _ (IS i) m) as [Hi | _].
-    + apply valid_decidable.
-    + right; intro; contradiction.
-  - apply valid_decidable.
-Qed.
-
-
 Definition indexed_valid_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
@@ -188,23 +172,6 @@ Definition indexed_valid_constrained
   :=
   indexed_valid IS l som /\ constraint l som.
 
-
-Definition indexed_valid_constrained_decidable
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  (IS : index -> VLSM message)
-  {constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop}
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
-  : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)),
-  {indexed_valid_constrained IS constraint l som} + {~indexed_valid_constrained IS constraint l som}.
-Proof.
-  intros.
-  unfold indexed_valid_constrained.
-  destruct (constraint_decidable l som) as [Hc | Hnc].
-  - destruct (indexed_valid_decidable IS l som) as [Hv | Hnv].
-    + left. split; try assumption.
-    + right. intros [Hv _]. contradiction.
-  - right. intros [_ Hc]. contradiction.
-Qed.
 
 (* Free VLSM composition *)
 
@@ -225,9 +192,27 @@ Definition indexed_vlsm
   ; label_inhabited := indexed_label_inhabited IS Hi
   ; transition := indexed_transition IS
   ; valid := indexed_valid IS
-  ; valid_decidable := indexed_valid_decidable IS
   |}.
 
+(* 
+Lemma indexed_valid_decidable
+  {index : Set} {message : Type} `{Heqd : EqDec index}
+  (IS : index -> VLSM message)
+  : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)),
+  {indexed_valid IS l som} + {~indexed_valid IS l som}.
+Proof.
+  destruct som as [s om].
+  destruct l as [i li]; simpl.
+  destruct om as [[m _]|]; simpl.
+  - destruct (@proto_message_decidable _ (IS i) m) as [Hi | _].
+    + apply valid_decidable.
+    + right; intro; contradiction.
+  - apply valid_decidable.
+Qed.
+
+  ; valid_decidable := indexed_valid_decidable IS
+
+ *)
 
 (* Constrained VLSM composition *)
 
@@ -236,7 +221,6 @@ Definition indexed_vlsm_constrained
   (IS : index -> VLSM message)
   (Hi : inhabited index)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   : VLSM message
   :=
   {| state := indexed_state IS
@@ -250,5 +234,28 @@ Definition indexed_vlsm_constrained
   ; label_inhabited := indexed_label_inhabited IS Hi
   ; transition := indexed_transition IS
   ; valid := indexed_valid_constrained IS constraint
-  ; valid_decidable := indexed_valid_constrained_decidable IS constraint_decidable
   |}.
+
+(* 
+
+Definition indexed_valid_constrained_decidable
+  {index : Set} {message : Type} `{Heqd : EqDec index}
+  (IS : index -> VLSM message)
+  {constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop}
+  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
+  : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)),
+  {indexed_valid_constrained IS constraint l som} + {~indexed_valid_constrained IS constraint l som}.
+Proof.
+  intros.
+  unfold indexed_valid_constrained.
+  destruct (constraint_decidable l som) as [Hc | Hnc].
+  - destruct (indexed_valid_decidable IS l som) as [Hv | Hnv].
+    + left. split; try assumption.
+    + right. intros [Hv _]. contradiction.
+  - right. intros [_ Hc]. contradiction.
+Qed.
+
+  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
+  ; valid_decidable := indexed_valid_constrained_decidable IS constraint_decidable
+
+ *)

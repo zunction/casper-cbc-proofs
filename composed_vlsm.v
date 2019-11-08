@@ -32,12 +32,10 @@ Class composed_vlsm_class (message : Type) `{VLSM message} :=
     (   snd (transition l (s1, om)) = snd (transition l (s2, om))
     /\  istate_proj i (fst (transition l (s1, om))) = istate_proj i (fst (transition l (s2, om)))
     )
-(*
   ; transition_projection_type_preservation
     : forall (s : state) (om : option proto_message) (l : label) (i : index)
         (Hli : ilabel l = i),
         noneOrAll (option_map (iproto_message_prop i) (option_map (@proj1_sig message proto_message_prop) (snd (transition l (s, om)))))
-*)
   }.
 
 Definition istate
@@ -214,6 +212,7 @@ Definition composed2_vlsm_composed_instance
   ; iproto_message_inhabited := composed2_iproto_message_inhabited S1 S2
   ; iproto_message_consistent := composed2_iproto_message_consistent S1 S2
   ; transition_projection_consistency := composed2_transition_projection_consistency S1 S2
+  ; transition_projection_type_preservation := composed2_transition_projection_type_preservation S1 S2
   |}.
 
 Definition composed2_constrained_istate_proj
@@ -221,9 +220,8 @@ Definition composed2_constrained_istate_proj
   (S1 : VLSM message)
   (S2 : VLSM message)
   (constraint : (@label message S1) + (@label message S2) -> (@state message S1 * @state message S2) * option (composed2_proto_message S1 S2) -> Prop)
-  (constraint_decidable : forall (l : (@label message S1) + (@label message S2)) (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2)), {constraint l som} + {~constraint l som})
   (i : composed2_index)
-  (s : @state message (composed2_vlsm_constrained S1 S2 constraint constraint_decidable))
+  (s : @state message (composed2_vlsm_constrained S1 S2 constraint))
   : composed2_iproto_state S1 S2 i
   :=
   composed2_istate_proj S1 S2 i s.
@@ -234,17 +232,17 @@ Definition composed2_vlsm_constrained_composed_instance
   (S1 : VLSM message)
   (S2 : VLSM message)
   (constraint : (@label message S1) + (@label message S2) -> (@state message S1 * @state message S2) * option (composed2_proto_message S1 S2) -> Prop)
-  (constraint_decidable : forall (l : (@label message S1) + (@label message S2)) (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2)), {constraint l som} + {~constraint l som})
-  : @composed_vlsm_class message (composed2_vlsm_constrained S1 S2 constraint constraint_decidable) :=
+  : @composed_vlsm_class message (composed2_vlsm_constrained S1 S2 constraint) :=
   {| index := composed2_index
   ; iproto_state := composed2_iproto_state S1 S2
-  ; istate_proj := composed2_constrained_istate_proj S1 S2 constraint constraint_decidable
+  ; istate_proj := composed2_constrained_istate_proj S1 S2 constraint
   ; ilabel := composed2_ilabel S1 S2
   ; iproto_message_prop := composed2_iproto_message_prop S1 S2
   ; iproto_message_decidable := composed2_iproto_message_decidable S1 S2
   ; iproto_message_inhabited := composed2_iproto_message_inhabited S1 S2
   ; iproto_message_consistent := composed2_iproto_message_consistent S1 S2
   ; transition_projection_consistency := composed2_transition_projection_consistency S1 S2
+  ; transition_projection_type_preservation := composed2_transition_projection_type_preservation S1 S2
   |}.
 
 Definition composed_list_index
@@ -418,6 +416,69 @@ Proof.
         split; try assumption. simpl. apply f_equal. assumption.
 Qed.
 
+
+Lemma composed_list_transition_projection_type_preservation
+  {message}
+  (Ss : list (VLSM message))
+  : forall
+      (s : composed_list_state Ss)
+      (om : option (composed_list_proto_message Ss))
+      (l : composed_list_label Ss)
+      (i : composed_list_index Ss)
+      (Hli : composed_list_ilabel Ss l = i),
+      noneOrAll
+        (option_map (composed_list_iproto_message_prop Ss i)
+          (option_map (@proj1_sig message (composed_list_proto_message_prop Ss))
+            (snd (composed_list_transition Ss l (s, om)))))
+  .
+Proof.
+  induction Ss as [| Sh St IHSt]; intros; try contradiction.
+  destruct s as [sh st].
+  destruct i as [i Hi]. destruct i.
+  - destruct l as [lh | lt].
+    + destruct om as [[m Hm]|]; simpl in *; subst
+      ; try (destruct (proto_message_decidable m) as [Hpm | Hnpm]; simpl); try exact I.
+      * remember (transition lh (sh, Some (exist proto_message_prop m Hpm))) as t.
+        destruct t as (s', om'). destruct om' as [[m' Hpm']|]; simpl; try assumption; try exact I.
+      * remember (transition lh (sh, None)) as t.
+        destruct t as (s', om'). destruct om' as [[m' Hpm']|]; simpl; try assumption; try exact I.
+    + simpl in Hli. destruct (composed_list_ilabel St lt). inversion Hli.
+  - simpl in Hli. destruct l as [lh | lt].
+    + inversion Hli.
+    + destruct om as [[m Hm]|]; simpl in *; subst.
+      * destruct (composed_list_proto_message_decidable St m) as [Hpm | Hnpm]; simpl; try exact I.
+        specialize (IHSt st (Some (exist _ m Hpm)) lt (exist _ i (le_pred _ _ Hi))).
+
+        remember (composed_list_ilabel St lt) as it. destruct it as [it Hit].
+        inversion Hli. subst.
+        assert
+          (Hirrelevant :
+            exist (fun n : nat => n < length St) i Hit =
+            exist (fun n : nat => n < length St) i (le_pred (S (S i)) (S (length St)) Hi)
+          ) by ( apply f_equal; apply proof_irrelevance ).
+        specialize (IHSt Hirrelevant).
+
+
+        remember (Some (exist (composed_list_proto_message_prop St) m Hpm)) as opm.
+        unfold composed_list_state in IHSt. unfold composed_list_proto_message in IHSt.
+        remember (composed_list_transition St lt (st, opm)) as t.
+        destruct t as (s', om'). destruct om' as [[m' Hpm']|]; simpl; try assumption; try exact I.
+      * specialize (IHSt st None lt (exist _ i (le_pred _ _ Hi))).
+
+        remember (composed_list_ilabel St lt) as it. destruct it as [it Hit].
+        inversion Hli. subst.
+        assert
+          (Hirrelevant :
+            exist (fun n : nat => n < length St) i Hit =
+            exist (fun n : nat => n < length St) i (le_pred (S (S i)) (S (length St)) Hi)
+          ) by ( apply f_equal; apply proof_irrelevance ).
+        specialize (IHSt Hirrelevant).
+
+        unfold composed_list_state in IHSt. 
+        remember (composed_list_transition St lt (st, None)) as t.
+        destruct t as (s', om'). destruct om' as [[m' Hpm']|]; simpl; try assumption; try exact I.
+Qed.
+
 Definition composed_list_vlsm_composed_instance
   {message}
   (Ss : list (VLSM message))
@@ -432,6 +493,7 @@ Definition composed_list_vlsm_composed_instance
   ; iproto_message_inhabited := composed_list_iproto_message_inhabited Ss
   ; iproto_message_consistent := composed_list_iproto_message_consistent Ss
   ; transition_projection_consistency := composed_list_transition_projection_consistency Ss
+  ; transition_projection_type_preservation := composed_list_transition_projection_type_preservation Ss
   |}.
 
 Definition composed_list_constrained_istate_proj
@@ -439,9 +501,8 @@ Definition composed_list_constrained_istate_proj
   (Ss : list (VLSM message))
   (Ssnn : Ss <> [])
   (constraint : composed_list_label Ss -> composed_list_state Ss * option (composed_list_proto_message Ss) -> Prop)
-  (constraint_decidable : forall (l : composed_list_label Ss) (som : composed_list_state Ss * option (composed_list_proto_message Ss)), {constraint l som} + {~constraint l som})
   (i : composed_list_index Ss)
-  (s : @state message (composed_list_vlsm_constrained Ss Ssnn constraint constraint_decidable))
+  (s : @state message (composed_list_vlsm_constrained Ss Ssnn constraint))
   : composed_list_iproto_state Ss i
   := composed_list_istate_proj Ss i s.
 
@@ -451,17 +512,17 @@ Definition composed_list_vlsm_constrained_composed_instance
   (Ss : list (VLSM message))
   (Ssnn : Ss <> [])
   (constraint : composed_list_label Ss -> composed_list_state Ss * option (composed_list_proto_message Ss) -> Prop)
-  (constraint_decidable : forall (l : composed_list_label Ss) (som : composed_list_state Ss * option (composed_list_proto_message Ss)), {constraint l som} + {~constraint l som})
-  : @composed_vlsm_class message (composed_list_vlsm_constrained Ss Ssnn constraint constraint_decidable) :=
+  : @composed_vlsm_class message (composed_list_vlsm_constrained Ss Ssnn constraint) :=
   {| index := composed_list_index Ss
   ; iproto_state := composed_list_iproto_state Ss
-  ; istate_proj := composed_list_constrained_istate_proj Ss Ssnn constraint constraint_decidable
+  ; istate_proj := composed_list_constrained_istate_proj Ss Ssnn constraint
   ; ilabel := composed_list_ilabel Ss
   ; iproto_message_prop := composed_list_iproto_message_prop Ss
   ; iproto_message_decidable := composed_list_iproto_message_decidable Ss
   ; iproto_message_inhabited := composed_list_iproto_message_inhabited Ss
   ; iproto_message_consistent := composed_list_iproto_message_consistent Ss
   ; transition_projection_consistency := composed_list_transition_projection_consistency Ss
+  ; transition_projection_type_preservation := composed_list_transition_projection_type_preservation Ss
   |}.
 
 Definition indexed_vlsm_istate
@@ -571,6 +632,33 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma indexed_vlsm_transition_projection_type_preservation
+  {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
+  {IS : oindex -> VLSM message}
+  : forall
+      (s : indexed_state IS)
+      (om : option (indexed_proto_message IS))
+      (l : indexed_label IS)
+      (i : oindex)
+      (Hli : indexed_vlsm_ilabel l = i),
+      noneOrAll
+        (option_map (indexed_vlsm_iproto_message_prop i)
+          (option_map (@proj1_sig message (indexed_proto_message_prop IS))
+            (snd (indexed_transition IS l (s, om)))))
+  .
+Proof.
+  intros.
+  destruct l as [j l]. simpl in Hli. subst.
+  simpl.
+  destruct om as [[m Hm]|]
+  ; (destruct (proto_message_decidable m) as [Hpm | Hnpm]; simpl; try exact I
+  ; remember (transition l (s i, Some (exist proto_message_prop m Hpm))) as t)
+    || remember (transition l (s i, None)) as t
+  ; destruct t as [s' om']; simpl
+  ; destruct om' as [[m' Hm']|]; simpl; try exact I
+  ;  assumption.
+Qed.
+
 Definition indexed_vlsm_composed_instance
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> VLSM message}
@@ -585,6 +673,7 @@ Definition indexed_vlsm_composed_instance
   ; iproto_message_inhabited := indexed_vlsm_iproto_message_inhabited
   ; iproto_message_consistent := indexed_vlsm_iproto_message_consistent
   ; transition_projection_consistency := indexed_vlsm_transition_projection_consistency
+  ; transition_projection_type_preservation := indexed_vlsm_transition_projection_type_preservation
   |}.
 
 Definition indexed_vlsm_constrained_istate_proj
@@ -592,9 +681,8 @@ Definition indexed_vlsm_constrained_istate_proj
   {IS : oindex -> VLSM message}
   {Hi : inhabited oindex}
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (i : oindex)
-  (s : @state _ (indexed_vlsm_constrained IS Hi constraint constraint_decidable))
+  (s : @state _ (indexed_vlsm_constrained IS Hi constraint))
   : @indexed_vlsm_istate oindex message Heqd IS i
   :=
   indexed_vlsm_istate_proj i s.
@@ -604,15 +692,15 @@ Definition indexed_vlsm_constrained_composed_instance
   (IS : oindex -> VLSM message)
   (Hi : inhabited oindex)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
-  : @composed_vlsm_class message (indexed_vlsm_constrained IS Hi constraint constraint_decidable) :=
+  : @composed_vlsm_class message (indexed_vlsm_constrained IS Hi constraint) :=
   {| index := oindex
   ; iproto_state := @indexed_vlsm_istate oindex message Heqd IS
-  ; istate_proj := @indexed_vlsm_constrained_istate_proj oindex message Heqd IS Hi constraint constraint_decidable
+  ; istate_proj := @indexed_vlsm_constrained_istate_proj oindex message Heqd IS Hi constraint
   ; ilabel := indexed_vlsm_ilabel
   ; iproto_message_prop := indexed_vlsm_iproto_message_prop
   ; iproto_message_decidable := indexed_vlsm_iproto_message_decidable
   ; iproto_message_inhabited := indexed_vlsm_iproto_message_inhabited
   ; iproto_message_consistent := indexed_vlsm_iproto_message_consistent
   ; transition_projection_consistency := indexed_vlsm_transition_projection_consistency
+  ; transition_projection_type_preservation := indexed_vlsm_transition_projection_type_preservation
   |}.

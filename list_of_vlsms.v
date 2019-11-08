@@ -166,24 +166,6 @@ destruct Ss as [| Sh St]; unfold composed_list_label; unfold composed_list_state
     * exact (composed_list_valid _ St lt (st, None)).
 Defined.
 
-Lemma composed_list_valid_decidable
-  {message}
-  (Ss : list (VLSM message))
-  : forall l som, {composed_list_valid Ss l som} + {~composed_list_valid Ss l som}.
-Proof.
-  induction Ss as [| Sh St]; unfold composed_list_label; unfold composed_list_state; simpl; intros l [s om].
-  - inversion l.
-  - destruct s as [sh st]. destruct om as [[m Hm]|].
-    + destruct l as [lh | lt].
-      * destruct (@proto_message_decidable _ Sh m) as [Hh | _]; try (right; intro; contradiction).
-        apply valid_decidable.
-      * destruct (composed_list_proto_message_decidable St m) as [Ht | _]; try (right; intro; contradiction).
-        apply IHSt.
-    + destruct l as [lh | lt].
-      * apply valid_decidable.
-      * apply IHSt.
-Qed.
-
 Definition composed_list_valid_constrained
   {message}
   (Ss : list (VLSM message))
@@ -192,25 +174,6 @@ Definition composed_list_valid_constrained
   (som : composed_list_state Ss * option (composed_list_proto_message Ss) )
   :=
   composed_list_valid Ss l som /\ constraint l som.
-
-
-Lemma composed_list_valid_constrained_decidable
-  {message}
-  (Ss : list (VLSM message))
-  {constraint : composed_list_label Ss -> composed_list_state Ss * option (composed_list_proto_message Ss) -> Prop}
-  (constraint_decidable : forall (l : composed_list_label Ss) (som : composed_list_state Ss * option (composed_list_proto_message Ss)), {constraint l som} + {~constraint l som})
-  (l : composed_list_label Ss)
-  (som : composed_list_state Ss * option (composed_list_proto_message Ss) )
-  : {composed_list_valid_constrained Ss constraint l som} + {~composed_list_valid_constrained Ss constraint l som}.
-Proof.
-  unfold composed_list_valid_constrained.
-  destruct (constraint_decidable l som) as [Hc | Hnc].
-  - destruct (composed_list_valid_decidable Ss l som) as [Hv | Hnv].
-    + left. split; try assumption.
-    + right. intros [Hv _]. contradiction.
-  - right. intros [_ Hc]. contradiction.
-Qed.
-
 
 Definition composed_list_vlsm
   {message}
@@ -229,15 +192,41 @@ Definition composed_list_vlsm
   ; label_inhabited := composed_list_label_inhabited Ss Ssnn
   ; transition := composed_list_transition Ss
   ; valid := composed_list_valid Ss
-  ; valid_decidable := composed_list_valid_decidable Ss
   |}.
+
+(*
+
+Lemma composed_list_valid_decidable
+  {message}
+  (Ss : list (VLSM message))
+  : forall l som, {composed_list_valid Ss l som} + {~composed_list_valid Ss l som}.
+Proof.
+  induction Ss as [| Sh St]; unfold composed_list_label; unfold composed_list_state; simpl; intros l [s om].
+  - inversion l.
+  - destruct s as [sh st]. destruct om as [[m Hm]|].
+    + destruct l as [lh | lt].
+      * destruct (@proto_message_decidable _ Sh m) as [Hh | _]; try (right; intro; contradiction).
+        apply valid_decidable.
+      * destruct (composed_list_proto_message_decidable St m) as [Ht | _]; try (right; intro; contradiction).
+        apply IHSt.
+    + destruct l as [lh | lt].
+      * apply valid_decidable.
+      * apply IHSt.
+Qed.
+
+Definition composed_list_vlsm_vdecidable
+  {message}
+  (DSs : list (VLSM_vdecidable message))
+  : @VLSM_vdecidable message (composed_list_vlsm Ss)
+  {| valid_decidable := composed_list_valid_decidable DSs
+  |}.
+*)
 
 Definition composed_list_vlsm_constrained
   {message}
   (Ss : list (VLSM message))
   (Ssnn : Ss <> [])
   (constraint : composed_list_label Ss -> composed_list_state Ss * option (composed_list_proto_message Ss) -> Prop)
-  (constraint_decidable : forall (l : composed_list_label Ss) (som : composed_list_state Ss * option (composed_list_proto_message Ss)), {constraint l som} + {~constraint l som})
   : VLSM message
   :=
   {| state := composed_list_state Ss
@@ -251,5 +240,29 @@ Definition composed_list_vlsm_constrained
   ; label_inhabited := composed_list_label_inhabited Ss Ssnn
   ; transition := composed_list_transition Ss
   ; valid := composed_list_valid_constrained Ss constraint
-  ; valid_decidable := composed_list_valid_constrained_decidable Ss constraint_decidable
   |}.
+
+(*
+Lemma composed_list_valid_constrained_decidable
+  {message}
+  (Ss : list (VLSM message))
+  {constraint : composed_list_label Ss -> composed_list_state Ss * option (composed_list_proto_message Ss) -> Prop}
+  (constraint_decidable : forall (l : composed_list_label Ss) (som : composed_list_state Ss * option (composed_list_proto_message Ss)), {constraint l som} + {~constraint l som})
+  (l : composed_list_label Ss)
+  (som : composed_list_state Ss * option (composed_list_proto_message Ss) )
+  : {composed_list_valid_constrained Ss constraint l som} + {~composed_list_valid_constrained Ss constraint l som}.
+Proof.
+  unfold composed_list_valid_constrained.
+  destruct (constraint_decidable l som) as [Hc | Hnc].
+  - destruct (composed_list_valid_decidable Ss l som) as [Hv | Hnv].
+    + left. split; try assumption.
+    + right. intros [Hv _]. contradiction.
+  - right. intros [_ Hc]. contradiction.
+Qed.
+
+  (constraint_decidable : forall (l : composed_list_label Ss) (som : composed_list_state Ss * option (composed_list_proto_message Ss)), {constraint l som} + {~constraint l som})
+  ; valid_decidable := composed_list_valid_constrained_decidable Ss constraint_decidable
+
+*)
+
+

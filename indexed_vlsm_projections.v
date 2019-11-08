@@ -69,10 +69,9 @@ Definition vlsm_projection_valid
   let (is, oim) := isom in
   let om := option_map (lift_proto_message i) oim in
   exists s : state, istate_proj i s = proj1_sig is /\ valid l (s, om)
-  /\ noneOrAll (option_map (iproto_message_prop i) (option_map (@proj1_sig message proto_message_prop) (snd (transition l (s, om)))))
   .
 
-
+(* 
 Lemma vlsm_projection_valid_decidable
   {message : Type}
   `{CV : composed_vlsm_class message}
@@ -80,6 +79,7 @@ Lemma vlsm_projection_valid_decidable
   : forall (il : ilabel_type i) (isom : istate i * option {m : message | iproto_message_prop i m}),
   {vlsm_projection_valid i il isom} + {~vlsm_projection_valid i il isom}.
 Admitted.
+ *)
 
 Require Import ClassicalChoice ClassicalEpsilon.
 
@@ -91,37 +91,23 @@ Definition vlsm_projection_transition
   (il : ilabel_type i)
   (isom : istate i * option {m : message | iproto_message_prop i m})
   : istate i * option {m : message | iproto_message_prop i m}.
-remember (option_map (lift_proto_message i) (snd isom)) as om.
-destruct (vlsm_projection_valid_decidable i il isom) as [Hv | Hnv].
-
-(*
+specialize transition_projection_type_preservation; intros Hmsg.
 destruct isom as [is iom].
 destruct il as [l Hl].
 
 destruct is as [is His].
 apply constructive_indefinite_description in His.
 destruct His as [s His].
-
 remember (option_map (lift_proto_message i) iom) as om.
+
+specialize (Hmsg s om l i Hl).
 
 remember (transition l (s, om)) as t.
 destruct t as [s' om'].
 
-exact (proj_istate s' i, None).
-*)
-- unfold vlsm_projection_valid in Hv.
-  remember (proj1_sig il) as l.
-  destruct isom as [is oim].
-  apply constructive_indefinite_description in Hv.
-  destruct Hv as [s [Heq [Hv Hmsg]]].
-  simpl in Heqom. rewrite <- Heqom in *.
-  remember (transition l (s,om)) as som'.
-  destruct som' as [s' om']. simpl in Hmsg.
-  remember (proj_istate s' i) as is'. 
-  destruct om' as [m'|]; simpl in Hmsg.
-  * exact (is', Some (exist _ (proj1_sig m') Hmsg)).
-  * exact (is', None).
-- exact (fst isom, None).
+destruct om' as [m'|]; simpl in Hmsg.
+- exact (proj_istate s' i, Some (exist _ (proj1_sig m') Hmsg)).
+- exact (proj_istate s' i, None).
 Defined.
 
 Definition vlsm_projection
@@ -142,7 +128,6 @@ Definition vlsm_projection
   ;   message_inhabited := iproto_message_inhabited i
   ;   label_inhabited := ilabel_inhabited
   ;   valid := vlsm_projection_valid i
-  ;   valid_decidable := vlsm_projection_valid_decidable i
   |}.
 
 Lemma indexed_vlsm_projection_label_inhabited
@@ -176,9 +161,8 @@ Lemma indexed_vlsm_constrained_projection_label_inhabited
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> VLSM message)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (i : oindex)
-  : inhabited (@ilabel_type message (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable) (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable) i).
+  : inhabited (@ilabel_type message (indexed_vlsm_constrained IS (inhabits i) constraint) (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint) i).
 Proof.
   destruct (@label_inhabited message (IS i)) as [l].
   unfold ilabel_type. unfold label; simpl. unfold indexed_vlsm_ilabel. unfold indexed_label.
@@ -191,60 +175,58 @@ Definition indexed_vlsm_constrained_projection
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> VLSM message)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (i : oindex)
   : VLSM (message : Type)
   :=
   @vlsm_projection message
-    (indexed_vlsm_constrained IS (inhabits i) constraint constraint_decidable)
-    (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint constraint_decidable)
+    (indexed_vlsm_constrained IS (inhabits i) constraint)
+    (@indexed_vlsm_constrained_composed_instance oindex message Heqd IS (inhabits i) constraint)
     i
-    (indexed_vlsm_constrained_projection_label_inhabited IS constraint constraint_decidable i)
+    (indexed_vlsm_constrained_projection_label_inhabited IS constraint i)
   .
 
 Lemma protocol_state_projection
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
-  (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
-  : forall (j : index) (s :  @protocol_state _ (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)),
+  : forall (j : index) (s :  @protocol_state _ (indexed_vlsm_constrained IS (inhabits j) constraint)),
   @protocol_state_prop message
-    (indexed_vlsm_constrained_projection IS constraint constraint_decidable j)
+    (indexed_vlsm_constrained_projection IS constraint j)
     (@proj_istate
       message
-      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint)
       (proj1_sig s)
       j
     ).
 Proof.
   intro.
-  apply (protocol_state_ind (fun s : @state _ (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)  => @protocol_state_prop message
-    (indexed_vlsm_constrained_projection IS constraint constraint_decidable j)
+  apply (protocol_state_ind (fun s : @state _ (indexed_vlsm_constrained IS (inhabits j) constraint)  => @protocol_state_prop message
+    (indexed_vlsm_constrained_projection IS constraint j)
     (@proj_istate
       message
-      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint)
       s
       j
     ))); intros.
   - apply protocol_state_prop_iff. left. 
     remember (@proj_istate
       message
-      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint)
       (proj1_sig is)
       j
     ) as js.
     unfold initial_state.
     unfold initial_state_prop; simpl. unfold vlsm_projection_initial_state_prop.
     assert (His : exists s0 : initial_state, @istate_proj message
-      (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+      (indexed_vlsm_constrained IS (inhabits j) constraint)
+      (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint)
        j (proj1_sig s0) = proj1_sig js)
       by (exists is; subst; reflexivity).
     exists (exist _ js His); reflexivity.
-  - assert (Hps' : @protocol_state_prop message (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable) (fst (protocol_transition l (s, om)))).
+  - assert (Hps' : @protocol_state_prop message (indexed_vlsm_constrained IS (inhabits j) constraint) (fst (protocol_transition l (s, om)))).
     { apply protocol_state_prop_iff. right. exists s. exists l. exists om. split; try assumption. reflexivity. }
     destruct (protocol_transition l (s, om)) as (s', om') eqn:Ht. simpl.
     destruct l as [i li]; destruct s as [s Hps]. destruct om as [[[m Hm] Hpm]|]; simpl in Ht.
@@ -252,8 +234,8 @@ Proof.
       destruct (proto_message_decidable m) as [Hpmi | Hpmi]; simpl ; try (inversion Ht; subst; assumption).
       remember (@proj_istate
         message
-        (indexed_vlsm_constrained IS (inhabits j) constraint constraint_decidable)
-        (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint constraint_decidable)
+        (indexed_vlsm_constrained IS (inhabits j) constraint)
+        (@indexed_vlsm_constrained_composed_instance index message Heqd IS (inhabits j) constraint)
         s
         i
       ) as si.
