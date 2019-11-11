@@ -6,6 +6,45 @@ Require Import ListExtras.
 
 Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
 
+Lemma exist_eq
+  {X}
+  (P : X -> Prop)
+  (a b : {x : X | P x})
+  : a = b <-> proj1_sig a = proj1_sig b.
+Proof.
+  destruct a as [a Ha]; destruct b as [b Hb]; simpl.
+  split; intros Heq.
+  - inversion Heq. reflexivity.
+  - subst. apply f_equal. apply proof_irrelevance.
+Qed.
+
+Class EqDec X :=
+  eq_dec : forall x y : X, {x = y} + {x <> y}.
+
+Lemma DepEqDec
+  {X}
+  (Heqd : EqDec X)
+  (P : X -> Prop)
+  : EqDec {x : X | P x}.
+Proof.
+  intros [x Hx] [y Hy].
+  specialize (Heqd x y).
+  destruct Heqd as [Heq | Hneq].
+  - left. subst. apply f_equal. apply proof_irrelevance.
+  - right.  intros Heq. apply Hneq. inversion Heq. reflexivity.
+Qed.
+
+Lemma nat_eq_dec : EqDec nat.
+Proof.
+  unfold EqDec. induction x; destruct y.
+  - left. reflexivity.
+  - right. intros C; inversion C.
+  - right. intros C; inversion C.
+  - specialize (IHx y). destruct IHx as [Heq | Hneq].
+    + left. subst. reflexivity.
+    + right. intros Heq. inversion Heq. contradiction.
+Qed.
+
 (* 2.2.1 VLSM Parameters *)
 
 Class VLSM (message : Type) :=

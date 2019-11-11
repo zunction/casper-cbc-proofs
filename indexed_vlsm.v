@@ -117,9 +117,6 @@ destruct mi as [m Hm].
 exists m. exists i. assumption.
 Defined.
 
-Class EqDec X :=
-  eq_dec : forall x y : X, {x = y} + {x <> y}.
-
 Definition indexed_transition
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> VLSM message)
