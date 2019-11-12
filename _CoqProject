@@ -10,7 +10,6 @@ lightnode.v
 binary.v
 vlsm.v
 two_vlsms.v
-list_of_vlsms.v
 indexed_vlsm.v
 composed_vlsm.v
 composed_vlsm_projections.v

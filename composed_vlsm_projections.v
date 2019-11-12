@@ -3,7 +3,7 @@ Require Import vlsm composed_vlsm.
 
 Definition vlsm_projection_initial_state_prop
   {message : Type}
-  `{CV : composed_vlsm_class message}
+  `{CV : composed_sig_class message}
   (i : index)
   (is : istate i)
   : Prop
@@ -12,14 +12,14 @@ Definition vlsm_projection_initial_state_prop
 
 Definition vlsm_projection_initial_state
   {message : Type}
-  `{CV : composed_vlsm_class message}
+  `{CV : composed_sig_class message}
   (i : index)
   :=
   { s : istate i | vlsm_projection_initial_state_prop i s }.
 
 Lemma vlsm_projection_protocol_state_inhabited
   {message : Type}
-  `{CV : composed_vlsm_class message}
+  `{CV : composed_sig_class message}
   (i : index)
   : inhabited (vlsm_projection_initial_state i).
 Proof.
@@ -32,7 +32,7 @@ Qed.
 
 Definition lift_proto_message
   {message : Type}
-  `{CV : composed_vlsm_class message}
+  `{CV : composed_sig_class message}
   (i : index)
   (m : {x : message | iproto_message_prop i x})
   : proto_message
@@ -43,129 +43,19 @@ Definition lift_proto_message
 
 Definition vlsm_projection_initial_message_prop
   {message : Type}
-  `{CV : composed_vlsm_class message}
+  `{CV : composed_sig_class message}
   (i : index)
   (m : {x : message | iproto_message_prop i x})
   : Prop
   :=
-  protocol_message_prop (lift_proto_message i m).
+  initial_message_prop (lift_proto_message i m).
 
-Definition vlsm_projection_valid
+
+Definition vlsm_sig_projection
   {message : Type}
-  `{CV : composed_vlsm_class message}
+  `{CV : composed_sig_class message}
   (i : index)
-  (il : ilabel_type i)
-  (isom : istate i * option {m : message | iproto_message_prop i m})
-  : Prop
-  :=
-  let l := proj1_sig il in
-  let (is, oim) := isom in
-  let om := option_map (lift_proto_message i) oim in
-  exists s : state, istate_proj i s = proj1_sig is /\ valid l (s, om)
-  .
-
-
-(* 
-message : Type
-H : VLSM message
-CV : composed_vlsm_class message
-i : index
-l : label
-Hl : ilabel l = i
-is : iproto_state i
-s : state
-His : istate_proj i s = is
-iom : option {m : message | iproto_message_prop i m}
-om : option proto_message
-Heqom : om = option_map (lift_proto_message i) iom
-s' : state
-m' : proto_message
-Heqt : (s', Some m') = transition l (s, om)
-Hmsg : iproto_message_prop i (proj1_sig m')
-*)
-Definition transitioning_projection
-  {message : Type}
-  `{CV : composed_vlsm_class message}
-  (i : index)
-  (il : ilabel_type i)
-  (isom isom' : istate i * option {m : message | iproto_message_prop i m})
-  :=
-  exists (s s' : state),
-    proj_istate s i = fst isom /\
-    proj_istate s' i = fst isom' /\
-    transition (proj1_sig il) (s, (option_map (lift_proto_message i) (snd isom))) = (s', (option_map (lift_proto_message i) (snd isom')))
-  .
-
-Lemma vlsm_projection_transition_existance
-  {message : Type}
-  `{CV : composed_vlsm_class message}
-  (i : index)
-  (il : ilabel_type i)
-  (isom : istate i * option {m : message | iproto_message_prop i m})
-  : exists isom' : istate i * option {m : message | iproto_message_prop i m}, 
-      transitioning_projection i il isom isom'.
-Proof.
-  destruct isom as [is iom].
-  destruct il as [l Hl].
-  destruct is as [is [s His]].
-  remember (option_map (lift_proto_message i) iom) as om.
-
-  specialize transition_projection_type_preservation; intros Hmsg.
-  specialize (Hmsg s om l i Hl).
-
-  remember (transition l (s, om)) as t.
-  destruct t as [s' om'].
-
-  destruct om' as [m'|]; simpl in Hmsg.
-  - exists (proj_istate s' i, Some (exist _ (proj1_sig m') Hmsg)).
-    exists s. exists s'. rewrite <- His.
-    simpl. repeat split; try reflexivity.  rewrite <- Heqom. rewrite <- Heqt.
-    apply f_equal. apply f_equal.
-    unfold lift_proto_message; simpl.
-    apply exist_eq. reflexivity.
-  - exists (proj_istate s' i, None).
-    exists s. exists s'. rewrite <- His. 
-    simpl. repeat split; try reflexivity.
-    rewrite <- Heqom. symmetry.  assumption.
-Qed.
-
-Require Import Coq.Logic.ClassicalEpsilon.
-
-Definition vlsm_projection_transition
-  {message : Type}
-  `{CV : composed_vlsm_class message}
-  (i : index)
-  (il : ilabel_type i)
-  (isom : istate i * option {m : message | iproto_message_prop i m})
-  : istate i * option {m : message | iproto_message_prop i m}
-  :=
-  (proj1_sig
-    (constructive_indefinite_description
-      (transitioning_projection i il isom)
-      (vlsm_projection_transition_existance i il isom)
-    )
-  ).
-
-Lemma vlsm_projection_transition_irrelevance
-  {message : Type}
-  `{CV : composed_vlsm_class message}
-  (i : index)
-  (il : ilabel_type i)
-  (s1 s2 : istate i)
-  (Heqi : proj1_sig s1 = proj1_sig s2)
-  (om : option {m : message | iproto_message_prop i m})
-  : vlsm_projection_transition i il (s1, om) = vlsm_projection_transition i il (s2, om).
-Proof.
-  assert (Heq : s1 = s2 ).
-  { destruct s1 as [s1 Hs1]. destruct s2 as [s2 Hs2]. apply exist_eq. assumption. }
-  subst. reflexivity.
-Qed.
-
-Definition vlsm_projection
-  {message : Type}
-  `{CV : composed_vlsm_class message}
-  (i : index)
-  : VLSM (message : Type)
+  : LSM_sig (message : Type)
   :=
   {|  state := istate i
   ;   label := ilabel_type i
@@ -173,20 +63,109 @@ Definition vlsm_projection
   ;   proto_message_decidable := iproto_message_decidable i
   ;   initial_state_prop := vlsm_projection_initial_state_prop i
   ;   initial_message_prop := vlsm_projection_initial_message_prop i
-  ;   transition := vlsm_projection_transition i
   ;   protocol_state_inhabited := vlsm_projection_protocol_state_inhabited i
   ;   message_inhabited := iproto_message_inhabited i
   ;   label_inhabited := ilabel_type_inhabited i
+  |}.
+
+(*   ;   transition := vlsm_projection_transition i
+  ;   valid := vlsm_projection_valid i
+ *)
+
+Definition transitioning_projection
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  (il : @label _ (vlsm_sig_projection i))
+  (isom isom' : @state _ (vlsm_sig_projection i) * option {m : message | @proto_message_prop _ (vlsm_sig_projection i) m})
+  :=
+  let (si, om) := isom in
+  let (si', om') := isom' in
+  exists (s s' : state),
+    proj_istate s i = si /\
+    proj_istate s' i = si' /\
+    transition (proj1_sig il) (s, (option_map (lift_proto_message i) om)) = (s', (option_map (lift_proto_message i) (om')))
+  .
+
+Lemma vlsm_projection_transition_existence
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  (il : @label _ (vlsm_sig_projection i))
+  (isom : @state _ (vlsm_sig_projection i) * option {m : message | @proto_message_prop _ (vlsm_sig_projection i) m})
+  : exists isom' : @state _ (vlsm_sig_projection i) * option {m : message | @proto_message_prop _ (vlsm_sig_projection i) m}, 
+      transitioning_projection i il isom isom'.
+Proof.
+  destruct isom as [is iom].
+  destruct il as [l Hl].
+  destruct is as [is [s His]].
+  remember (option_map (lift_proto_message i) iom) as om.
+
+  destruct (transition l (s, om)) as [s' om'] eqn:Ht.
+
+  destruct om' as [m'|].
+  - specialize (transition_projection_message_type_preservation s om l s' m' Ht); intros Hmsg.
+    rewrite Hl in Hmsg.
+    exists (proj_istate s' i, Some (exist _ (proj1_sig m') Hmsg)).
+    exists s. exists s'. rewrite <- His.
+    simpl. repeat split; try reflexivity.  rewrite <- Heqom. rewrite Ht.
+    apply f_equal. apply f_equal.
+    unfold lift_proto_message; simpl.
+    apply exist_eq. reflexivity.
+  - exists (proj_istate s' i, None).
+    exists s. exists s'. rewrite <- His. 
+    simpl. repeat split; try reflexivity.
+    rewrite <- Heqom.  assumption.
+Qed.
+
+Require Import Coq.Logic.IndefiniteDescription.
+
+Definition vlsm_projection_transition
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  (il : @label _ (vlsm_sig_projection i))
+  (isom : @state _ (vlsm_sig_projection i) * option {m : message | @proto_message_prop _ (vlsm_sig_projection i) m})
+  : @state _ (vlsm_sig_projection i) * option {m : message | @proto_message_prop _ (vlsm_sig_projection i) m}
+  :=
+  (proj1_sig
+    (constructive_indefinite_description
+      (transitioning_projection i il isom)
+      (vlsm_projection_transition_existence i il isom)
+    )
+  ).
+
+Definition vlsm_projection_valid
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  (il : @label _ (vlsm_sig_projection i))
+  (isom : @state _ (vlsm_sig_projection i) * option {m : message | @proto_message_prop _ (vlsm_sig_projection i) m})
+  : Prop
+  :=
+  let (si, omi) := isom in
+  let om := option_map (lift_proto_message i) omi in
+  exists s : state, istate_proj i s = proj1_sig si /\ valid (proj1_sig il) (s, om).
+
+Definition vlsm_projection
+  {message : Type}
+  `{CV : composed_vlsm_class message}
+  (i : index)
+  : @VLSM (message : Type) (vlsm_sig_projection i)
+  :=
+  {|  transition := vlsm_projection_transition i
   ;   valid := vlsm_projection_valid i
   |}.
 
 
 Lemma protocol_state_projection
   {message : Type}
-  {V : VLSM message}
-  `{CV : @composed_vlsm_class message V}
+  {S : LSM_sig message}
+  {V : @VLSM message S}
+  {SV : @composed_sig_class _ S}
+  `{CV : @composed_vlsm_class message _ SV V}
   : forall (i : index) (s :  protocol_state),
-  @protocol_state_prop _ (vlsm_projection i) (proj_istate (proj1_sig s) i).
+  @protocol_state_prop _ (vlsm_sig_projection i) (vlsm_projection i) (proj_istate (proj1_sig s) i).
 Proof.
   intros i [s Hps]. simpl. induction Hps as [is | s s'' l om' Hps Hp Hv Ht| s s'' l m om' Hps Hp Hpm Hv Ht].
   - apply protocol_state_prop_iff. left. 
@@ -211,6 +190,7 @@ Proof.
       exists None. split.
       * unfold protocol_valid. simpl. exists s. split; try reflexivity. assumption.
       * simpl. unfold vlsm_projection_transition.
+(* 
         remember
           (@constructive_indefinite_description
            (prod (@istate message V CV j)
@@ -223,7 +203,7 @@ Proof.
                  (option (@proto_message message (@vlsm_projection message V CV j)))
                  (@proj_istate message V CV s j)
                  (@None (@proto_message message (@vlsm_projection message V CV j)))))
-           (@vlsm_projection_transition_existance message V CV j
+           (@vlsm_projection_transition_existence message V CV j
               (@exist (@label message V)
                  (fun l0 : @label message V =>
                   @eq (@index message V CV) (@ilabel message V CV l0) j) l Heqj)
@@ -252,6 +232,23 @@ Proof.
   - remember (Some m) as om.
     remember (ilabel l) as j.
     destruct (index_eq_dec i j); subst.
+    + remember (ilabel l) as j.
+      destruct m as [m Hm].
+      destruct (iproto_message_decidable j m) as [Hmj | Hnmj].
+      * specialize (@next_protocol_state_with_message _ (vlsm_projection j)); intros Hpsj'.
+        specialize (Hpsj' (proj_istate s j) (proj_istate s'' j)).
+        symmetry in Heqj. specialize (Hpsj' (exist _ l Heqj)).
+        specialize (Hpsj' (exist _ m Hmj)).
+        admit.
+      *
+      unfold state in Hpsj'. simpl in Hpsj'.
+admit.
+    + specialize (transition_projection_state_preservation s (Some m) l i); intros Htp.
+      assert (ni : ilabel l <> i) by (intro; subst; contradiction).
+      specialize (Htp ni). rewrite Ht in Htp. simpl in Htp.
+      apply proj_istate_eq in Htp.
+      rewrite Htp. assumption.
+
 (* 
     + apply protocol_state_prop_iff. right.
       remember (ilabel l) as j. exists (exist _ (proj_istate s j) Hp).
@@ -294,5 +291,6 @@ Proof.
       rewrite Ht in Hpc. simpl in Hpc. destruct Hpc as [Hmsg Hst].
       apply proj_istate_eq in Hst. rewrite <- Hst. 
       rewrite Ht0. simpl. assumption.
+ *)
  *)
 Admitted.

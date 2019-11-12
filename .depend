@@ -26,13 +26,11 @@ vlsm.vo vlsm.glob vlsm.v.beautified: vlsm.v ListExtras.vo
 vlsm.vio: vlsm.v ListExtras.vio
 two_vlsms.vo two_vlsms.glob two_vlsms.v.beautified: two_vlsms.v vlsm.vo
 two_vlsms.vio: two_vlsms.v vlsm.vio
-list_of_vlsms.vo list_of_vlsms.glob list_of_vlsms.v.beautified: list_of_vlsms.v vlsm.vo
-list_of_vlsms.vio: list_of_vlsms.v vlsm.vio
 indexed_vlsm.vo indexed_vlsm.glob indexed_vlsm.v.beautified: indexed_vlsm.v vlsm.vo
 indexed_vlsm.vio: indexed_vlsm.v vlsm.vio
-composed_vlsm.vo composed_vlsm.glob composed_vlsm.v.beautified: composed_vlsm.v vlsm.vo two_vlsms.vo list_of_vlsms.vo indexed_vlsm.vo
-composed_vlsm.vio: composed_vlsm.v vlsm.vio two_vlsms.vio list_of_vlsms.vio indexed_vlsm.vio
+composed_vlsm.vo composed_vlsm.glob composed_vlsm.v.beautified: composed_vlsm.v vlsm.vo two_vlsms.vo indexed_vlsm.vo
+composed_vlsm.vio: composed_vlsm.v vlsm.vio two_vlsms.vio indexed_vlsm.vio
 composed_vlsm_projections.vo composed_vlsm_projections.glob composed_vlsm_projections.v.beautified: composed_vlsm_projections.v vlsm.vo composed_vlsm.vo
 composed_vlsm_projections.vio: composed_vlsm_projections.v vlsm.vio composed_vlsm.vio
-indexed_vlsm_projections.vo indexed_vlsm_projections.glob indexed_vlsm_projections.v.beautified: indexed_vlsm_projections.v vlsm.vo composed_vlsm.vo composed_vlsm_projections.vo
-indexed_vlsm_projections.vio: indexed_vlsm_projections.v vlsm.vio composed_vlsm.vio composed_vlsm_projections.vio
+indexed_vlsm_projections.vo indexed_vlsm_projections.glob indexed_vlsm_projections.v.beautified: indexed_vlsm_projections.v vlsm.vo composed_vlsm.vo composed_vlsm_projections.vo indexed_vlsm.vo
+indexed_vlsm_projections.vio: indexed_vlsm_projections.v vlsm.vio composed_vlsm.vio composed_vlsm_projections.vio indexed_vlsm.vio
