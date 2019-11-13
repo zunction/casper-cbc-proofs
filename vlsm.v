@@ -420,7 +420,7 @@ CoInductive infinite_trace_from
     valid_transition s1 s2 ->
     infinite_trace_from s2 ts ->
     infinite_trace_from s1 (Cons s1 ts)
-  .
+.
 
 
 (* A trace is either finite or infinite *)
@@ -430,7 +430,21 @@ Inductive Trace `{VLSM} : Type :=
   | Infinite : Stream protocol_state -> Trace
   .
 
+(* Protocol traces parameterized by the start state *) 
+Inductive protocol_trace_segment `{VLSM} : list protocol_state -> Prop :=
+| protocol_trace_nil : protocol_trace_segment []
+| protocol_trace_singleton : forall (s : protocol_state), protocol_trace_segment [s]
+| protocol_trace_cons : forall (hd1 hd2 : protocol_state) (tl : list protocol_state),
+    valid_transition hd1 hd2 ->
+    protocol_trace_segment tl ->
+    protocol_trace_segment (hd1 :: hd2 :: tl).
 
+Definition finite_trace_from `{VLSM} (s0 : protocol_state) (ts : list protocol_state) : Prop :=
+  match ts with
+  | [] => True
+  | hd :: tl => hd = s0 /\ protocol_trace_segment ts
+  end. 
+  
 (* finite traces originating in a set *)
 
 Definition filtered_finite_trace
@@ -463,7 +477,7 @@ Definition protocol_finite_trace_prop
   (ts : list protocol_state)
   : Prop
   := filtered_finite_trace initial_protocol_state_prop ts.
-
+           
 (* infinite traces originating in a set *)
 
 Definition filtered_infinite_trace
@@ -503,6 +517,17 @@ Definition protocol_trace
   `{V : VLSM message}
   : Type := { t : Trace | protocol_trace_prop t}.
 
+(* a protocol trace segment is a (finite or infinite) trace, 
+originating in some set of states *) 
+Definition protocol_trace_from_prop `{VLSM} (s0 : protocol_state) (t : Trace) : Prop :=
+  match t with
+  | Finite ts => filtered_finite_trace (fun s => s = s0) ts
+  | Infinite ts => filtered_infinite_trace (fun s => s = s0) ts
+  end.
+
+Definition protocol_trace_from `{VLSM} (s0 : protocol_state) : Type :=
+  { t : Trace | protocol_trace_from_prop s0 t}. 
+           
 Definition first
   {message}
   `{V : VLSM message}
