@@ -1,82 +1,117 @@
-Require Import Bool List Streams.
+Require Import Bool List Streams Logic.Epsilon.
 Import List Notations.
-From Casper
+From Casper 
 Require Import preamble ListExtras ListSetExtras RealsExtras protocol common definitions vlsm indexed_vlsm.
 
-Variables (C V : Type) (about_C : StrictlyComparable C) (about_V : StrictlyComparable V). 
-
 (* 3.1 Decisions on consensus values *) 
-Definition decision `{VLSM} : Type := protocol_state -> option C -> Prop. 
+
+(* Need to add consensus values (and decision functions) to VLSM definitions? *) 
+Class VLSM_plus `{VLSM} :=
+  { C : Type;
+    about_C : exists (c1 c2 : C), c1 <> c2;
+  }.
+
+Definition decision `{VLSM_plus} : Type := protocol_state -> option C -> Prop. 
 
 (* 3.2.1 Decision finality *)
-Program Definition state0 {message} `{VLSM message} : initial_state := _. 
+Program Definition init_state0 `{VLSM} : initial_state := _. 
 Next Obligation.
-Admitted.
+  assert (H_inhabited := protocol_state_inhabited). 
+  apply (epsilon_statement (fun a => True)) in H_inhabited.
+  destruct H_inhabited as [witness _].
+  exact witness. 
+Qed.
 
-Definition protocol_state0 {message} `{V : VLSM message} : protocol_state := exist protocol_state_prop (proj1_sig state0) (initial_protocol_state state0). 
-
-Definition index_trace {message} `{VLSM message} : nat -> Trace -> protocol_state :=
-  fun (n : nat) (tr : Trace) => match tr with
-                           | Finite ls => nth n ls protocol_state0
-                           | Infinite st => Str_nth n st end. 
-
-Program Definition initial_to_protocol {message} `{VLSM message} (is : initial_state) : protocol_state := _. 
+Program Definition prot_state0 `{VLSM} : protocol_state := _. 
 Next Obligation.
-  exists (proj1_sig is). apply initial_protocol_state.
-Defined.
+  assert (H_inhabited := protocol_state_inhabited).
+  apply (epsilon_statement (fun a => True)) in H_inhabited.
+  destruct H_inhabited as [witness _].
+  exact (exist protocol_state_prop (proj1_sig witness) (initial_protocol_state witness)). 
+Defined. 
 
-Definition is_trace_of {message} `{VLSM message} (tr : Trace) : Prop :=
-  index_trace 0 tr = (initial_to_protocol state0).   
-  
-Definition final_decision {message} `{VLSM message} : decision -> Prop :=
-  fun (D : decision) => forall (tr : Trace), is_trace_of tr -> 
+Definition Trace_nth `{VLSM} (tr : Trace)
+  : nat -> protocol_state :=
+  fun (n : nat) => match tr with
+              | Finite ls => nth n ls prot_state0
+              | Infinite st => Str_nth n st end. 
+
+Definition final `{VLSM_plus} : decision -> Prop :=
+  fun (D : decision) => forall (tr : Trace), 
       forall (n1 n2 : nat) (c1 c2 : option C),
-        (D (index_trace n1 tr) c1 -> c1 <> None) ->
-        (D (index_trace n2 tr) c2 -> c2 <> None) ->
+        (D (Trace_nth tr n1) c1 -> c1 <> None) ->
+        (D (Trace_nth tr n1) c2 -> c2 <> None) ->
         c1 = c2.
 
 (* 3.2.2 Decision consistency *)
+Definition in_trace `{VLSM} : protocol_state -> Trace -> Prop :=
+  fun (s : protocol_state) (tr : Trace) => exists (n : nat), Trace_nth tr n = s.
 
+Definition consistent
+  {index : Set}
+  {message : Type}
+  `{VLSM_plus}
+  (IS : index -> LSM_sig message)
+  (IM : forall i : index, @VLSM message (IS i))
+  (ID : index -> decision)
+  : Prop
+  :=
+    (* Assuming we want traces of the overall protocol *)
+    forall (tr : protocol_trace) (s : protocol_state),
+      in_trace s tr ->
+      forall (n1 n2 j k : index),
+      exists (c1 c2 : C),
+        (ID n1) s (Some c1) -> (ID n2) s (Some c2) ->
+        forall (c : C),
+          (ID n1) s (Some c) <-> (ID n2) s (Some c).       
+  
 (* 3.3.1 Initial protocol state bivalence *)
-Definition bivalent {message} `{VLSM message} : decision -> Prop :=
+Definition bivalent `{VLSM_plus} : decision -> Prop :=
   fun (D : decision) =>
-    forall (s0 : initial_state),
-      D (initial_to_protocol s0) None /\
-      forall (c : C), exists (tr : Trace),
-          is_trace_of tr /\
-          exists (s : protocol_state) (n : nat),
-            (index_trace n tr) = s /\
-            D s (Some c). 
+    (* All initial states decide on None *) 
+    (forall (s0 : protocol_state),
+      initial_state_prop (proj1_sig s0) ->
+      D s0 None) /\
+    (* Every protocol trace (already beginning from an initial state) contains a state deciding on each consensus value *) 
+    (forall (c : C) (tr : protocol_trace),
+        exists (s : protocol_state) (n : nat), 
+          (Trace_nth tr n) = s /\ D s (Some c)).
 
 (* 3.3.2 No stuck states *) 
-Definition stuck_free {message} `{VLSM message} : decision -> Prop :=
+Definition stuck_free `{VLSM_plus} : decision -> Prop :=
   fun (D : decision) =>
     (exists (s : protocol_state),
-        forall (tr : Trace),
-          is_trace_of tr ->
-          forall (n : nat),
-            D (index_trace n tr) None) -> False. 
+        forall (tr : protocol_trace_from (fun s => s = s)) (n : nat),
+            D (Trace_nth tr n) None) -> False. 
 
 (* 3.3.3 Protocol definition symmetry *) 
 (* How do we formalize this property set-theoretically? *)
+Definition behavior `{VLSM_plus} : decision -> Prop := fun _ => True. 
+Definition symmetric `{VLSM_plus} :=
+  forall (D : decision),
+  exists (f : decision -> decision),
+    behavior D = behavior (f D). 
 
-(* 3.4 Liveness of decisions *)
-(* How do we decompose a composition in order to express liveness and consistency? *)
+(* 3.4 Liveness *) 
+Definition live `{VLSM_plus} : (nat -> VLSM_plus) -> (nat -> decision) -> Prop :=
+  fun (IS : nat -> VLSM_plus) (ID : nat -> decision) =>
+    (* Here we want traces starting at the initial states *)
+    forall (tr : protocol_trace),
+      complete_trace_prop tr -> 
+      exists (i n : nat) (c : C),
+        (ID i) (Trace_nth tr n) (Some c). 
 
-(* Creating a full-node instance of VLSM *) 
-Definition vstate := @definitions.state C V. 
+(* Section 4 *) 
 
-(*
-Inductive vstate : Type :=
-  | Empty : vstate 
-  | Next : C ->  V -> vstate -> vstate -> vstate.
- *)
+(* Creating a full-node instance of VLSM *)
+Parameters (CV V : Type) (about_CV : StrictlyComparable CV) (about_V : StrictlyComparable V). 
+Definition vstate := @definitions.state CV V. 
 
 Parameter about_vstate : StrictlyComparable vstate. 
 
-Definition vlabel : Type := (option (C * V)).
+Definition vlabel : Type := (option (CV * V)).
 
-Definition vmessage : Type := (C * V * vstate).
+Definition vmessage : Type := (CV * V * vstate).
 
 Fixpoint get_messages (sigma : vstate) : list vmessage :=
   match sigma with
@@ -154,7 +189,7 @@ Qed.
 
 Lemma vlabel_inhabited : vlabel. 
 Proof.
-  destruct about_C.
+  destruct about_CV.
   destruct inhabited as [c _].
   destruct about_V.
   destruct inhabited as [v _].
@@ -185,17 +220,17 @@ Definition vtransition (l : vlabel) (sm : vstate * option {m : vmessage | proto_
 
 Parameter not_heavy : vstate -> Prop.
 Parameter not_heavyb : vstate -> bool.
-Parameter estimator : C -> vstate -> Prop. 
-Parameter estimatorb : C -> vstate -> bool.
+Parameter estimator : CV -> vstate -> Prop. 
+Parameter estimatorb : CV -> vstate -> bool.
 Parameter vreachb : vstate -> vstate -> bool. 
 
 Inductive valid_client : vlabel -> vstate * option {m : vmessage | proto_vmessage_prop m} -> Prop :=
 | valid_none : forall (s : vstate), valid_client None (s, Some (make_proto_vmessage message0))
-| valid_receive : forall (s : vstate) (msg : C * V * vstate),
+| valid_receive : forall (s : vstate) (msg : CV * V * vstate),
     vreach (snd msg) s ->
     not_heavy (add_vmessage (msg) s) ->
     valid_client None (s, Some (make_proto_vmessage msg))
-| valid_produce : forall (s : vstate) (vl : C * V) (msg : C * V * vstate),
+| valid_produce : forall (s : vstate) (vl : CV * V) (msg : CV * V * vstate),
     estimator (fst vl) s -> valid_client (Some vl) (s, Some (make_proto_vmessage msg)).
 
 Definition unoption_vmessage (vmsg : option {m : vmessage | proto_vmessage_prop m}) : vmessage :=

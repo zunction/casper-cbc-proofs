@@ -34,3 +34,5 @@ composed_vlsm_projections.vo composed_vlsm_projections.glob composed_vlsm_projec
 composed_vlsm_projections.vio: composed_vlsm_projections.v vlsm.vio composed_vlsm.vio
 indexed_vlsm_projections.vo indexed_vlsm_projections.glob indexed_vlsm_projections.v.beautified: indexed_vlsm_projections.v vlsm.vo composed_vlsm.vo composed_vlsm_projections.vo indexed_vlsm.vo
 indexed_vlsm_projections.vio: indexed_vlsm_projections.v vlsm.vio composed_vlsm.vio composed_vlsm_projections.vio indexed_vlsm.vio
+commute.vo commute.glob commute.v.beautified: commute.v preamble.vo ListExtras.vo ListSetExtras.vo RealsExtras.vo protocol.vo common.vo definitions.vo vlsm.vo indexed_vlsm.vo
+commute.vio: commute.v preamble.vio ListExtras.vio ListSetExtras.vio RealsExtras.vio protocol.vio common.vio definitions.vio vlsm.vio indexed_vlsm.vio

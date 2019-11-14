@@ -307,7 +307,7 @@ Proof.
 Qed.
 
 
-(* Valid  VLSM transitions *)
+(* Valid VLSM transitions *)
 
 Definition labeled_valid_transition
   {message}
@@ -489,7 +489,7 @@ CoInductive infinite_trace_from
     valid_transition s1 s2 ->
     infinite_trace_from s2 ts ->
     infinite_trace_from s1 (Cons s1 ts)
-  .
+.
 
 
 (* A trace is either finite or infinite *)
@@ -498,7 +498,6 @@ Inductive Trace `{VLSM} : Type :=
   | Finite : list protocol_state -> Trace
   | Infinite : Stream protocol_state -> Trace
   .
-
 
 (* finite traces originating in a set *)
 
@@ -523,6 +522,9 @@ Definition initial_protocol_state_prop
   :=
   initial_state_prop (proj1_sig ps).
 
+Definition start_protocol_state_prop `{VLSM} (s0 : protocol_state) (ts : list protocol_state) : Prop :=
+  filtered_finite_trace (fun s => s = s0) ts. 
+           
 
 (* finite traces originating in the set of initial states *)
 
@@ -572,6 +574,31 @@ Definition protocol_trace
   `{V : VLSM message}
   : Type := { t : Trace | protocol_trace_prop t}.
 
+Definition protocol_trace_proj1
+  `{VLSM}
+  (tr : protocol_trace) 
+  : Trace := proj1_sig tr.
+
+Coercion protocol_trace_proj1 : protocol_trace >-> Trace.
+
+(* a protocol trace segment is a (finite or infinite) trace, 
+originating in some set of states *)
+Definition protocol_trace_from_prop `{VLSM} (P : protocol_state -> Prop) (t : Trace) : Prop :=
+  match t with
+  | Finite ts => filtered_finite_trace P ts 
+  | Infinite ts => filtered_infinite_trace P ts
+  end.
+
+Definition protocol_trace_from `{VLSM} (P : protocol_state -> Prop) : Type :=
+  { t : Trace | protocol_trace_from_prop P t}. 
+
+Definition protocol_trace_from_proj1
+  `{VLSM} {P}
+  (tr : protocol_trace_from P) 
+  : Trace := proj1_sig tr.
+
+Coercion protocol_trace_from_proj1 : protocol_trace_from >-> Trace.
+
 Definition first
   {message}
   `{V : VLSM message}
@@ -594,7 +621,6 @@ Definition last
     exact (Some (last t h)).
   - exact None.
 Defined.
-
 
 Lemma extend_protocol_trace
   {message}
@@ -619,8 +645,7 @@ Proof.
 Qed.
 
 (* Any protocol state is reachable through a (finite) protocol_trace. *)
-
-Lemma procotol_state_reachable
+Lemma protocol_state_reachable
   {message}
   `{V : VLSM message}
   : forall ps : protocol_state,
@@ -656,7 +681,8 @@ Proof.
       destruct Hvt as [pt' Hlast].
       exists pt'. exists ps'. split; subst; auto.
 Qed.
-
+  
+(* Since we already assume choice etc., might as well make it into a function *) 
 
 (* A final state is one which is stuck (no further valid transition is possible) *)
 
