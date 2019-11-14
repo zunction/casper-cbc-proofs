@@ -130,7 +130,7 @@ Definition DVLSM_PLSM_instance
   {message}
   {Sig : LSM_sig message}
   {VM : @VLSM message Sig}
-  `{DVM : @VLSM_vdecidable message Sig VM}
+  `(DVM : @VLSM_vdecidable message Sig VM)
   : @PLSM message Sig
   :=
   {|  ptransition := transition_valid_ptransition

@@ -17,7 +17,7 @@ Definition indexed_vlsm_projection
     i
   .
 
-Definition indexed_vlsm_constrained_projection
+(* Definition indexed_vlsm_constrained_projection
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> LSM_sig message)
   (IM : forall i : oindex, @VLSM message (IS i))
@@ -33,3 +33,4 @@ Definition indexed_vlsm_constrained_projection
     i
   .
 
+ *)
