@@ -4,6 +4,18 @@ Import ListNotations.
 From Casper
 Require Import ListExtras.
 
+
+Definition noneOrAll
+  (op : option Prop)
+  : Prop
+  :=
+  match op with
+  | None => True
+  | (Some p) => p
+  end.
+
+
+
 Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
 
 Lemma exist_eq

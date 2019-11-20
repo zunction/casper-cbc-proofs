@@ -24,6 +24,8 @@ ctl.vo ctl.glob ctl.v.beautified: ctl.v preamble.vo ListExtras.vo ListSetExtras.
 ctl.vio: ctl.v preamble.vio ListExtras.vio ListSetExtras.vio RealsExtras.vio protocol.vio definitions.vio
 vlsm.vo vlsm.glob vlsm.v.beautified: vlsm.v ListExtras.vo
 vlsm.vio: vlsm.v ListExtras.vio
+vlsm_run.vo vlsm_run.glob vlsm_run.v.beautified: vlsm_run.v vlsm.vo
+vlsm_run.vio: vlsm_run.v vlsm.vio
 two_vlsms.vo two_vlsms.glob two_vlsms.v.beautified: two_vlsms.v vlsm.vo
 two_vlsms.vio: two_vlsms.v vlsm.vio
 indexed_vlsm.vo indexed_vlsm.glob indexed_vlsm.v.beautified: indexed_vlsm.v vlsm.vo
