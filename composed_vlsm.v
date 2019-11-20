@@ -13,11 +13,11 @@ Class composed_sig_class (message : Type) `{S : LSM_sig message} :=
 
   ; ilabel : label -> index
   ; ilabel_type := fun (i : index) => { l : label | ilabel l = i }
-  ; ilabel_type_inhabited : forall i : index, inhabited (ilabel_type i)
+  ; il0 : forall i : index, ilabel_type i
 
   ; iproto_message_prop : index -> message -> Prop
   ; iproto_message_decidable : forall i : index, forall m : message, {iproto_message_prop i m} + {~iproto_message_prop i m}
-  ; iproto_message_inhabited : forall i : index, inhabited {m : message | iproto_message_prop i m}
+  ; im0 : forall i : index,  {m : message | iproto_message_prop i m}
   ; iproto_message_consistent : forall i : index, forall m : message, iproto_message_prop i m -> proto_message_prop m
   }.
 
@@ -124,20 +124,17 @@ Definition composed2_ilabel
   | inr _ => two
   end.
 
-Lemma composed2_ilabel_type_inhabited
+Definition composed2_il0
   {message}
   (S1 : LSM_sig message)
   (S2 : LSM_sig message)
   (i : composed2_index)
-  : inhabited { l : @label _ (composed2_sig S1 S2) | composed2_ilabel S1 S2 l = i }.
-Proof.
-  specialize (@label_inhabited message S1); intros [l1].
-  specialize (@label_inhabited message S2); intros [l2].
-  constructor.
-  destruct i.
-  - exists (inl l1). reflexivity.
-  - exists (inr l2). reflexivity.
-Qed.
+  : { l : @label _ (composed2_sig S1 S2) | composed2_ilabel S1 S2 l = i }
+  :=
+  match i with
+  | one => exist _ (inl (@l0 message S1)) eq_refl
+  | two => exist _ (inr (@l0 message S2)) eq_refl
+  end.
 
 Definition composed2_iproto_message_prop
   {message}
@@ -161,15 +158,17 @@ Proof.
   unfold composed2_iproto_message_prop. destruct i; apply proto_message_decidable.
 Qed.
 
-Lemma composed2_iproto_message_inhabited
+Definition composed2_im0
   {message}
   (S1 : LSM_sig message)
   (S2 : LSM_sig message)
   (i : composed2_index)
-  : inhabited {m : message | composed2_iproto_message_prop S1 S2 i m}.
-Proof.
-  unfold composed2_iproto_message_prop. destruct i; apply message_inhabited.
-Qed.
+  : {m : message | composed2_iproto_message_prop S1 S2 i m}
+  :=
+  match i with
+  | one => @m0 message S1
+  | two => @m0 message S2
+  end.
 
 Lemma composed2_iproto_message_consistent
   {message}
@@ -192,10 +191,10 @@ Definition composed2_sig_composed_instance
   ; iproto_state := composed2_iproto_state S1 S2
   ; istate_proj := composed2_istate_proj S1 S2
   ; ilabel := composed2_ilabel S1 S2
-  ; ilabel_type_inhabited := composed2_ilabel_type_inhabited S1 S2
+  ; il0 := composed2_il0 S1 S2
   ; iproto_message_prop := composed2_iproto_message_prop S1 S2
   ; iproto_message_decidable := composed2_iproto_message_decidable S1 S2
-  ; iproto_message_inhabited := composed2_iproto_message_inhabited S1 S2
+  ; im0 := composed2_im0 S1 S2
   ; iproto_message_consistent := composed2_iproto_message_consistent S1 S2
   |}.
 
@@ -325,7 +324,7 @@ Definition indexed_istate
 Definition indexed_istate_proj
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
-  {Hinh : inhabited oindex}
+  {Hinh : oindex}
   (i : oindex)
   (s : @state message (indexed_sig IS Hinh))
   : @indexed_istate oindex message Heqd IS i
@@ -342,17 +341,14 @@ Definition indexed_ilabel
   projT1 l.
 
 
-Lemma indexed_ilabel_type_inhabited
+Definition indexed_il0
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   (i : oindex)
-  : inhabited { l : indexed_label IS | indexed_ilabel l = i }.
-Proof.
-  specialize (@label_inhabited message (IS i)); intros [li].
-  constructor. 
-  exists (existT _ i li).
-  reflexivity.
-Qed.
+  : { l : indexed_label IS | indexed_ilabel l = i }
+  :=
+  exist _ (existT _ i (@l0 message (IS i))) eq_refl
+  .
 
 Definition indexed_iproto_message_prop
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
@@ -370,13 +366,13 @@ Definition indexed_iproto_message_decidable
   :=
   @proto_message_decidable message (IS i).
 
-Definition indexed_iproto_message_inhabited
+Definition indexed_im0
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   (i : oindex)
-  : inhabited {m : message | indexed_iproto_message_prop i m}
+  : {m : message | indexed_iproto_message_prop i m}
   :=
-  @message_inhabited message (IS i).
+  @m0 message (IS i).
 
 Lemma indexed_iproto_message_consistent
   {index : Set} {message : Type} `{Heqd : EqDec index}
@@ -392,16 +388,16 @@ Qed.
 Definition indexed_sig_composed_instance
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   (IS : oindex -> LSM_sig message)
-  (Hinh : inhabited oindex)
+  (Hinh : oindex)
   : @composed_sig_class message (indexed_sig IS Hinh) :=
   {| index := oindex
   ; iproto_state := @indexed_istate oindex message Heqd IS
   ; istate_proj := indexed_istate_proj
   ; ilabel := indexed_ilabel
-  ; ilabel_type_inhabited := indexed_ilabel_type_inhabited
+  ; il0 := indexed_il0
   ; iproto_message_prop := indexed_iproto_message_prop
   ; iproto_message_decidable := indexed_iproto_message_decidable
-  ; iproto_message_inhabited := indexed_iproto_message_inhabited
+  ; im0 := indexed_im0
   ; iproto_message_consistent := indexed_iproto_message_consistent
   |}.
 
@@ -411,7 +407,7 @@ Lemma indexed_transition_projection_consistency
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   {IM : forall i : oindex, @VLSM message (IS i)}
-  {Hinh : inhabited oindex}
+  {Hinh : oindex}
   (s1 s2 : @state _ (indexed_sig IS Hinh))
   (om : option (@proto_message _ (indexed_sig IS Hinh)))
   (l : @label _ (indexed_sig IS Hinh))
@@ -442,7 +438,7 @@ Lemma indexed_transition_projection_state_preservation
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   {IM : forall i : oindex, @VLSM message (IS i)}
-  {Hinh : inhabited oindex}
+  {Hinh : oindex}
   (s : indexed_state IS)
   (om : option (indexed_proto_message IS))
   (l : indexed_label IS)
@@ -469,7 +465,7 @@ Lemma indexed_transition_projection_message_type_mismatch
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   {IM : forall i : oindex, @VLSM message (IS i)}
-  {Hinh : inhabited oindex}
+  {Hinh : oindex}
   (s : indexed_state IS)
   (m : indexed_proto_message IS)
   (l : indexed_label IS)
@@ -489,7 +485,7 @@ Lemma indexed_transition_projection_message_type_preservation
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   {IM : forall i : oindex, @VLSM message (IS i)}
-  {Hinh : inhabited oindex}
+  {Hinh : oindex}
   (s : indexed_state IS)
   (om : option (indexed_proto_message IS))
   (l : indexed_label IS)
@@ -516,7 +512,7 @@ Definition indexed_vlsm_composed_instance
   {oindex : Set} {message : Type} `{Heqd : EqDec oindex}
   {IS : oindex -> LSM_sig message}
   (IM : forall i : oindex, @VLSM message (IS i))
-  (Hinh : inhabited oindex)
+  (Hinh : oindex)
   : @composed_vlsm_class message _ (indexed_sig_composed_instance IS Hinh) (indexed_vlsm IM Hinh) :=
   {|  transition_projection_consistency := indexed_transition_projection_consistency
   ;   transition_projection_state_preservation := indexed_transition_projection_state_preservation

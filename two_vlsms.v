@@ -49,17 +49,15 @@ Definition composed2_initial_state
   :=
   { s : (@state message S1) * (@state message S2) | composed2_initial_state_prop S1 S2 s }.
 
-Lemma composed2_protocol_state_inhabited
+Definition composed2_s0
   {message}
   (S1 : LSM_sig message)
   (S2 : LSM_sig message)
-  : inhabited (composed2_initial_state S1 S2).
-Proof.
-  destruct (@protocol_state_inhabited message S1) as [s1].
-  destruct (@protocol_state_inhabited message S2) as [s2].
-  destruct s1 as [i1 Hi1]. destruct s2 as [i2 Hi2].
-  constructor. exists (i1, i2). split; assumption.
-Qed.
+  : composed2_initial_state S1 S2
+  :=
+  let (i1, Hi1) := @s0 message S1 in
+  let (i2, Hi2) := @s0 message S2 in
+  exist _ (i1, i2) (conj Hi1 Hi2).
 
 Definition composed2_initial_message_prop
   {message}
@@ -74,27 +72,22 @@ destruct (@proto_message_decidable _ S1 m) as [H1 | _]; destruct (@proto_message
 - exact False.
 Defined.
 
-Lemma composed2_message_inhabited
+Definition composed2_m0
   {message}
   (S1 : LSM_sig message)
   (S2 : LSM_sig message)
-  : inhabited (composed2_proto_message S1 S2)
-  .
-Proof.
-  destruct (@message_inhabited message S1) as [[m Hm]].
-  constructor.  exists m. left. assumption.
-Qed.
+  : composed2_proto_message S1 S2
+  :=
+  let (m, Hm) := @m0 message S1 in
+  exist _ m (or_introl Hm).
 
-Lemma composed2_label_inhabited
+Definition composed2_l0
   {message}
   (S1 : LSM_sig message)
   (S2 : LSM_sig message)
-  : inhabited ((@label message S1) + (@label message S2)).
-Proof.
-  destruct (@label_inhabited message S1) as [l].
-  constructor.  left.  exact l.
-Qed.
-
+  : (@label message S1) + (@label message S2)
+  :=
+  inl (@l0 message S1).
 
 Definition lift_proto_message1
   {message}
@@ -130,10 +123,10 @@ Definition composed2_sig
   ; proto_message_prop := composed2_proto_message_prop S1 S2
   ; proto_message_decidable := composed2_proto_message_decidable S1 S2
   ; initial_state_prop := composed2_initial_state_prop S1 S2
-  ; protocol_state_inhabited := composed2_protocol_state_inhabited S1 S2
+  ; s0 := composed2_s0 S1 S2
   ; initial_message_prop := composed2_initial_message_prop S1 S2
-  ; message_inhabited := composed2_message_inhabited S1 S2
-  ; label_inhabited := composed2_label_inhabited S1 S2
+  ; m0 := composed2_m0 S1 S2
+  ; l0 := composed2_l0 S1 S2
   |}.
 
 

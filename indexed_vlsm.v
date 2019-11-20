@@ -60,20 +60,13 @@ Definition indexed_initial_state
   (IS : index -> LSM_sig message)
   := { s : indexed_state IS | indexed_initial_state_prop IS s }.
 
-Lemma indexed_protocol_state_inhabited
+Definition indexed_s0
   {index : Set} {message : Type}
   (IS : index -> LSM_sig message)
-  : inhabited (indexed_initial_state IS).
-Proof.
-  unfold indexed_initial_state. unfold indexed_state. unfold indexed_initial_state_prop.
-  assert (Hchoice : exists s : forall i : index, @state _ (IS i), forall i : index, @initial_state_prop _ (IS i) (s i)).
-  { apply (non_dep_dep_functional_choice choice). simpl.
-    intros i. destruct (@protocol_state_inhabited _ (IS i)) as [[s His]].
-    exists s. assumption.
-  }
-  destruct Hchoice as [s His].
-  constructor. exists s. assumption.
-Qed.
+  : indexed_initial_state IS.
+exists (fun (i : index) => proj1_sig (@s0 _ (IS i))).
+intro i. destruct s0 as [s Hs]. assumption.
+Defined.
 
 Definition indexed_initial_message_prop
   {index : Set} {message : Type}
@@ -84,30 +77,22 @@ Definition indexed_initial_message_prop
   exists (i : index) (mi : @initial_message _ (IS i)), proj1_sig (proj1_sig mi) = proj1_sig m.
 
 
-Lemma indexed_message_inhabited
+Definition indexed_m0
   {index : Set} {message : Type}
   (IS : index -> LSM_sig message)
-  (Hi : inhabited index)
-  : inhabited (indexed_proto_message IS)
+  (i0 : index)
+  : indexed_proto_message IS
   .
-Proof.
-  unfold indexed_proto_message. unfold indexed_proto_message_prop.
-  destruct Hi as [i]. destruct (@message_inhabited _ (IS i)) as [[m Hpm]].
-  constructor. exists m. exists i. assumption.
-Qed.
+destruct (@m0 _ (IS i0)) as [m Hpm].
+exists m. exists i0. assumption.
+Defined.
 
-Lemma indexed_label_inhabited
+Definition indexed_l0
   {index : Set} {message : Type}
   (IS : index -> LSM_sig message)
-  (Hi : inhabited index)
-  : inhabited (indexed_label IS).
-Proof.
-  unfold indexed_label.
-  destruct Hi as [i].
-  destruct (@label_inhabited message (IS i)) as [l].
-  constructor.
-  exists i. exact l.
-Qed.
+  (i0 : index)
+  : indexed_label IS
+  := existT _ i0 (@l0 message (IS i0)) .
 
 Definition lift_proto_messageI
   {index : Set} {message : Type}
@@ -123,7 +108,7 @@ Defined.
 Definition indexed_sig
   {index : Set} {message : Type} `{Heqd : EqDec index}
   (IS : index -> LSM_sig message)
-  (Hi : inhabited index)
+  (i0 : index)
   : LSM_sig message
   :=
   {| state := indexed_state IS
@@ -131,17 +116,17 @@ Definition indexed_sig
   ; proto_message_prop := indexed_proto_message_prop IS
   ; proto_message_decidable := indexed_proto_message_decidable IS
   ; initial_state_prop := indexed_initial_state_prop IS
-  ; protocol_state_inhabited := indexed_protocol_state_inhabited IS
+  ; s0 := indexed_s0 IS
   ; initial_message_prop := indexed_initial_message_prop IS
-  ; message_inhabited := indexed_message_inhabited IS Hi
-  ; label_inhabited := indexed_label_inhabited IS Hi
+  ; m0 := indexed_m0 IS i0
+  ; l0 := indexed_l0 IS i0
   |}.
 
 Definition state_update
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
-  {Hi : inhabited index}
-  (s : @state message (indexed_sig IS Hi))
+  {i0 : index}
+  (s : @state message (indexed_sig IS i0))
   (i : index)
   (si : @state message (IS i))
   (j : index)
@@ -155,10 +140,10 @@ Definition indexed_ptransition
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @PLSM message (IS i))
-  (Hi : inhabited index)
-  (l : @label message (indexed_sig IS Hi))
-  (som : @state message (indexed_sig IS Hi) * option (@proto_message _ (indexed_sig IS Hi)))
-  : option (@state message (indexed_sig IS Hi) * option (@proto_message _ (indexed_sig IS Hi))).
+  (i0 : index)
+  (l : @label message (indexed_sig IS i0))
+  (som : @state message (indexed_sig IS i0) * option (@proto_message _ (indexed_sig IS i0)))
+  : option (@state message (indexed_sig IS i0) * option (@proto_message _ (indexed_sig IS i0))).
 destruct l as [i li].
 destruct som as [s [[m Hm]|]].
 - destruct (@proto_message_decidable _ (IS i) m) as [Him | _].
@@ -175,10 +160,10 @@ Definition indexed_plsm
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @PLSM message (IS i))
-  (Hi : inhabited index)
-  : @PLSM message (indexed_sig IS Hi)
+  (i0 : index)
+  : @PLSM message (indexed_sig IS i0)
   :=
-  {|  ptransition := indexed_ptransition IM Hi
+  {|  ptransition := indexed_ptransition IM i0
   |}.
 
 
@@ -186,7 +171,7 @@ Definition indexed_transition
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @VLSM message (IS i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   (l : @label _ (indexed_sig IS Hinh))
   (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)))
   : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)).
@@ -205,7 +190,7 @@ Definition indexed_valid
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @VLSM message (IS i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   (l : @label _ (indexed_sig IS Hinh))
   (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)))
   : Prop.
@@ -224,7 +209,7 @@ Definition indexed_vlsm
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @VLSM message (IS i))
-  (Hi : inhabited index)
+  (Hi : index)
   : @VLSM message (indexed_sig IS Hi)
   :=
   {|  transition := indexed_transition IM Hi
@@ -236,7 +221,7 @@ Definition indexed_valid_decidable
   {IS : index -> LSM_sig message}
   {IM : forall i : index, @VLSM message (IS i)}
   (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   (l : @label _ (indexed_sig IS Hinh))
   (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)))
   : {@valid _ _ (indexed_vlsm IM Hinh) l som} + {~@valid _ _ (indexed_vlsm IM Hinh) l som}.
@@ -254,7 +239,7 @@ Definition indexed_vlsm_vdecidable
   {IS : index -> LSM_sig message}
   {IM : forall i : index, @VLSM message (IS i)}
   (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hi : inhabited index)
+  (Hi : index)
   : @VLSM_vdecidable _ _ (indexed_vlsm IM Hi)
   :=
   {|  valid_decidable := indexed_valid_decidable IDM Hi
@@ -264,7 +249,7 @@ Definition indexed_ptransition_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @PLSM message (IS i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   {constraint : @label _ (indexed_sig IS Hinh) -> @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)) -> Prop}
   (constraint_decidable : forall (l : @label _ (indexed_sig IS Hinh)) (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh))), {constraint l som} + {~constraint l som})
   (l : @label message (indexed_sig IS Hinh))
@@ -277,7 +262,7 @@ Definition indexed_plsm_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @PLSM message (IS i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   {constraint : @label _ (indexed_sig IS Hinh) -> @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)) -> Prop}
   (constraint_decidable : forall (l : @label _ (indexed_sig IS Hinh)) (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh))), {constraint l som} + {~constraint l som})
   : @PLSM message (indexed_sig IS Hinh)
@@ -289,7 +274,7 @@ Definition indexed_valid_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @VLSM message (IS i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
   (l : @label _ (indexed_sig IS Hinh))
   (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)))
@@ -303,7 +288,7 @@ Definition indexed_vlsm_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
   (IM : forall i : index, @VLSM message (IS i))
-  (Hi : inhabited index)
+  (Hi : index)
   (constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop)
   : @VLSM message (indexed_sig IS Hi)
   :=
@@ -316,7 +301,7 @@ Definition indexed_valid_constrained_decidable
   {IS : index -> LSM_sig message}
   {IM : forall i : index, @VLSM message (IS i)}
   (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   {constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop}
   (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   (l : @label _ (indexed_sig IS Hinh))
@@ -336,7 +321,7 @@ Definition indexed_vlsm_constrained_vdecidable
   {IS : index -> LSM_sig message}
   {IM : forall i : index, @VLSM message (IS i)}
   (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   {constraint : indexed_label IS -> indexed_state IS * option (indexed_proto_message IS) -> Prop}
   (constraint_decidable : forall (l : indexed_label IS) (som : indexed_state IS * option (indexed_proto_message IS)), {constraint l som} + {~constraint l som})
   : @VLSM_vdecidable _ _ (indexed_vlsm_constrained IM Hinh constraint)
@@ -350,7 +335,7 @@ Lemma indexed_partial_composition_commute
   {IS : index -> LSM_sig message}
   {IM : forall i : index, @VLSM message (IS i)}
   (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   : let PM12 := DVLSM_PLSM_instance (indexed_vlsm_vdecidable IDM Hinh) in
     let PM12' := indexed_plsm (fun (i : index) => DVLSM_PLSM_instance (IDM i)) Hinh in
     @ptransition _ _ PM12 = @ptransition _ _ PM12'.
@@ -379,7 +364,7 @@ Lemma indexed_constrained_partial_composition_commute
   {IS : index -> LSM_sig message}
   {IM : forall i : index, @VLSM message (IS i)}
   (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : inhabited index)
+  (Hinh : index)
   {constraint : @label _ (indexed_sig IS Hinh) -> @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)) -> Prop}
   (constraint_decidable : forall (l : @label _ (indexed_sig IS Hinh)) (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh))), {constraint l som} + {~constraint l som})
   : let PM12 := DVLSM_PLSM_instance (indexed_vlsm_constrained_vdecidable IDM Hinh constraint_decidable) in

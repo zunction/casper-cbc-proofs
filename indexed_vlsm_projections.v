@@ -10,10 +10,10 @@ Definition indexed_vlsm_projection
   : VLSM (message : Type)
   :=
   @vlsm_projection message
-    (indexed_sig IS (inhabits i))
-    (indexed_sig_composed_instance IS (inhabits i))
-    (indexed_vlsm IM (inhabits i))
-    (@indexed_vlsm_composed_instance oindex message Heqd IS IM (inhabits i))
+    (indexed_sig IS i)
+    (indexed_sig_composed_instance IS i)
+    (indexed_vlsm IM i)
+    (@indexed_vlsm_composed_instance oindex message Heqd IS IM i)
     i
   .
 
