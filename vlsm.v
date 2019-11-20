@@ -57,9 +57,9 @@ Class LSM_sig (message : Type) :=
   ; initial_state := { s : state | initial_state_prop s }
   ; initial_message_prop : proto_message -> Prop
   ; initial_message := { m : proto_message | initial_message_prop m }
-  ; protocol_state_inhabited : inhabited initial_state
-  ; message_inhabited : inhabited proto_message
-  ; label_inhabited : inhabited label
+  ; s0 : initial_state
+  ; m0 : proto_message
+  ; l0 : label
   }.
 
 Class PLSM (message : Type) `{Sig : LSM_sig message} :=

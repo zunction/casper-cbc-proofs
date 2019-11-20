@@ -17,18 +17,16 @@ Definition vlsm_projection_initial_state
   :=
   { s : istate i | vlsm_projection_initial_state_prop i s }.
 
-Lemma vlsm_projection_protocol_state_inhabited
+Definition vlsm_projection_s0
   {message : Type}
   `{CV : composed_sig_class message}
   (i : index)
-  : inhabited (vlsm_projection_initial_state i).
-Proof.
-  destruct protocol_state_inhabited as [s].
-  remember (proj_istate (proj1_sig s) i) as iis.
-  assert (Hiis : vlsm_projection_initial_state_prop i iis)
-    by (exists s; subst; reflexivity).
-  constructor. exact (exist _ iis Hiis).
-Qed.
+  : (vlsm_projection_initial_state i).
+remember (proj_istate (proj1_sig s0) i) as iis.
+assert (Hiis : vlsm_projection_initial_state_prop i iis)
+  by (exists s0; subst; reflexivity).
+exact (exist _ iis Hiis).
+Defined.
 
 Definition lift_proto_message
   {message : Type}
@@ -63,9 +61,9 @@ Definition vlsm_sig_projection
   ;   proto_message_decidable := iproto_message_decidable i
   ;   initial_state_prop := vlsm_projection_initial_state_prop i
   ;   initial_message_prop := vlsm_projection_initial_message_prop i
-  ;   protocol_state_inhabited := vlsm_projection_protocol_state_inhabited i
-  ;   message_inhabited := iproto_message_inhabited i
-  ;   label_inhabited := ilabel_type_inhabited i
+  ;   s0 := vlsm_projection_s0 i
+  ;   m0 := im0 i
+  ;   l0 := il0 i
   |}.
 
 (*   ;   transition := vlsm_projection_transition i

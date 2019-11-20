@@ -14,21 +14,10 @@ Class VLSM_plus `{VLSM} :=
 Definition decision `{VLSM_plus} : Type := protocol_state -> option C -> Prop. 
 
 (* 3.2.1 Decision finality *)
-Program Definition init_state0 `{VLSM} : initial_state := _. 
-Next Obligation.
-  assert (H_inhabited := protocol_state_inhabited). 
-  apply (epsilon_statement (fun a => True)) in H_inhabited.
-  destruct H_inhabited as [witness _].
-  exact witness. 
-Qed.
+Definition init_state0 `{VLSM} : initial_state := s0. 
 
-Program Definition prot_state0 `{VLSM} : protocol_state := _. 
-Next Obligation.
-  assert (H_inhabited := protocol_state_inhabited).
-  apply (epsilon_statement (fun a => True)) in H_inhabited.
-  destruct H_inhabited as [witness _].
-  exact (exist protocol_state_prop (proj1_sig witness) (initial_protocol_state witness)). 
-Defined. 
+Definition prot_state0 `{VLSM} : protocol_state := 
+  exist protocol_state_prop (proj1_sig s0) (initial_protocol_state s0). 
 
 Definition Trace_nth `{VLSM} (tr : Trace)
   : nat -> protocol_state :=
