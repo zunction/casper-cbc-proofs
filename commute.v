@@ -17,7 +17,7 @@ Definition decision `{VLSM_plus} : Type := protocol_state -> option C -> Prop.
 Definition init_state0 `{VLSM} : initial_state := s0. 
 
 Definition prot_state0 `{VLSM} : protocol_state := 
-  exist protocol_state_prop (proj1_sig s0) (initial_protocol_state s0). 
+  exist _ _ (ex_intro _ _ (protocol_initial_state s0)). 
 
 Definition Trace_nth `{VLSM} (tr : Trace)
   : nat -> protocol_state :=

@@ -156,51 +156,33 @@ the label-with-message and label-with-no-message transition types.
 A separate characterization and induction principle glossing over these details is
 provided later on. *)
 
-Inductive
-  protocol_state_prop
-    {message}
-    `{V : VLSM message}
-    : state -> Prop
-    := 
-      | initial_protocol_state
-        : forall s : initial_state,
-        protocol_state_prop (proj1_sig s)
-      | next_protocol_state_no_message
-        : forall (s s' : state) (l : label) (om' : option proto_message),
-        protocol_state_prop s ->
-        valid l (s, None) ->
-        transition l (s, None) = (s', om') ->
-        protocol_state_prop s'
-      | next_protocol_state_with_message
-        : forall (s s' : state) (l : label) (m : proto_message) (om' : option proto_message),
-        protocol_state_prop s ->
-        protocol_message_prop m ->
-        valid l (s, Some m) ->
-        transition l (s, Some m) = (s', om') ->
-        protocol_state_prop s'
-  with
-  protocol_message_prop
-    {message}
-    `{V : VLSM message}
-    : proto_message -> Prop
-    := 
-      | initial_protocol_message
-        : forall m : initial_message,
-        protocol_message_prop (proj1_sig m)
-      | create_protocol_message
-        : forall (s s' : state) (l : label) (m' : proto_message),
-        protocol_state_prop s ->
-        valid l (s, None) ->
-        transition l (s, None) = (s', Some m') ->
-        protocol_message_prop m'
-      | receive_protocol_message
-        : forall (s s' : state) (l : label) (m m' : proto_message),
-        protocol_state_prop s ->
-        protocol_message_prop m ->
-        valid l (s, Some m) ->
-        transition l (s, Some m) = (s', Some m') ->
-        protocol_message_prop m'
-  .
+
+Inductive protocol_prop `{VLSM} : state * option proto_message -> Prop :=
+  | protocol_initial_state
+      (is : initial_state)
+      (s : state := proj1_sig is)
+    : protocol_prop (s, None)
+  | protocol_initial_message
+      (im : initial_message)
+      (s : state := proj1_sig s0)
+      (om : option proto_message := Some (proj1_sig im))
+    : protocol_prop (s, om)
+  | protocol_generated
+      (l : label)
+      (s : state)
+      (_om : option proto_message)
+      (Hps : protocol_prop (s, _om))
+      (_s : state)
+      (om : option proto_message)
+      (Hps : protocol_prop (_s, om))
+      (Hv : valid l (s, om))
+    : protocol_prop (transition l (s, om)).
+
+Definition protocol_state_prop `{VLSM} (s : state)
+  := exists om : option proto_message, protocol_prop (s, om).
+
+Definition protocol_message_prop `{VLSM} (m : proto_message)
+  := exists s : state, protocol_prop (s, (Some m)).
 
 Definition protocol_state
   {message}
@@ -232,6 +214,16 @@ Definition protocol_transition
   :=
   transition l (proj1_sig (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
 
+Definition lift_option_proto_message `{VLSM}
+  (om : option proto_message)
+  (_s : state)
+  (Hm : protocol_prop (_s, om))
+  : option protocol_message.
+destruct om as [m|].
+- apply Some. exists m. exists _s. assumption.
+- exact None.
+Defined.
+
 (* Protocol state characterization - similar to the definition in the report. *)
 
 Lemma protocol_state_prop_iff
@@ -245,16 +237,31 @@ Lemma protocol_state_prop_iff
     /\ s' = fst (protocol_transition l (s, om)).
 Proof.
   intros; split.
-  - intro Hps'. inversion Hps' as [is His | s s'' l om' Hps Hv Ht Heq| s s'' l m om' Hps Hpm Hv Ht Heq]; try (left; exists is; reflexivity)
-    ; right; subst; exists (exist _ s Hps); exists l; unfold protocol_transition; unfold protocol_valid; simpl
-    ; (exists (Some (exist _ m Hpm)) || exists None)
-    ; simpl ; rewrite Ht; split; auto.
-  - intros [[[s His] Heq] | [[s Hps] [l [[[m Hpm]|] [Hv Ht]]]]]; try (subst; apply initial_protocol_state)
-    ; unfold protocol_valid in Hv; simpl in Hv; unfold protocol_transition in Ht; simpl in Ht.
-    + destruct (transition l (s, Some m)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
-      apply (next_protocol_state_with_message s s'' l m om'); try assumption.
-    + destruct (transition l (s, None)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
-      apply (next_protocol_state_no_message s s'' l om'); try assumption.
+  - intro Hps'. destruct Hps' as [m' Hs]. inversion Hs; subst
+    ; try (left; exists is; reflexivity)
+    ; try (left; exists s0; reflexivity)
+    .
+    right. exists (exist _ s (ex_intro _ _ Hps)). exists l.
+    exists (lift_option_proto_message om _s Hps0).
+    unfold protocol_valid. unfold protocol_transition.
+    unfold lift_option_proto_message. 
+    destruct om as [m|]; simpl
+    ; simpl
+    ; rewrite H0
+    ; split
+    ; auto
+    .
+  - intros [[[s His] Heq] | [[s Hps] [l [om [Hv Ht]]]]]; subst.
+    + exists None. apply protocol_initial_state.
+    + exists (snd (protocol_transition l (exist (fun s1 : state => protocol_state_prop s1) s Hps, om))).
+      destruct Hps as [_om Hps].
+      specialize (protocol_generated l s _om Hps); intros Hps'.
+      unfold protocol_transition.
+      destruct om as [[m [_s Hpm]]|].
+      * specialize (Hps' _s (Some m) Hpm Hv). simpl.
+        destruct (transition l (s, Some m)) as [s' om']. assumption.
+      *  specialize (Hps' (proj1_sig s0) None (protocol_initial_state s0) Hv). simpl.
+        destruct (transition l (s, None)) as [s' om']. assumption.
 Qed.
 
 (* Protocol message characterization - similar to the definition in the report. *)
@@ -270,16 +277,33 @@ Lemma protocol_message_prop_iff
     /\ Some m' = snd (protocol_transition l (s, om)).
 Proof.
   intros; split.
-  - intro Hpm'. inversion Hpm' as [im Him | s s'' l om' Hps Hv Ht Heq| s s'' l m om' Hps Hpm Hv Ht Heq]; try (left; exists im; reflexivity)
-    ; right; subst; exists (exist _ s Hps); exists l; unfold protocol_transition; unfold protocol_valid; simpl
-    ; (exists (Some (exist _ m Hpm)) || exists None)
-    ; simpl ; rewrite Ht; split; auto.
-  - intros [[[m Him] Heq] | [[s Hps] [l [[[m Hpm]|] [Hv Ht]]]]]; try (subst; apply initial_protocol_message)
-    ; unfold protocol_valid in Hv; simpl in Hv; unfold protocol_transition in Ht; simpl in Ht.
-    + destruct (transition l (s, Some m)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
-      apply (receive_protocol_message s s'' l m m'); try assumption.
-    + destruct (transition l (s, None)) as [s'' om'] eqn:Heq; simpl in Ht; subst.
-      apply (create_protocol_message s s'' l m'); try assumption.
+  - intros [s' Hpm'].
+    inversion Hpm'; subst
+    ; try (left; exists im; reflexivity).
+    right. exists (exist _ s (ex_intro _ _ Hps)). exists l.
+    exists (lift_option_proto_message om _s Hps0).
+    unfold protocol_valid. unfold protocol_transition.
+    unfold lift_option_proto_message. 
+    destruct om as [m|]
+    ; simpl
+    ; rewrite H0
+    ; split
+    ; auto
+    .
+  - intros [[[m Him] Heq] | [[s Hps] [l [om [Hv Ht]]]]]; subst.
+    + exists (proj1_sig s0). apply protocol_initial_message.
+    + exists (fst (protocol_transition l (exist (fun s1 : state => protocol_state_prop s1) s Hps, om))).
+      destruct Hps as [_om Hps].
+      specialize (protocol_generated l s _om Hps); intros Hps'.
+      unfold protocol_transition.
+      destruct om as [[m [_s Hpm]]|]
+      ; specialize (Hps' _s (Some m) Hpm Hv) || specialize (Hps' (proj1_sig s0) None (protocol_initial_state s0) Hv)
+      ; simpl
+      ; unfold protocol_transition in Ht; simpl in Ht
+      ; destruct (transition l (s, Some m)) as [s' om'] || destruct (transition l (s, None)) as [s' om']
+      ; simpl in Ht; subst
+      ;  assumption
+      .
 Qed.
 
 Corollary protocol_state_destruct
@@ -306,18 +330,20 @@ Lemma protocol_state_ind
           P (fst (protocol_transition l (s, om)))) ->
   (forall s : protocol_state, P (proj1_sig s)).
 Proof.
-  intros P HIi HIt [s Hps]. simpl. induction Hps as [is | s s'' l om' Hps Hp Hv Ht| s s'' l m om' Hps Hp Hpm Hv Ht].
-  - apply HIi.
-  - specialize (HIt (exist _ s Hps)). unfold protocol_valid in HIt. simpl in HIt.
-    specialize (HIt Hp l None). simpl in HIt.
-    specialize (HIt Hv). unfold protocol_transition in HIt. simpl in HIt.
-    rewrite Ht in HIt. simpl in HIt. assumption.
-  - specialize (HIt (exist _ s Hps)). unfold protocol_valid in HIt. simpl in HIt.
-    specialize (HIt Hp l (Some (exist _ m Hpm))). simpl in HIt.
-    specialize (HIt Hv). unfold protocol_transition in HIt. simpl in HIt.
-    rewrite Ht in HIt. simpl in HIt. assumption.
+  intros P HIi HIt.
+  assert (Hind : forall som' : state * option proto_message, protocol_prop som' -> P (fst som')).
+  { intros som' Hp.
+    induction Hp; try apply HIi.
+    specialize (HIt (exist _ s (ex_intro _ _ Hp1)) IHHp1 l (lift_option_proto_message om _s Hp2)).
+    unfold protocol_valid in HIt. 
+    unfold lift_option_proto_message in HIt. 
+    destruct om as [m|]
+    ; specialize (HIt Hv)
+    ; assumption.
+  }
+  intros [s' [om' Hps]]. simpl.
+  specialize (Hind (s', om') Hps). assumption.
 Qed.
-
 
 (* Valid VLSM transitions *)
 

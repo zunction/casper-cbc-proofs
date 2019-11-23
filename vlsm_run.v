@@ -216,55 +216,28 @@ Proof.
 Qed.
 
 Lemma run_is_protocol `{VLSM}
-  (r : proto_run)
-  (s' := fst (final r))
-  (om' := snd (final r))
-  (Hr : vlsm_run_prop r)
-  : protocol_state_prop s' /\ noneOrAll (option_map protocol_message_prop om').
+  (vr : vlsm_run)
+  : protocol_prop (final (proj1_sig vr)).
 Proof.
-  induction Hr; simpl in *; try (split; auto; constructor).
-  destruct IHHr1 as [Hs _]. destruct IHHr2 as [_ Hm].
-  remember (exist _ s Hs) as ps.
-  assert (Hopm : exists opm : option protocol_message, option_map (@proj1_sig _ _) opm = om).
-  { destruct (snd (final msg_run)) as [m|]; try (exists None; reflexivity).
-    exists (Some (exist _ m Hm)). reflexivity.
-  }
-  destruct Hopm as [opm Hopm].
-  assert (Hpv : protocol_valid l (ps, opm))
-    by (subst; unfold protocol_valid; simpl; rewrite Hopm; assumption).
-  split.
-  + apply protocol_state_prop_iff. right. exists ps. exists l. exists opm.
-    split; try assumption. unfold protocol_transition; subst; simpl.
-    rewrite Hopm. reflexivity.
-  + destruct (snd som') as [m'|] eqn:Hm'; try exact I; simpl. 
-    apply protocol_message_prop_iff. right. exists ps. exists l. exists opm.
-    split; try assumption. unfold protocol_transition; subst; simpl.
-    rewrite Hopm. rewrite <- Hm'. reflexivity.
+  destruct vr as [r Hr]; simpl.
+  induction Hr; simpl in *; try constructor.
+  unfold om in *; clear om. unfold s in *; clear s.
+  destruct (final state_run) as [s _om].
+  destruct (final msg_run) as [_s om].
+  specialize (protocol_generated l s _om IHHr1 _s om IHHr2 Hv). intro. assumption.
 Qed.
 
-(* 
-Lemma protocol_is_run_ind `{VLSM}
-  (ps : protocol_state)
-  (pm : protocol_message)
-  : exists rs rm : vlsm_run,
-  proj1_sig ps = fst (final (proj1_sig rs)) /\ Some (proj1_sig pm) = snd (final (proj1_sig rm)).
+Lemma protocol_is_run `{VLSM}
+  (som' : state * option proto_message)
+  (Hp : protocol_prop som')
+  : exists vr : vlsm_run, (som' = final (proj1_sig vr)).
 Proof.
-  destruct ps as [s Hs].
-  (r : proto_run)
-  (s' := fst (final r))
-  (om' := snd (final r))
-  (Hr : vlsm_run_prop r)
-  : protocol_state_prop s' /\ noneOrAll (option_map protocol_message_prop om').
-
-
-  -
-    + exists (exist _ _ (empty_run_initial_state s)). reflexivity.
-    + remember (exist _ s IHHps) as vs.
-      assert (Hv : vlsm_valid l (vs, None))
-        by (subst; assumption).
-      remember (vlsm_state_transition l (vs, None) Hv) as vs'. simpl in vs'.
-      destruct vs' as [s'' Hs''].
-      apply (f_equal (@proj1_sig _ vlsm_state_prop) ) in Heqvs'.
-      simpl in Heqvs'. rewrite Heqvs in Heqvs'. simpl in Heqvs'.
-      rewrite H1 in Heqvs'. subst. assumption.
-    + remember (exist _ s IHHps) as vs. *)
+  induction Hp.
+  - exists (exist _ _ (empty_run_initial_state is)); reflexivity.
+  - exists (exist _ _ (empty_run_initial_message im)); reflexivity.
+  - destruct IHHp1 as [[state_run Hsr] Heqs]. destruct IHHp2 as [[msg_run Hmr] Heqm]. 
+    specialize (extend_run state_run Hsr). simpl. intros Hvr.
+    specialize (Hvr msg_run Hmr l). simpl in Heqs. simpl in Heqm.
+    rewrite <- Heqs in Hvr. rewrite <- Heqm in Hvr. specialize (Hvr Hv).
+    exists (exist _ _ Hvr). reflexivity.
+Qed.
