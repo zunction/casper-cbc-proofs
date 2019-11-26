@@ -719,8 +719,6 @@ Proof.
       destruct Hvt as [pt' Hlast].
       exists pt'. exists ps'. split; subst; auto.
 Qed.
-  
-(* Since we already assume choice etc., might as well make it into a function *) 
 
 (* A final state is one which is stuck (no further valid transition is possible) *)
 
