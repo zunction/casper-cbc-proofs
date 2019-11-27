@@ -35,7 +35,7 @@ Qed.
 
 Section Full. 
 
-  Variables (C V : Type) (about_C : StrictlyComparable C) (about_V : StrictlyComparable V) (Hm : Measurable V) (Hrt : ReachableThreshold V) (He : Estimator (@definitions.state C V) C).
+  Variables (C V : Type) (about_C : StrictlyComparable C) (about_V : StrictlyComparable V) (Hm : Measurable V) (Hrt : ReachableThreshold V) (He : Estimator (@sorted_state C V message_type) C).
 
   Definition reach (s1 s2 : @definitions.state C V) : Prop :=
     incl (get_messages s1) (get_messages s2).
@@ -64,10 +64,12 @@ Section Full.
   Defined. 
 
   Program Definition proto_message0 : proto_message := _. 
-  Next Obligation. 
-    destruct about_C.
+  Next Obligation.
+    assert (about_C_copy := about_C). 
+    destruct about_C_copy.
     destruct inhabited as [c _].
-    destruct about_V.
+    assert (about_V_copy := about_V). 
+    destruct about_V_copy.
     destruct inhabited as [v _].
     exists (c,v,proj1_sig (@sorted_state0 C V message_type)).
     red.
@@ -95,7 +97,8 @@ Section Full.
   Lemma message_inhabited : {m : @message C V | True}. 
   Proof.
     destruct (@message_type C about_C V about_V).
-    destruct inhabited as [witness _].
+    assert (inhabited_copy := inhabited).
+    destruct inhabited_copy as [witness _].
     exists witness; auto. 
   Qed.
 
@@ -132,7 +135,7 @@ Section Full.
       not_heavy (add_message_sorted (msg) s) ->
       valid_client None (s, Some (make_proto_message msg (make_proto_message_prop msg)))
   | client_produce : forall (s : @sorted_state C V message_type) (vl : C * V) (msg : C * V * definitions.state),
-      (@estimator (@definitions.state C V) C He) s (fst vl) -> valid_client (Some vl) (s, Some (make_proto_message msg (make_proto_message_prop msg))).
+      (@estimator (@sorted_state C V message_type) C He) s (fst vl) -> valid_client (Some vl) (s, Some (make_proto_message msg (make_proto_message_prop msg))).
 
   Definition unoption_message (vmsg : option proto_message) : @message C V :=
     match vmsg with
@@ -203,11 +206,40 @@ Section Full.
       ; valid := valid_client
     }.
 
-  (* Trace-based reachability *)
-  (* Protocol traces are defined using VLSM notions of transition and validity *) 
-  Definition R : protocol_state -> protocol_state -> Prop :=
+  (* Converting between full node and VLSM notions *)
+
+  (* How to avoid these solutions to awkward namespace clashes? *) 
+  Definition sorted_state_union : (@state _ LSM_full_client1) -> (@state _ LSM_full_client1) -> (@state _ LSM_full_client1) :=
+    sorted_state_union. 
+
+  (* Protocol state *)
+  (* How do we state this? 
+  Lemma protocol_state_equiv :
+    forall (s : @state (@message C V) LSM_full_client1),
+      (definitions.protocol_state C V message_type) (proj1_sig s) <->
+      (@protocol_state_prop (@message C V) LSM_full_client1) s. *) 
+
+  (* Reachability *)
+  (* VLSM reachability defined in terms of protocol traces (transition and validity) *) 
+  Definition vlsm_next : protocol_state -> protocol_state -> Prop :=
+    fun s1 s2 => protocol_trace_prop (Finite [s1; s2]).
+
+  Lemma next_equiv :
+    forall (s1 s2 : protocol_state),
+      vlsm_next s1 s2 <->
+      exists (msg : @message C V), add_in_sorted_fn msg (proj1_sig (proj1_sig s1)) = proj1_sig (proj1_sig s2).
+  Proof. Admitted.
+
+  Definition vlsm_reach : protocol_state -> protocol_state -> Prop :=
     fun s1 s2 => exists (tr : protocol_trace_from (fun s => s = s1)), in_trace s2 tr.
+
+  Lemma reach_equiv :
+    forall (s1 s2 : protocol_state),
+      vlsm_reach s1 s2 <->
+      incl (get_messages (proj1_sig (proj1_sig s1))) (get_messages (proj1_sig (proj1_sig s2))).
+  Proof. Admitted.
   
+  (* VLSM state union *)
   Lemma join_protocol_state :
     forall (s1 s2 : @state _ LSM_full_client1),
       protocol_state_prop s1 ->
@@ -223,72 +255,57 @@ Section Full.
       destruct s2 as [s2 about_s2].
     now apply join_protocol_state. 
   Defined.
-
-  Lemma random : True. 
-    Proof. auto. Qed. 
-
-    (* Equivalence of trace-based and message union-based reachability *)
-  Lemma reachability_equiv : forall (s1 s2 : @state _ LSM_full_client1) (H_weight : not_heavy (sorted_state_union s1 s2)),
-      reach (proj1_sig s1) (proj1_sig s2) <-> 
-      R s1 (protocol_state_union s1 s2 H_weight). 
-  Proof.
-    intros s1 s2 H_weight; split; intro H.
-    - unfold R; unfold reach in H.
-      
-  Admitted.
+  
+  Lemma vlsm_reach_morphism :
+    forall (s1 s2 : protocol_state) (H_weight : not_heavy (proj1_sig (sorted_state_union (proj1_sig s1) (proj1_sig s2)))),
+      vlsm_reach s1 (protocol_state_union s1 s2 H_weight).
+  Proof. Admitted.
 
   (* cf. this and the other definition of reach? *) 
   
   Theorem pair_common_futures :
     forall (s1 s2 : protocol_state),
-      not_heavy (proj1_sig (pstate_union s1 s2)) ->
+      not_heavy (proj1_sig (sorted_state_union (proj1_sig s1) (proj1_sig s2))) ->
       exists (s3 : protocol_state),
-        R s1 s3 /\ R s2 s3. 
+        vlsm_reach s1 s3 /\ vlsm_reach s2 s3. 
   Proof. 
     intros.
-    remember (state_union (proj1_sig s1) (proj1_sig s2)) as s3.
+    remember (sorted_state_union (proj1_sig s1) (proj1_sig s2)) as s3.
     assert (about_s3 : protocol_state_prop s3).
     red.
-  Abort.
-
+  Admitted. 
 
   Theorem strong_nontriviality :
     forall (s1 : protocol_state),
     exists (s2 : protocol_state),
-      R s1 s2 /\
+      vlsm_reach s1 s2 /\
       exists (s3 : protocol_state),
       forall (tr2 : protocol_trace_from (fun s => s = s2))
         (tr3 : protocol_trace_from (fun s => s = s3)),
         (exists (s : protocol_state),
             in_trace s tr2 /\ in_trace s tr3 -> False). 
-    Proof. 
-      intros s1.
+  Proof. 
+  Admitted. 
   
-
-
-      
-
-  
-
   (* 2.5.1 Minimal full client protocol: Client2 *) 
-  Definition label2 : Type := unit.
+  Definition label2 : Type := unit.    
 
-  Definition vtransition2 (l : unit) (sm : definitions.state * option proto_message) : definitions.state * option proto_message :=
+  Definition vtransition2 (l : unit) (sm : @sorted_state C V message_type * option proto_message) : @sorted_state C V message_type * option proto_message :=
     match l with
     | tt => match (snd sm) with
            | None => (fst sm, None)
-           | Some msg => (add_message (proj1_sig msg) (fst sm), None)
+           | Some msg => (add_message_sorted (proj1_sig msg) (fst sm), None)
            end
     end. 
   
-  Inductive valid_client2 : unit -> (@definitions.state C V) * option proto_message -> Prop :=
-  | client2_none : forall (s : definitions.state), valid_client2 tt (s, None)
-  | client2_receive : forall (s : definitions.state) (m : proto_message),
-      reach (justification (proj1_sig m)) s -> not_heavy (add_message (proj1_sig m) s) ->
-      valid_client2 tt (add_message (proj1_sig m) s, Some (make_proto_message (proj1_sig m) (make_proto_message_prop (proj1_sig m)))).
+  Inductive valid_client2 : unit -> (@sorted_state C V message_type) * option proto_message -> Prop :=
+  | client2_none : forall (s : @sorted_state C V message_type), valid_client2 tt (s, None)
+  | client2_receive : forall (s : @sorted_state C V message_type) (m : proto_message),
+      reach (justification (proj1_sig m)) s -> not_heavy (add_in_sorted_fn (proj1_sig m) s) ->
+      valid_client2 tt (add_message_sorted (proj1_sig m) s, Some (make_proto_message (proj1_sig m) (make_proto_message_prop (proj1_sig m)))).
 
   Instance LSM_full_client2 : LSM_sig (@message C V) :=
-    { state := definitions.state
+    { state := @sorted_state C V message_type
       ; label := label2
       ; proto_message_prop := proto_message_prop 
       ; proto_message_decidable := proto_message_decidable
@@ -307,22 +324,22 @@ Section Full.
   (* Minimal full validator protocol for name v: Validator(v) *)
   Definition labelv : Type := option C.
 
-  Definition vtransitionv (v : V) (l : labelv) (sm : definitions.state * option proto_message) : definitions.state * option proto_message :=
+  Definition vtransitionv (v : V) (l : labelv) (sm : @sorted_state C V message_type * option proto_message) : @sorted_state C V message_type * option proto_message :=
     match l with
     | None => match (snd sm) with
              | None => sm 
-             | Some msg => (add_message (proj1_sig msg) (fst sm), None)
+             | Some msg => (add_message_sorted (proj1_sig msg) (fst sm), None)
            end
-    | Some c => (add_message (c,v,(fst sm)) (fst sm), Some (make_proto_message (c,v,(fst sm)) (make_proto_message_prop (c,v,(fst sm)))))
+    | Some c => (add_message_sorted (c,v,proj1_sig (fst sm)) (fst sm), Some (make_proto_message (c,v,proj1_sig (fst sm)) (make_proto_message_prop (c,v,proj1_sig (fst sm)))))
     end. 
   
-  Inductive valid_validator : labelv -> (@definitions.state C V) * option proto_message -> Prop :=
-  | validator_none : forall (s : definitions.state), valid_validator None (s, None)
-  | validator_receive : forall (s : definitions.state) (m : proto_message), reach (justification (proj1_sig m)) s -> valid_validator None (s, Some m)
-  | validator_send : forall (c : C) (s : state) (m : option proto_message), (@estimator (@definitions.state C V) C He) s c -> valid_validator (Some c) (s, m).
+  Inductive valid_validator : labelv ->  @sorted_state C V message_type * option proto_message -> Prop :=
+  | validator_none : forall (s : @sorted_state C V message_type), valid_validator None (s, None)
+  | validator_receive : forall (s : @sorted_state C V message_type) (m : proto_message), reach (justification (proj1_sig m)) s -> valid_validator None (s, Some m)
+  | validator_send : forall (c : C) (s : state) (m : option proto_message), (@estimator (@sorted_state C V message_type) C He) s c -> valid_validator (Some c) (s, m).
 
   Instance LSM_full_validator : LSM_sig (@message C V) :=
-    { state := definitions.state
+    { state := @sorted_state C V message_type
       ; label := labelv
       ; proto_message_prop := proto_message_prop 
       ; proto_message_decidable := proto_message_decidable
