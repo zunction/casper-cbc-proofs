@@ -1,4 +1,4 @@
-Require Import List.
+Require Import List ListSet.
 Import ListNotations.
 
 From Casper
@@ -11,9 +11,22 @@ execution starts in state s0 and uses labels and messages from loms to get to sf
 *)
 Record proto_run `{VLSM} : Type := mk_proto_run
   { start : initial_state
-  ; transitions : list (label * option proto_message)
+  ; transitions : list (label * option proto_message * option proto_message)
   ; final : state * option proto_message
   }.
+
+Definition message_list `{VLSM} (r : proto_run) : list proto_message :=
+  let f := fun (t : label * option proto_message * option proto_message)  (l : list proto_message) =>
+        match t with
+        | (_, Some min, Some mout) => min :: mout :: l
+        | (_, Some min, None) => min :: l
+        | (_, None, Some mout) => mout :: l
+        | (_, None, None) => l
+        end
+  in fold_right f [] (transitions r).
+
+Definition message_set `{VLSM} `{Heqd : EqDec proto_message} (r : proto_run) : set proto_message :=
+  fold_right (@set_add _ Heqd) [] (message_list r).
 
 Inductive vlsm_run_prop `{VLSM} : proto_run -> Prop :=
   | empty_run_initial_state
@@ -37,7 +50,7 @@ Inductive vlsm_run_prop `{VLSM} : proto_run -> Prop :=
       (l : label)
       (Hv : valid l (s, om))
       (som' := transition l (s, om))
-    : vlsm_run_prop {| start := is; transitions := ts ++ [(l, om)]; final := som' |}.
+    : vlsm_run_prop {| start := is; transitions := ts ++ [(l, om, snd som')]; final := som' |}.
 
 Definition vlsm_run `{VLSM} : Type := { r : proto_run | vlsm_run_prop r }.
 
@@ -74,7 +87,7 @@ remember (proj1_sig vr) as r.
 remember (option_map (@proj1_sig _ _) vom) as om.
 remember (fst (final r)) as s.
 remember (transition l (s, om)) as som'.
-exists {| start := start r; transitions := transitions r ++ [(l,om)]; final := som' |}.
+exists {| start := start r; transitions := transitions r ++ [(l,om, snd som')]; final := som' |}.
 subst. destruct vr as [sr Hsr].
 specialize (extend_run sr Hsr); simpl; intros HExt.
 destruct vom as [[m [[mr Hmr] Hm]]|].
@@ -241,3 +254,16 @@ Proof.
     rewrite <- Heqs in Hvr. rewrite <- Heqm in Hvr. specialize (Hvr Hv).
     exists (exist _ _ Hvr). reflexivity.
 Qed.
+
+Class message_states_vlsm
+  (message : Type)
+  {Sig : LSM_sig message }
+  `{V : @VLSM message Sig}
+  {Heqd : EqDec proto_message}
+  :=
+  messages_determine_states
+    (r1 r2 : vlsm_run)
+    (pr1 := proj1_sig r1)
+    (pr2 := proj1_sig r2)
+    : message_set pr1 = message_set pr2 <-> fst(final pr1) = fst(final pr2)
+  .
