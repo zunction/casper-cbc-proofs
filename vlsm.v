@@ -4,6 +4,8 @@ Import ListNotations.
 From Casper
 Require Import ListExtras.
 
+(** preamble **)
+
 
 Definition noneOrAll
   (op : option Prop)
@@ -74,80 +76,14 @@ Class LSM_sig (message : Type) :=
   ; l0 : label
   }.
 
-Class PLSM (message : Type) `{Sig : LSM_sig message} :=
-  { ptransition : label -> state * option proto_message -> option (state * option proto_message)
-  }.
-
 Class VLSM (message : Type) `{Sig : LSM_sig message } :=
   { transition : label -> state * option proto_message -> state * option proto_message
   ; valid : label -> state * option proto_message -> Prop
   }.
 
-
-Definition ptransition_to_transition
-  {message}
-  {Sig : LSM_sig message}
-  `{PM : @PLSM message Sig}
-  (l : label)
-  (som :  state * option proto_message)
-  : state * option proto_message
-  :=
-  match ptransition l som with
-  | Some som' => som'
-  | None => (fst som, None)
-  end
-  .
-
-Definition ptransition_to_valid
-  {message}
-  {Sig : LSM_sig message}
-  `{PM : @PLSM message Sig}
-  (l : label)
-  (som :  state * option proto_message)
-  : Prop
-  :=
-  ptransition l som = None
-  .
-
-Definition PLSM_VLSM_instance
-  {message}
-  {Sig : LSM_sig message}
-  `{PM : @PLSM message Sig}
-  : @VLSM message Sig
-  :=
-  {|  transition := ptransition_to_transition
-  ;   valid := ptransition_to_valid
-  |}.
-
 Class VLSM_vdecidable (message : Type) `{M : VLSM message} :=
   { valid_decidable : forall l som, {valid l som} + {~valid l som} 
   }.
-
-
-Definition transition_valid_ptransition
-  {message}
-  {Sig : LSM_sig message}
-  {VM : @VLSM message Sig}
-  `{DVM : @VLSM_vdecidable message Sig VM}
-  (l : label)
-  (som :  state * option proto_message)
-  : option (state * option proto_message)
-  :=
-  if valid_decidable l som
-  then Some (transition l som)
-  else None
-  .
-
-Definition DVLSM_PLSM_instance
-  {message}
-  {Sig : LSM_sig message}
-  {VM : @VLSM message Sig}
-  `(DVM : @VLSM_vdecidable message Sig VM)
-  : @PLSM message Sig
-  :=
-  {|  ptransition := transition_valid_ptransition
-  |}.
-
 
 (* 2.2.2 VLSM protocol states and protocol messages *)
 
