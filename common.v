@@ -283,6 +283,17 @@ Definition get_estimate {state C} `{Estimator state C} (s : state) :=
 Definition get_estimate_correct {state C} `{Estimator state C} (s : state) :=
   proj2_sig (choice C (estimator s) (estimator_total s)).
 
+Lemma get_estimate_consistent {state C} `{Estimator state C}
+  (s : state)
+  (c : C)
+  (Heq : get_estimate s = c)
+  : estimator s c.
+Proof.
+  unfold get_estimate in Heq.
+  remember (choice C (estimator s) (estimator_total s)) as Hchoice. destruct Hchoice as [c' Hc'].
+  simpl in Heq. subst. assumption.
+Qed.
+
 (* Estimator approval condition *) 
 Definition valid_estimate
   {C state} `{Estimator state C}

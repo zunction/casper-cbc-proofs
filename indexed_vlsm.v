@@ -136,37 +136,6 @@ destruct (eq_dec i j); subst.
 - exact (s j).
 Defined.
 
-Definition indexed_ptransition
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  {IS : index -> LSM_sig message}
-  (IM : forall i : index, @PLSM message (IS i))
-  (i0 : index)
-  (l : @label message (indexed_sig IS i0))
-  (som : @state message (indexed_sig IS i0) * option (@proto_message _ (indexed_sig IS i0)))
-  : option (@state message (indexed_sig IS i0) * option (@proto_message _ (indexed_sig IS i0))).
-destruct l as [i li].
-destruct som as [s [[m Hm]|]].
-- destruct (@proto_message_decidable _ (IS i) m) as [Him | _].
-  + destruct (ptransition li (s i, Some (exist _ m Him))) as [[si' om']|].
-    * exact (Some (state_update s i si', option_map (lift_proto_messageI IS i) om')).
-    * exact None.
-  + exact None.
-- destruct (ptransition li (s i, None)) as [[si' om']|].
-  + exact (Some (state_update s i si', option_map (lift_proto_messageI IS i) om')).
-  + exact None.
-Defined.
-
-Definition indexed_plsm
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  {IS : index -> LSM_sig message}
-  (IM : forall i : index, @PLSM message (IS i))
-  (i0 : index)
-  : @PLSM message (indexed_sig IS i0)
-  :=
-  {|  ptransition := indexed_ptransition IM i0
-  |}.
-
-
 Definition indexed_transition
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
@@ -245,31 +214,6 @@ Definition indexed_vlsm_vdecidable
   {|  valid_decidable := indexed_valid_decidable IDM Hi
   |}.
 
-Definition indexed_ptransition_constrained
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  {IS : index -> LSM_sig message}
-  (IM : forall i : index, @PLSM message (IS i))
-  (Hinh : index)
-  {constraint : @label _ (indexed_sig IS Hinh) -> @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)) -> Prop}
-  (constraint_decidable : forall (l : @label _ (indexed_sig IS Hinh)) (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh))), {constraint l som} + {~constraint l som})
-  (l : @label message (indexed_sig IS Hinh))
-  (som : @state message (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)))
-  : option (@state message (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)))
-  :=
-  if constraint_decidable l som then indexed_ptransition IM Hinh l som else None.
-
-Definition indexed_plsm_constrained
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  {IS : index -> LSM_sig message}
-  (IM : forall i : index, @PLSM message (IS i))
-  (Hinh : index)
-  {constraint : @label _ (indexed_sig IS Hinh) -> @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)) -> Prop}
-  (constraint_decidable : forall (l : @label _ (indexed_sig IS Hinh)) (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh))), {constraint l som} + {~constraint l som})
-  : @PLSM message (indexed_sig IS Hinh)
-  :=
-  {|  ptransition := indexed_ptransition_constrained IM Hinh constraint_decidable
-  |}.
-
 Definition indexed_valid_constrained
   {index : Set} {message : Type} `{Heqd : EqDec index}
   {IS : index -> LSM_sig message}
@@ -328,84 +272,4 @@ Definition indexed_vlsm_constrained_vdecidable
   :=
   {|  valid_decidable := indexed_valid_constrained_decidable IDM Hinh constraint_decidable
   |}.
-
-
-Lemma indexed_partial_composition_commute
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  {IS : index -> LSM_sig message}
-  {IM : forall i : index, @VLSM message (IS i)}
-  (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : index)
-  : let PM12 := DVLSM_PLSM_instance (indexed_vlsm_vdecidable IDM Hinh) in
-    let PM12' := indexed_plsm (fun (i : index) => DVLSM_PLSM_instance (IDM i)) Hinh in
-    @ptransition _ _ PM12 = @ptransition _ _ PM12'.
-Proof.
-  intros.
-  apply functional_extensionality; intros [i li]; apply functional_extensionality; intros [s [[m Hm]|]]
-  ; unfold ptransition; simpl
-  ; unfold transition_valid_ptransition 
-  ; unfold valid_decidable; simpl
-  ; try destruct (proto_message_decidable m) as [Hpm | Hnpm]; try reflexivity
-  ; destruct (IDM i) as [valid_decidablei]; simpl
-  ; try destruct (transition li (s i, Some (exist proto_message_prop m Hpm))) as [si' om']
-  ; try destruct (transition li (s i, None)) as [si' om']
-  .
-  - destruct (valid_decidablei li (s i, Some (exist proto_message_prop m Hpm))) as [Hv | Hnv]
-    ; reflexivity
-    .
-  - destruct (valid_decidablei li (s i, None)) as [Hv | Hnv]
-    ; reflexivity
-    .
-Qed.
-
-
-Lemma indexed_constrained_partial_composition_commute
-  {index : Set} {message : Type} `{Heqd : EqDec index}
-  {IS : index -> LSM_sig message}
-  {IM : forall i : index, @VLSM message (IS i)}
-  (IDM : forall i : index, @VLSM_vdecidable _ _ (IM i))
-  (Hinh : index)
-  {constraint : @label _ (indexed_sig IS Hinh) -> @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh)) -> Prop}
-  (constraint_decidable : forall (l : @label _ (indexed_sig IS Hinh)) (som : @state _ (indexed_sig IS Hinh) * option (@proto_message _ (indexed_sig IS Hinh))), {constraint l som} + {~constraint l som})
-  : let PM12 := DVLSM_PLSM_instance (indexed_vlsm_constrained_vdecidable IDM Hinh constraint_decidable) in
-    let PM12' := indexed_plsm_constrained (fun (i : index) => DVLSM_PLSM_instance (IDM i)) Hinh constraint_decidable in
-    @ptransition _ _ PM12 = @ptransition _ _ PM12'.
-Proof.
-  intros.
-  apply functional_extensionality; intros [i li]; apply functional_extensionality; intros [s [[m Hm]|]]
-  ; unfold ptransition; simpl
-  ; unfold transition_valid_ptransition
-  ; unfold indexed_ptransition_constrained; simpl
-  ; unfold valid_decidable; simpl 
-  ; unfold indexed_valid_constrained_decidable; simpl
-  ; unfold indexed_valid_constrained; simpl
-  ; unfold transition_valid_ptransition; simpl
-  ; unfold valid_decidable
-  ; destruct (IDM i) as [valid_decidablei]
-  .
-  - destruct (constraint_decidable (@existT index (fun i0 : index => @label message (IS i0)) i li)
-        (@pair (@indexed_state index message IS) (option (@proto_message message (@indexed_sig index message Heqd IS Hinh))) s
-           (@Some (@proto_message message (@indexed_sig index message Heqd IS Hinh))
-              (@exist message (fun m0 : message => @indexed_proto_message_prop index message IS m0) m Hm)))
-      )
-    ; try reflexivity
-    .
-    try destruct (proto_message_decidable m) as [Hpm | Hnpm]
-    ; try reflexivity
-    .
-    destruct (transition li (s i, Some (exist proto_message_prop m Hpm))) as [si' om'].
-    destruct (valid_decidablei li (s i, Some (exist proto_message_prop m Hpm)))
-    ; reflexivity
-    .
-  - destruct
-      (constraint_decidable (@existT index (fun i0 : index => @label message (IS i0)) i li)
-        (@pair (@indexed_state index message IS) (option (@proto_message message (@indexed_sig index message Heqd IS Hinh))) s
-           (@None (@proto_message message (@indexed_sig index message Heqd IS Hinh))))
-      )
-    ; try reflexivity.
-    destruct (transition li (s i, None)) as [si' om'].
-    destruct (valid_decidablei li (s i, None)); reflexivity.
-Qed.
-
-
 

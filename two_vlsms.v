@@ -1,4 +1,3 @@
-Require Import Logic.FunctionalExtensionality.
 
 From Casper
 Require Import vlsm.
@@ -129,48 +128,6 @@ Definition composed2_sig
   ; l0 := composed2_l0 S1 S2
   |}.
 
-
-Definition composed2_ptransition
-  {message}
-  {S1 : LSM_sig message}
-  {S2 : LSM_sig message}
-  (M1 : @PLSM message S1)
-  (M2 : @PLSM message S2)
-  (l : @label message (composed2_sig S1 S2))
-  (som : @state message (composed2_sig S1 S2) * option (@proto_message _ (composed2_sig S1 S2)))
-  : option (@state message (composed2_sig S1 S2) * option (@proto_message _ (composed2_sig S1 S2))).
-destruct som as [[s1 s2] [[m Hm]|]].
-- destruct l as [l1 | l2].
-  + destruct (@proto_message_decidable _ S1 m) as [H1 | _].
-    * destruct (ptransition l1 (s1, Some (exist _ m H1))) as [som'|].
-      { exact (Some ((fst som', s2), option_map (lift_proto_message1 S1 S2) (snd som'))). }
-      exact None.
-    * exact None.
-  + destruct (@proto_message_decidable _ S2 m) as [H2 | _].
-    * destruct (ptransition l2 (s2, Some (exist _ m H2))) as [som'|].
-      { exact (Some ((s1, fst som'), option_map (lift_proto_message2 S1 S2) (snd som'))). }
-      exact None.
-    * exact None.
-- destruct l as [l1 | l2].
-  + destruct (ptransition l1 (s1, None)) as [som'|].
-    * exact (Some ((fst som', s2), option_map (lift_proto_message1 S1 S2) (snd som'))).
-    * exact None.
-  + destruct (ptransition l2 (s2, None)) as [som'|].
-    * exact (Some ((s1, fst som'), option_map (lift_proto_message2 S1 S2) (snd som'))).
-    * exact None.
-Defined.
-
-Definition composed2_plsm
-  {message}
-  {S1 : LSM_sig message}
-  {S2 : LSM_sig message}
-  (M1 : @PLSM message S1)
-  (M2 : @PLSM message S2)
-  : @PLSM message (composed2_sig S1 S2)
-  :=
-  {|  ptransition := composed2_ptransition M1 M2
-  |}.
-
 Definition composed2_transition
   {message}
   {S1 : LSM_sig message}
@@ -266,33 +223,6 @@ Definition composed2_vlsm_vdecidable
     valid_decidable := composed2_valid_decidable DS1 DS2
   |}.
 
-Definition composed2_ptransition_constrained
-  {message}
-  {S1 : LSM_sig message}
-  {S2 : LSM_sig message}
-  (M1 : @PLSM message S1)
-  (M2 : @PLSM message S2)
-  {constraint : (@label message S1) + (@label message S2) -> ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2) -> Prop}
-  (constraint_decidable : forall (l : (@label message S1) + (@label message S2)) (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2)), {constraint l som} + {~constraint l som})
-  (l : @label message (composed2_sig S1 S2))
-  (som : @state message (composed2_sig S1 S2) * option (@proto_message _ (composed2_sig S1 S2)))
-  : option (@state message (composed2_sig S1 S2) * option (@proto_message _ (composed2_sig S1 S2)))
-  :=
-  if constraint_decidable l som then composed2_ptransition M1 M2 l som else None.
-
-Definition composed2_plsm_constrained
-  {message}
-  {S1 : LSM_sig message}
-  {S2 : LSM_sig message}
-  (M1 : @PLSM message S1)
-  (M2 : @PLSM message S2)
-  {constraint : (@label message S1) + (@label message S2) -> ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2) -> Prop}
-  (constraint_decidable : forall (l : (@label message S1) + (@label message S2)) (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2)), {constraint l som} + {~constraint l som})
-  : @PLSM message (composed2_sig S1 S2)
-  :=
-  {|  ptransition := composed2_ptransition_constrained M1 M2 constraint_decidable
-  |}.
-
 Definition composed2_valid_constrained
   {message}
   {S1 : LSM_sig message}
@@ -355,85 +285,3 @@ Definition composed2_vlsm_constrained_vdecidable
     valid_decidable := composed2_constrained_valid_decidable DS1 DS2 constraint_decidable
   |}.
 
-Lemma composed2_partial_composition_commute
-  {message}
-  {S1 S2 : LSM_sig message}
-  {M1 : @VLSM message S1}
-  {M2 : @VLSM message S2}
-  (DS1 : @VLSM_vdecidable message S1 M1)
-  (DS2 : @VLSM_vdecidable message S2 M2)
-  : let PM12 := DVLSM_PLSM_instance (composed2_vlsm_vdecidable DS1 DS2) in
-    let PM12' := composed2_plsm (DVLSM_PLSM_instance DS1) (DVLSM_PLSM_instance DS2) in
-    @ptransition _ _ PM12 = @ptransition _ _ PM12'.
-Proof.
-  intros.
-  apply functional_extensionality; intros [l1 | l2]; apply functional_extensionality; intros [[s1 s2] [[m Hm]|]];
-  unfold ptransition; simpl;
-  unfold transition_valid_ptransition; unfold valid_decidable; simpl; try destruct (proto_message_decidable m) as [Hpm | Hnpm]; try reflexivity
-  ; destruct DS1 as [valid_decidable1]; destruct DS2 as [valid_decidable2]; simpl
-  .
-  - destruct (valid_decidable1 l1 (s1, Some (exist proto_message_prop m Hpm))) as [Hv | Hnv]; reflexivity.
-  - destruct (valid_decidable1 l1 (s1, None)) as [Hv | Hnv]; reflexivity.
-  - destruct (valid_decidable2 l2 (s2, Some (exist proto_message_prop m Hpm))) as [Hv | Hnv]; reflexivity.
-  - destruct (valid_decidable2 l2 (s2, None)) as [Hv | Hnv]; reflexivity.
-Qed.
-
-
-Lemma composed2_constrained_partial_composition_commute
-  {message}
-  {S1 S2 : LSM_sig message}
-  {M1 : @VLSM message S1}
-  {M2 : @VLSM message S2}
-  (DS1 : @VLSM_vdecidable message S1 M1)
-  (DS2 : @VLSM_vdecidable message S2 M2)
-  {constraint : (@label message S1) + (@label message S2) -> (@state message S1 * @state message S2) * option (composed2_proto_message S1 S2) -> Prop}
-  (constraint_decidable : forall (l : (@label message S1) + (@label message S2)) (som : ((@state message S1) * (@state message S2)) * option (composed2_proto_message S1 S2)), {constraint l som} + {~constraint l som})
-  : let PM12 := DVLSM_PLSM_instance (composed2_vlsm_constrained_vdecidable DS1 DS2 constraint_decidable) in
-    let PM12' := composed2_plsm_constrained (DVLSM_PLSM_instance DS1) (DVLSM_PLSM_instance DS2) constraint_decidable in
-    @ptransition _ _ PM12 = @ptransition _ _ PM12'.
-Proof.
-  intros.
-  apply functional_extensionality; intros [l1 | l2]; apply functional_extensionality; intros [[s1 s2] [[m Hm]|]]
-  ; unfold ptransition; simpl
-  ; unfold transition_valid_ptransition; unfold composed2_ptransition_constrained
-  ; unfold valid_decidable; simpl 
-  ; unfold composed2_constrained_valid_decidable; simpl
-  ; unfold composed2_valid_constrained; simpl
-  ; try destruct
-    (constraint_decidable (@inl (@label message S1) (@label message S2) l1)
-      (s1, s2,
-      @Some (@proto_message message (@composed2_sig message S1 S2))
-        (@exist message
-           (fun m0 : message => @composed2_proto_message_prop message S1 S2 m0) m Hm))
-    )
-  ; try reflexivity
-  ; try destruct
-    (constraint_decidable (@inl (@label message S1) (@label message S2) l1)
-      (s1, s2, @None (@proto_message message (@composed2_sig message S1 S2)))
-    )
-  ; try reflexivity
-  ; try destruct
-    (constraint_decidable (@inr (@label message S1) (@label message S2) l2)
-      (s1, s2,
-      @Some (@proto_message message (@composed2_sig message S1 S2))
-        (@exist message
-           (fun m0 : message => @composed2_proto_message_prop message S1 S2 m0) m Hm))
-    )
-  ; try reflexivity
-  ; try destruct
-    (constraint_decidable (@inr (@label message S1) (@label message S2) l2)
-      (s1, s2, @None (@proto_message message (@composed2_sig message S1 S2)))
-    )
-  ; try reflexivity
-  ; unfold transition_valid_ptransition; simpl
-  ; unfold valid_decidable; destruct DS1 as [valid_decidable1]; destruct DS2 as [valid_decidable2]; simpl
-  ; try destruct (proto_message_decidable m) as [Hpm | Hnpm]
-  ; try reflexivity
-  .
-  - destruct (valid_decidable1 l1 (s1, Some (exist proto_message_prop m Hpm))); reflexivity.
-  - destruct (valid_decidable1 l1 (s1, Some (exist proto_message_prop m Hpm))); reflexivity.
-  - destruct (valid_decidable1 l1 (s1, None)) as [Hv | Hnv]; reflexivity.
-  - destruct (valid_decidable2 l2 (s2, Some (exist proto_message_prop m Hpm))) as [Hv | Hnv]; reflexivity.
-  - destruct (valid_decidable2 l2 (s2, Some (exist proto_message_prop m Hpm))) as [Hv | Hnv]; reflexivity.
-  - destruct (valid_decidable2 l2 (s2, None)) as [Hv | Hnv]; reflexivity.
-Qed.

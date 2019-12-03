@@ -164,10 +164,13 @@ Section Full.
   Proof.
     intros [[c v] | ] [s [msg | ]]; split; intro H;
     unfold valid_clientb in H.
-    replace msg with (make_proto_message (proj1_sig msg) (make_proto_message_prop (proj1_sig msg))).
-    apply client_produce.
-    assert (get_estimate (fst (s, Some msg)) = c) by admit. 
-    rewrite <- H0. simpl.
+    - replace msg with (make_proto_message (proj1_sig msg) (make_proto_message_prop (proj1_sig msg))).
+      + apply client_produce. simpl in *.
+        simpl in H. unfold compareb in H. destruct (compare (get_estimate s) c) eqn:Hcmp; inversion H; clear H.
+        apply compare_eq in Hcmp. apply get_estimate_consistent. assumption.
+      + unfold make_proto_message. unfold make_proto_message_obligation_1. destruct msg as [msg Hmsg]. simpl.
+        apply exist_eq. reflexivity.
+    - inversion H; subst. simpl. simpl in H2.
   Admitted.
 
   Lemma valid_client_correct' :
@@ -389,4 +392,4 @@ Section Full.
   Definition VLSM_full_composed :=
     @indexed_vlsm nat (@message C V) nat_eq_dec IS_index IM_index 0. 
 
-
+End Full.
