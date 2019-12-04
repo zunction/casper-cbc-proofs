@@ -665,6 +665,18 @@ Proof.
         }
 Qed.
 
+Lemma add_preserves_inclusion
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (sigma sigma' : @state C V)
+  (msg' : message C V)
+  (Hincl : syntactic_state_inclusion sigma sigma')
+  : syntactic_state_inclusion sigma (add_in_sorted_fn msg' sigma')
+  .
+Proof.
+  apply incl_tran with (msg' :: get_messages sigma'); try apply set_eq_add_in_sorted.
+  apply incl_tl. assumption.
+Qed.
+
 Lemma in_state_add_in_sorted_iff
   {C V} `{about_M : StrictlyComparable (message C V)}
   : forall (msg msg' : message C V) sigma',
@@ -1102,6 +1114,40 @@ Lemma add_in_sorted_fn_in
 Proof.
   intros. destruct m as [(c, v) j].
   simpl. rewrite compare_eq_refl. reflexivity.
+Qed.
+
+Fixpoint sort_state
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (s : @state C V)
+  : @state C V
+  :=
+  match s with
+  | Empty => Empty
+  | Next C V j s => add_in_sorted_fn (C, V, sort_state j) (sort_state s)
+  end.
+
+Lemma sort_state_locally_sorted
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (s : @state C V)
+  : locally_sorted (sort_state s).
+Proof.
+  induction s; try constructor. simpl.
+  apply add_in_sorted_sorted; try assumption.
+  constructor. assumption.
+Qed.
+
+Lemma sort_state_idempotent
+  {C V} `{about_M : StrictlyComparable (message C V)}
+  (s : @state C V)
+  (Hs : locally_sorted s)
+  : sort_state s = s.
+Proof.
+  induction Hs; try reflexivity.
+  - simpl. rewrite IHHs. reflexivity.
+  - simpl. rewrite IHHs1. rewrite IHHs2.
+    rewrite add_in_sorted_next.
+    rewrite H.
+    reflexivity.
 Qed.
 
 Lemma state_union_comm_swap

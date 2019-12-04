@@ -1,4 +1,4 @@
-Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts ChoiceFacts.
+Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts ChoiceFacts ProofIrrelevance.
 Import ListNotations.   
 From Casper   
 Require Import preamble ListExtras ListSetExtras RealsExtras protocol common definitions.
@@ -16,6 +16,51 @@ Definition sorted_state_proj1
   :=
   proj1_sig s.
 Coercion sorted_state_proj1 : sorted_state >-> state.
+
+Definition make_sorted_state
+  {C V : Type} `{about_M : StrictlyComparable (message C V)}
+  (s : state)
+  : sorted_state C V
+  :=
+  exist _ (sort_state s) (sort_state_locally_sorted s).
+
+Lemma make_already_sorted_state
+  {C V : Type} `{about_M : StrictlyComparable (message C V)}
+  (s : state)
+  (Hs : locally_sorted s)
+  : make_sorted_state s = exist _ s Hs.
+Proof.
+  unfold make_sorted_state. apply exist_eq; simpl.
+  apply (sort_state_idempotent s Hs).
+Qed.
+
+Definition sorted_message
+  (C V : Type) `{about_M : StrictlyComparable (message C V)}
+  : Type
+  :=
+  (C * V * sorted_state C V).
+
+Definition sorted_message_proj1
+  {C V : Type} `{about_M : StrictlyComparable (message C V)}
+  (sm : sorted_message C V)
+  : message C V
+  :=
+  match sm with
+    (c, v, sj) => (c, v, proj1_sig sj)
+  end.
+Coercion sorted_message_proj1 : sorted_message >-> message.
+
+Definition add_message_sorted
+  {C V : Type} `{about_M : StrictlyComparable (message C V)}
+  (sm : sorted_message C V)
+  (ss : sorted_state C V)
+  :  sorted_state C V.
+destruct sm as [(c,v) [j Hj]].
+destruct ss as [s Hs].
+exists (add_in_sorted_fn (c, v, j) s).
+apply add_in_sorted_sorted; try assumption.
+constructor; assumption.
+Defined.
 
 Lemma state0_neutral
   {C V} `{about_M : StrictlyComparable (message C V)}
@@ -130,7 +175,7 @@ Proof.
   intros s1 s2.
   assert (H_useful := sorted_state_union_comm s1 s2).
   unfold sorted_state_union. 
-  now apply proj1_sig_injective.
+  now apply exist_eq.
 Qed.
 
 (* Defining the reachability relation *) 
