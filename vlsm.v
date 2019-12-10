@@ -1,4 +1,4 @@
-Require Import List Streams.
+Require Import List Streams ProofIrrelevance.
 Import ListNotations.
 
 From Casper
@@ -15,10 +15,6 @@ Definition noneOrAll
   | None => True
   | (Some p) => p
   end.
-
-
-
-Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
 
 Lemma exist_eq
   {X}
@@ -87,11 +83,9 @@ Class VLSM_vdecidable (message : Type) `{M : VLSM message} :=
 
 (* 2.2.2 VLSM protocol states and protocol messages *)
 
-(* Due to the mutually recursive nature of the definition, we need to distinct between
-the label-with-message and label-with-no-message transition types.
-A separate characterization and induction principle glossing over these details is
-provided later on. *)
-
+(* We choose here to use the second definition hinted at the end of the 2.2.2 section, i.e., 
+we define states and messages together as a property over a product type.
+*)
 
 Inductive protocol_prop `{VLSM} : state * option proto_message -> Prop :=
   | protocol_initial_state

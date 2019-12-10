@@ -1,22 +1,18 @@
-Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts.
+Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts ProofIrrelevance.
 Import ListNotations.  
 From Casper
 Require Import preamble ListExtras ListSetExtras.
 
-(* Proof irrelevance states that all proofs of the same proposition are equal *) 
-Axiom proof_irrelevance : forall (P : Prop) (p1 p2 : P), p1 = p2.
- 
-Lemma proj1_sig_injective {X : Type} :
-    forall (P : X -> Prop)
-      (x1 x2 : X) (H1 : P x1) (H2 : P x2),
-      (exist P x1 H1) = (exist P x2 H2) <-> x1 = x2. 
+Lemma exist_eq
+  {X}
+  (P : X -> Prop)
+  (a b : {x : X | P x})
+  : a = b <-> proj1_sig a = proj1_sig b.
 Proof.
-  intros P x1 x2 H1 H2; split.  
-  - intro H_eq_dep.
-    apply eq_sig_fst in H_eq_dep; assumption.
-  - intro H_eq.
-    subst. assert (H1 = H2) by eapply proof_irrelevance.
-    rewrite H. reflexivity.
+  destruct a as [a Ha]; destruct b as [b Hb]; simpl.
+  split; intros Heq.
+  - inversion Heq. reflexivity.
+  - subst. apply f_equal. apply proof_irrelevance.
 Qed.
 
 Lemma sigify_eq_dec {X : Type} `{StrictlyComparable X} :
@@ -28,8 +24,8 @@ Proof.
     destruct x2 as [x2 about_x2].
   simpl.
   destruct (compare_eq_dec x1 x2) as [left | right].
-  left. apply proj1_sig_injective; assumption. 
-  right. intro Hnot. apply proj1_sig_injective in Hnot.
+  left. apply exist_eq; assumption. 
+  right. intro Hnot. apply exist_eq in Hnot.
   contradiction.
 Qed.
 
