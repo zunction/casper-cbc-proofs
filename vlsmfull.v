@@ -618,6 +618,6 @@ Section Full.
   Defined.
 
   Definition VLSM_full_composed :=
-    @indexed_vlsm nat (sorted_message C V) nat_eq_dec IS_index IM_index 0. 
+    @indexed_vlsm_free nat (sorted_message C V) nat_eq_dec IS_index IM_index 0. 
 
 End Full.
