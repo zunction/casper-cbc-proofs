@@ -22,14 +22,14 @@ binary.vo binary.glob binary.v.beautified: binary.v preamble.vo ListExtras.vo Li
 binary.vio: binary.v preamble.vio ListExtras.vio ListSetExtras.vio sorted_lists.vio protocol.vio
 ctl.vo ctl.glob ctl.v.beautified: ctl.v preamble.vo ListExtras.vo ListSetExtras.vo RealsExtras.vo protocol.vo definitions.vo
 ctl.vio: ctl.v preamble.vio ListExtras.vio ListSetExtras.vio RealsExtras.vio protocol.vio definitions.vio
-vlsm.vo vlsm.glob vlsm.v.beautified: vlsm.v ListExtras.vo
-vlsm.vio: vlsm.v ListExtras.vio
+vlsm.vo vlsm.glob vlsm.v.beautified: vlsm.v preamble.vo ListExtras.vo
+vlsm.vio: vlsm.v preamble.vio ListExtras.vio
 vlsm_run.vo vlsm_run.glob vlsm_run.v.beautified: vlsm_run.v vlsm.vo
 vlsm_run.vio: vlsm_run.v vlsm.vio
-indexed_vlsm.vo indexed_vlsm.glob indexed_vlsm.v.beautified: indexed_vlsm.v vlsm.vo
-indexed_vlsm.vio: indexed_vlsm.v vlsm.vio
-indexed_vlsm_projections.vo indexed_vlsm_projections.glob indexed_vlsm_projections.v.beautified: indexed_vlsm_projections.v vlsm.vo indexed_vlsm.vo
-indexed_vlsm_projections.vio: indexed_vlsm_projections.v vlsm.vio indexed_vlsm.vio
+indexed_vlsm.vo indexed_vlsm.glob indexed_vlsm.v.beautified: indexed_vlsm.v preamble.vo vlsm.vo
+indexed_vlsm.vio: indexed_vlsm.v preamble.vio vlsm.vio
+indexed_vlsm_projections.vo indexed_vlsm_projections.glob indexed_vlsm_projections.v.beautified: indexed_vlsm_projections.v preamble.vo vlsm.vo indexed_vlsm.vo
+indexed_vlsm_projections.vio: indexed_vlsm_projections.v preamble.vio vlsm.vio indexed_vlsm.vio
 commute.vo commute.glob commute.v.beautified: commute.v preamble.vo ListExtras.vo ListSetExtras.vo RealsExtras.vo protocol.vo common.vo definitions.vo vlsm.vo indexed_vlsm.vo
 commute.vio: commute.v preamble.vio ListExtras.vio ListSetExtras.vio RealsExtras.vio protocol.vio common.vio definitions.vio vlsm.vio indexed_vlsm.vio
 vlsmfull.vo vlsmfull.glob vlsmfull.v.beautified: vlsmfull.v preamble.vo ListExtras.vo ListSetExtras.vo RealsExtras.vo definitions.vo common.vo vlsm.vo indexed_vlsm.vo commute.vo fullnode.vo

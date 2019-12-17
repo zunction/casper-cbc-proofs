@@ -1,5 +1,5 @@
 From Casper
-Require Import vlsm indexed_vlsm.
+Require Import preamble vlsm indexed_vlsm.
 
 Definition indexed_vlsm_constrained_projection_sig
   {index : Set} {message : Type} `{Heqd : EqDec index}

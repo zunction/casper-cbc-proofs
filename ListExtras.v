@@ -4,6 +4,40 @@ Import ListNotations.
 
 Require Import Casper.preamble.
 
+Lemma unfold_last_hd {S} : forall (random a b : S) (l : list S),
+  last (a :: (b :: l)) random = last (b :: l) random.
+Proof.
+  intros random h1 h2 tl. 
+  unfold last. reflexivity.
+Qed.
+
+Lemma swap_head_last {S} : forall (random a b c : S) (l : list S),
+    last (a :: b :: c :: l) random = last (b :: a :: c :: l) random. 
+Proof.
+  intros random h1 h2 s tl.
+  induction tl as [| hd tl IHl].
+  - reflexivity. 
+  - simpl. reflexivity.
+Qed.
+
+Lemma remove_hd_last {X} :
+  forall (hd1 hd2 d1 d2 : X) (tl : list X),
+    last (hd1 :: hd2 :: tl) d1 = last (hd2 :: tl) d2.
+Proof. 
+  intros. induction tl.
+  simpl. reflexivity.
+  rewrite unfold_last_hd. 
+  rewrite unfold_last_hd in IHtl.
+  rewrite unfold_last_hd.
+  rewrite unfold_last_hd.
+  destruct tl. 
+  reflexivity.
+  do 2 rewrite unfold_last_hd in IHtl.
+  do 2 rewrite unfold_last_hd.
+  assumption.
+Qed.
+
+
 Lemma incl_empty : forall A (l : list A),
   incl l nil -> l = nil.
 Proof.
@@ -158,6 +192,12 @@ Proof.
     intros. apply H. right. assumption.
 Qed.
 
+Definition app_cons {A}
+  (a : A)
+  (l : list A)
+  : [a] ++ l = a :: l
+  := eq_refl.
+
 Lemma append_nodup_left {A}:
   forall (l1 l2 : list A), NoDup (l1 ++ l2) -> NoDup l1.
 Proof.
@@ -201,6 +241,34 @@ Proof.
   destruct l; simpl; reflexivity.
 Qed.
   
+
+Require Import Streams.
+
+Definition stream_app
+  {A : Type}
+  (prefix : list A)
+  (suffix : Stream A)
+  : Stream A
+  :=
+  fold_right (@Cons A) suffix prefix.
+
+
+Definition stream_app_cons {A}
+  (a : A)
+  (l : Stream A)
+  : stream_app [a] l = Cons a l
+  := eq_refl.
+
+Lemma stream_app_assoc
+  {A : Type}
+  (l m : list A)
+  (n : Stream A)
+  : stream_app l (stream_app m n) = stream_app (l ++ m) n.
+Proof.
+  induction l; try reflexivity.
+  simpl. apply f_equal. assumption.
+Qed.
+
 
 (**
 

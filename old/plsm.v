@@ -1,7 +1,7 @@
 (** An Approach to VLSMs using a partial transition function.
 *)
 From Casper
-Require Import vlsm.
+Require Import preamble vlsm.
 
 
 Class PLSM (message : Type) `{Sig : LSM_sig message} :=
@@ -337,7 +337,6 @@ Section indexed_vlsm.
       destruct (transition li (s i, None)) as [si' om'].
       destruct (valid_decidablei li (s i, None)); reflexivity.
   Qed.
-
 
   Lemma indexed_partial_composition_commute
     {index : Set} {message : Type} `{Heqd : EqDec index}
