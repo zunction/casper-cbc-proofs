@@ -124,7 +124,7 @@ Section CommuteIndexed.
 
   Lemma final_and_consistent_implies_final : 
       final_and_consistent ->
-      forall i : index, final (indexed_vlsm_constrained_projection Hi IS IM constraint i) (ID i).
+      forall i : index, final (indexed_vlsm_constrained_projection Hi IM constraint i) (ID i).
 
   Proof.
     unfold final_and_consistent.
@@ -134,10 +134,10 @@ Section CommuteIndexed.
     Admitted.
 
   Definition live :=
-    forall (tr : protocol_trace X),
+    forall (tr : @Trace _ (sign X)),
       complete_trace_prop X tr -> 
       exists (s : @state _ (sign X)) (n : nat) (i : index) (c : C), 
-        trace_nth (proj1_sig tr) n = Some s /\
+        trace_nth tr n = Some s /\
         (ID i) (s i) = Some c.
 
 End CommuteIndexed.

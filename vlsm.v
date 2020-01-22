@@ -455,11 +455,12 @@ we define states and messages together as a property over a product type. *)
            | Infinite s ls => False
            end.
 
-      Definition complete_trace_prop (tr : protocol_trace) : Prop
-         := 
-            match (proj1_sig tr) with 
-            | Finite s ls => terminating_trace_prop (proj1_sig tr)
-            | Infinite s ls => True
+      Definition complete_trace_prop (tr : Trace) : Prop
+         := ptrace_prop tr
+            /\
+            match tr with 
+            | Finite _ _ => terminating_trace_prop tr
+            | Infinite _ _ => True
             end.
 
       Lemma trace_prefix_protocol

@@ -73,7 +73,7 @@ Section indexing.
   Definition indexed_l0
     : indexed_label
     := existT _ i0 (@l0 message (IS i0)) .
-  
+
   Definition lift_proto_messageI
              (n : index)
              (mi : @proto_message _ (IS n))
@@ -229,62 +229,104 @@ Section indexing.
     :=
       indexed_vlsm_constrained_vdecidable IDM free_constraint_decidable.
 
-  (* From indexed_vlsm_projections.v *)
-  Section projections. 
 
-    Definition indexed_vlsm_constrained_projection_sig
-               (IM : forall n : index, VLSM (IS n))
-               (constraint : indexed_label -> indexed_state * option (indexed_proto_message) -> Prop)
-               (X := indexed_vlsm_constrained IM constraint)
-               (i : index)
-    : LSM_sig message
-      :=
-        {|  state := @state _ (IS i)
-            ;   label := @label _ (IS i)
-            ;   proto_message_prop := @proto_message_prop _ (IS i)
-            ;   proto_message_decidable := @proto_message_decidable _ (IS i)
-            ;   initial_state_prop := @initial_state_prop _ (IS i)
-            ;   initial_message_prop := fun pmi => exists xm : (@protocol_message _ _ X), proj1_sig (proj1_sig xm) = proj1_sig pmi
-            ;   s0 := @s0 _ (IS i)
-            ;   m0 := @m0 _ (IS i)
-            ;   l0 := @l0 _ (IS i)
-        |}.
-
-
-    Definition indexed_vlsm_free_projection_sig
-               (IM : forall i : index, VLSM (IS i))
-               (i : index)
-      : LSM_sig message
-      :=
-        indexed_vlsm_constrained_projection_sig IM free_constraint i.
-
-    Definition indexed_vlsm_constrained_projection
-               (IM : forall i : index, VLSM (IS i))
-               (constraint : indexed_label -> indexed_state * option (indexed_proto_message) -> Prop)
-               (S := indexed_sig)
-               (X := indexed_vlsm_constrained IM constraint)
-               (i : index)
-      : VLSM (indexed_vlsm_constrained_projection_sig IM constraint i).
-      unfold indexed_vlsm_constrained_projection_sig; simpl.
-      split; simpl; unfold proto_message; simpl.
-      - exact (@transition _ _ (IM i)).
-      - intros l som. destruct (@transition _ _ (IM i) l som) as  [si' omi']. 
-        exact
-          (   @valid _ _ (IM i) l som
-              /\  exists s' : @protocol_state _ _ X, exists om' : option (@protocol_message _ _ X),
-                (  (proj1_sig s') i = si'
-                   /\ option_map (@proj1_sig _ _) (option_map (@proj1_sig _ _) om') = option_map (@proj1_sig _ _) omi' 
-                )
-          ).
-    Defined.
-
-    Definition indexed_vlsm_free_projection
-               (IM : forall i : index, VLSM (IS i))
-               (i : index)
-      : VLSM (indexed_vlsm_free_projection_sig IM i)
-      :=
-        indexed_vlsm_constrained_projection IM free_constraint i.
-
-  End projections.
-  
 End indexing.
+
+
+(* From indexed_vlsm_projections.v *)
+Section projections. 
+
+  Context {message : Type}
+          {index : Type}
+          {IndEqDec : EqDec index}
+          (i0 : index)
+          {IS : index -> LSM_sig message}
+          (IM : forall n : index, VLSM (IS n))
+          (S := indexed_sig i0 IS)
+          (constraint : @label _ S -> @state _ S * option (@proto_message _ S) -> Prop)
+          (X := indexed_vlsm_constrained i0 IS IM constraint)
+          .
+
+  Definition indexed_vlsm_constrained_projection_sig (i : index) : LSM_sig message
+    :=
+      {|  state := @state _ (IS i)
+          ;   label := @label _ (IS i)
+          ;   proto_message_prop := @proto_message_prop _ (IS i)
+          ;   proto_message_decidable := @proto_message_decidable _ (IS i)
+          ;   initial_state_prop := @initial_state_prop _ (IS i)
+          ;   initial_message_prop := fun pmi => exists xm : (@protocol_message _ _ X), proj1_sig (proj1_sig xm) = proj1_sig pmi
+          ;   s0 := @s0 _ (IS i)
+          ;   m0 := @m0 _ (IS i)
+          ;   l0 := @l0 _ (IS i)
+      |}.
+
+
+  Definition indexed_vlsm_constrained_projection
+             (i : index)
+    : VLSM (indexed_vlsm_constrained_projection_sig i).
+    unfold indexed_vlsm_constrained_projection_sig; simpl.
+    split; simpl; unfold proto_message; simpl.
+    - exact (@transition _ _ (IM i)).
+    - intros l som. destruct (@transition _ _ (IM i) l som) as  [si' omi']. 
+      exact
+        (   @valid _ _ (IM i) l som
+            /\  exists s' : @protocol_state _ _ X, exists om' : option (@protocol_message _ _ X),
+              (  (proj1_sig s') i = si'
+                 /\ option_map (@proj1_sig _ _) (option_map (@proj1_sig _ _) om') = option_map (@proj1_sig _ _) omi' 
+              )
+        ).
+  Defined.
+
+  Section projection_friendliness.
+
+    Context
+      (j : index)
+      (Proj := indexed_vlsm_constrained_projection j)
+      .
+
+(** 2.4.4.1 Projection friendly composition constraints **)
+
+    Definition projection_friendly
+      :=
+      forall
+        (lj : @label _ (IS j))
+        (sj : protocol_state Proj)
+        (om : option (protocol_message Proj))
+      , protocol_valid Proj lj (sj, om)
+      -> exists (s : protocol_state X),
+        (proj1_sig s) j = proj1_sig sj
+        /\
+        constraint (existT _ j lj)
+        ( proj1_sig s
+        , option_map (lift_proto_messageI IS j) (option_map (@proj1_sig proto_message _) om)
+        )
+      .
+
+  End projection_friendliness.
+
+End projections.
+
+
+Section free_projections. 
+
+  Context {message : Type}
+          {index : Type}
+          {IndEqDec : EqDec index}
+          (i0 : index)
+          {IS : index -> LSM_sig message}
+          (IM : forall i : index, VLSM (IS i))
+          .
+
+
+  Definition indexed_vlsm_free_projection_sig
+             (i : index)
+    : LSM_sig message
+    :=
+      indexed_vlsm_constrained_projection_sig i0 IM (free_constraint IS) i.
+
+  Definition indexed_vlsm_free_projection
+             (i : index)
+    : VLSM (indexed_vlsm_free_projection_sig i)
+    :=
+      indexed_vlsm_constrained_projection i0 IM (free_constraint IS) i.
+End free_projections.
