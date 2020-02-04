@@ -218,14 +218,11 @@ we define states and messages together as a property over a product type. *)
                  (l : label)
                  (s s' : state)
                  (om om' : option proto_message)
-        :=
-          exists (_om : option proto_message),
-            exists (_s : state),
-              protocol_prop (s, _om)
-              /\  protocol_prop (_s, om)
-              /\  valid l (s, om)
-              /\  transition l (s, om) = (s', om')
-      .
+        := (exists (_om : option proto_message), protocol_prop (s, _om))
+        /\ (exists (_s : state), protocol_prop (_s, om))
+        /\  valid l (s, om)
+        /\  transition l (s, om) = (s', om')
+        .
 
       Lemma protocol_transition_origin
             {l : label}
@@ -235,7 +232,7 @@ we define states and messages together as a property over a product type. *)
         : protocol_state_prop s
       .
       Proof.
-        destruct Ht as [_om [_s [Hp _]]]. exists _om. assumption.
+        destruct Ht as [[_om Hp] _]. exists _om. assumption.
       Qed.
 
       Lemma protocol_transition_destination
@@ -247,7 +244,7 @@ we define states and messages together as a property over a product type. *)
       .
       Proof.
         exists om'. 
-        destruct Ht as [_om [_s [Hs [Hom [Hv Ht]]]]].
+        destruct Ht as [[_om Hs] [[_s Hom] [Hv Ht]]].
         rewrite <- Ht. apply protocol_generated with _om _s; assumption.
       Qed.
 
@@ -260,7 +257,7 @@ we define states and messages together as a property over a product type. *)
         : protocol_message_prop m
       .
       Proof.
-        destruct Ht as [_om [_s [Hs [Hm _]]]].
+        destruct Ht as [_ [[_s Hom] _]].
         exists _s. assumption.
       Qed.
 
@@ -274,9 +271,32 @@ we define states and messages together as a property over a product type. *)
       .
       Proof.
         exists s'. 
-        destruct Ht as [_om [_s [Hs [Hom [Hv Ht]]]]].
+        destruct Ht as [[_om Hs] [[_s Hom] [Hv Ht]]].
         rewrite <- Ht. apply protocol_generated with _om _s; assumption.
       Qed.
+
+      Lemma protocol_transition_valid
+            {l : label}
+            {s s' : state}
+            {om om' : option proto_message}
+            (Ht : verbose_valid_protocol_transition l s s' om om')
+        : valid l (s, om).
+      Proof.
+        destruct Ht as [_ [_ [Hv _]]].
+        assumption.
+      Qed.
+
+      Lemma protocol_transition_transition
+            {l : label}
+            {s s' : state}
+            {om om' : option proto_message}
+            (Ht : verbose_valid_protocol_transition l s s' om om')
+          :  transition l (s, om) = (s', om')
+        .
+       Proof.
+        destruct Ht as [_ [_ [_ Ht]]]. assumption.
+       Qed.
+
 
       (* Valid VLSM traces *) 
       Record in_state_out :=
@@ -293,6 +313,27 @@ we define states and messages together as a property over a product type. *)
           forall (s' : state) (iom oom : option proto_message) (l : label),
             verbose_valid_protocol_transition l s' s iom oom ->
             finite_ptrace_from  s' ({| l := l; input := iom; destination := s; output := oom |} :: tl).
+
+      Lemma finite_ptrace_first_valid_transition
+            (s : state)
+            (tr : list in_state_out)
+            (te : in_state_out)
+            (Htr : finite_ptrace_from s (te :: tr))
+        : verbose_valid_protocol_transition (l te) s (destination te) (input te) (output te).
+      Proof.
+        inversion Htr. assumption.
+      Qed.
+
+      Lemma finite_ptrace_tail
+            (s : state)
+            (tr : list in_state_out)
+            (te : in_state_out)
+            (Htr : finite_ptrace_from s (te :: tr))
+        : finite_ptrace_from (destination te) tr.
+      Proof.
+        inversion Htr. assumption.
+      Qed.
+
 
       Lemma finite_ptrace_consecutive_valid_transition
             (s : state)
@@ -348,7 +389,7 @@ we define states and messages together as a property over a product type. *)
         induction ls; intros; split.
         - intros [_ H]. assumption.
         - simpl; intros; split; try assumption. constructor. inversion H; try assumption.
-          destruct H1 as [_om [_s [Hs _]]]. exists _om. assumption.
+          apply (protocol_transition_origin H1).
         - simpl. intros [Htr Htr']. 
           destruct a. apply finite_ptrace_extend.
           + apply IHls. inversion Htr. split. apply H2.
@@ -520,10 +561,12 @@ we define states and messages together as a property over a product type. *)
           apply extend_right_finite_trace_from; try assumption.
           specialize vlsm_run_last_state; intros Hls. specialize (Hls (exist _ state_run Hr1)).
           simpl in Hls. unfold ts. unfold is. rewrite Hls.
-          exists (snd (final state_run)). exists (fst (final msg_run)).
-          repeat split; try assumption; try apply surjective_pairing; rewrite <- surjective_pairing.
-          + specialize (run_is_protocol (exist _ state_run Hr1)); simpl; intro Hp; assumption.
-          + specialize (run_is_protocol (exist _ msg_run Hr2)); simpl; intro Hp; assumption.
+          repeat split; try assumption.
+          + exists (snd (final state_run)). rewrite <- surjective_pairing.
+            specialize (run_is_protocol (exist _ state_run Hr1)); intro Hp; assumption.
+          + exists (fst (final msg_run)). rewrite <- surjective_pairing.
+            specialize (run_is_protocol (exist _ msg_run Hr2)); simpl; intro Hp; assumption.
+          + rewrite <- surjective_pairing. reflexivity.
       Qed.
 
       Lemma trace_is_run
