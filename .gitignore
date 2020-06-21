@@ -7,7 +7,8 @@
 *.d
 Makefile.coq
 Makefile.coq.conf
-*.coqdeps.d
+.depend
+.coqdeps.d
 *.dep
 *.depend
 *.v~
