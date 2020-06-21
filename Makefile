@@ -1,7 +1,7 @@
 COQC = coqc
 COQDEP = coqdep
 
-COQ_FLAG = -Q "." Casper
+COQ_FLAG = -Q "." CasperCBC
 
 SRC_DIR := .
 SOURCE := $(wildcard $(SRC_DIR)/*.v) $(wildcard $(SRC_DIR)/Lib/*.v) $(wildcard $(SRC_DIR)/CBC/*.v) $(wildcard $(SRC_DIR)/VLSM/*.v)

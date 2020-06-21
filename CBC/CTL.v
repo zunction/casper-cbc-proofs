@@ -1,6 +1,6 @@
 Require Import Reals Bool Relations RelationClasses List ListSet Setoid Permutation EqdepFacts ChoiceFacts.
 Import ListNotations.   
-From Casper   
+From CasperCBC
 Require Import Lib.Preamble Lib.ListExtras Lib.ListSetExtras Lib.RealsExtras CBC.Protocol CBC.Definitions.
 
 Definition reach_one `{CBC_protocol_eq} (sigma1 sigma2 : pstate) : Prop :=
