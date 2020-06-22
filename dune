@@ -1,0 +1,6 @@
+(coq.theory
+ (name CasperCBC)
+ (package coq-casper-cbc)
+ (synopsis "Protocol verification of Casper Correct-By-Construction"))
+
+(include_subdirs qualified)

@@ -4,7 +4,7 @@ Import ListNotations.
 
 Require Import Coq.Logic.FinFun.
 
-Require Import Casper.Lib.Preamble.
+Require Import CasperCBC.Lib.Preamble.
 
 
 Definition last_error {S} (l : list S) : option S :=

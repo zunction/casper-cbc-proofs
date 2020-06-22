@@ -1,0 +1,35 @@
+opam-version: "2.0"
+maintainer: "palmskog@gmail.com"
+version: "dev"
+
+homepage: "https://github.com/runtimeverification/casper-cbc-proofs"
+dev-repo: "git+https://github.com/runtimeverification/casper-cbc-proofs.git"
+bug-reports: "https://github.com/runtimeverification/casper-cbc-proofs/issues"
+license: "as-is"
+
+synopsis: "Protocol verification of Casper Correct-By-Construction"
+description: """
+Protocol verification of Casper Correct-By-Construction in Coq."""
+
+build: ["dune" "build" "-p" name "-j" jobs]
+depends: [
+  "dune" {>= "2.5"}
+  "coq" {>= "8.11" & < "8.13~"}
+]
+
+tags: [
+  "category:Computer Science/Concurrent Systems and Protocols/Theory of concurrent systems"
+  "category:Computer Science/Decision Procedures and Certified Algorithms/Correctness proofs of algorithms"
+  "keyword:Casper"
+  "keyword:consensus"
+  "logpath:CasperCBC"
+]
+authors: [
+  "Mihai Calancea"
+  "Denisa Diaconescu"
+  "Elaine Li"
+  "Lucas Peña"
+  "Grigore Roșu"
+  "Traian Șerbănuță"
+  "Vlad Zamfir"
+]

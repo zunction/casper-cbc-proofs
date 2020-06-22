@@ -1,0 +1,66 @@
+---
+fullname: Casper CBC Proofs
+shortname: casper-cbc-proofs
+opam_name: coq-casper-cbc
+organization: runtimeverification
+community: false
+action: true
+
+synopsis: >-
+  Protocol verification of Casper Correct-By-Construction
+
+description: |-
+  Protocol verification of Casper Correct-By-Construction in Coq.
+
+authors:
+- name: Mihai Calancea
+- name: Denisa Diaconescu
+- name: Elaine Li
+- name: Lucas Peña
+- name: Grigore Roșu
+- name: Traian Șerbănuță
+- name: Vlad Zamfir
+
+opam-file-maintainer: palmskog@gmail.com
+
+opam-file-version: dev
+
+license:
+  fullname: As is
+  identifier: as-is
+
+supported_coq_versions:
+  text: 8.11 or later
+  opam: '{>= "8.11" & < "8.13~"}'
+
+tested_coq_opam_versions:
+- version: '8.11'
+
+namespace: CasperCBC
+
+keywords:
+- name: Casper
+- name: consensus
+
+categories:
+- name: Computer Science/Concurrent Systems and Protocols/Theory of concurrent systems
+- name: Computer Science/Decision Procedures and Certified Algorithms/Correctness proofs of algorithms
+
+build: |-
+ ## Building instructions
+
+ ``` shell
+ git clone https://github.com/runtimeverification/casper-cbc-proofs.git
+ cd casper-cbc-proofs
+ make   # or make -j <number-of-cores-on-your-machine>
+ ```
+
+documentation: |-
+  ## Structure
+
+  - `Lib`: various extensions to the Coq standard library
+  - `CBC`: Formalizizations for FullNode and LightNode protocols
+    specified in https://github.com/ethereum/cbc-casper
+  - `VLSM`: Formalization of Vlad Zamfir's new, composable, model
+    used for stating and solving consensus problems.
+---

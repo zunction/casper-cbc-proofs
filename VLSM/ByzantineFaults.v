@@ -1,6 +1,6 @@
 Require Import FinFun Streams.
 (* Section 4: Byzantine fault tolerance analysis *)
-From Casper   
+From CasperCBC   
 Require Import Lib.Preamble VLSM.Common VLSM.Composition.
 
 Context

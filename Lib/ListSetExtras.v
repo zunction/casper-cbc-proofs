@@ -2,8 +2,8 @@ Require Import Coq.Lists.ListSet.
 Require Import List.
 Import ListNotations.
 
-Require Import Casper.Lib.Preamble.
-Require Import Casper.Lib.ListExtras.
+Require Import CasperCBC.Lib.Preamble.
+Require Import CasperCBC.Lib.ListExtras.
 
 
 Lemma eq_dec_left {A} (Aeq_dec : forall x y:A, {x = y} + {x <> y}) : forall v,

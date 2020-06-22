@@ -1,7 +1,7 @@
 Require Import Coq.Logic.FinFun.
 Require Import Bool List Streams Logic.Epsilon.
 Import List Notations.
-From Casper 
+From CasperCBC 
 Require Import Lib.Preamble Lib.ListExtras Lib.ListSetExtras Lib.RealsExtras CBC.Protocol CBC.Common CBC.Definitions VLSM.Common VLSM.Composition.
 
 (* 3.1 Decisions on consensus values *) 

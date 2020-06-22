@@ -4,7 +4,7 @@ Require Import Logic.FunctionalExtensionality.
 
 Require Import Coq.Logic.FinFun.
 
-From Casper
+From CasperCBC
      Require Import Lib.ListExtras Lib.Preamble VLSM.Common.
 
 (* Section 2.4 VLSM composition *)
