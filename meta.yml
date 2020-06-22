@@ -26,8 +26,9 @@ opam-file-maintainer: palmskog@gmail.com
 opam-file-version: dev
 
 license:
-  fullname: As is
-  identifier: as-is
+  fullname: University of Illinois/NCSA Open Source License
+  identifier: NCSA
+  file: LICENSE.md
 
 supported_coq_versions:
   text: 8.11 or later
