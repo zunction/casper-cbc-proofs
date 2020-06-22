@@ -5,7 +5,7 @@ version: "dev"
 homepage: "https://github.com/runtimeverification/casper-cbc-proofs"
 dev-repo: "git+https://github.com/runtimeverification/casper-cbc-proofs.git"
 bug-reports: "https://github.com/runtimeverification/casper-cbc-proofs/issues"
-license: "as-is"
+license: "NCSA"
 
 synopsis: "Protocol verification of Casper Correct-By-Construction"
 description: """
