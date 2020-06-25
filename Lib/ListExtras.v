@@ -1,4 +1,4 @@
-Require Import Coq.Bool.Bool Coq.Arith.Lt.
+Require Import Coq.Bool.Bool Coq.Arith.Lt Coq.Arith.Plus.
 Require Import List.
 Import ListNotations.
 
@@ -129,6 +129,26 @@ Proof.
       rewrite <- Hg. assumption.
     }
     rewrite Hg. assumption.
+Qed.
+
+Lemma filter_nil
+  {A : Type}
+  (f : A -> bool)
+  (l : list A)
+  (Hnone : forall a : A, In a l -> f a = false)
+  : filter f l = []
+  .
+Proof.
+  induction l; try reflexivity.
+  assert (Hno_a := Hnone a). 
+  assert (Hin_a : In a (a :: l)) by (left;reflexivity).
+  specialize (Hno_a Hin_a).
+  simpl. rewrite Hno_a.
+  apply IHl.
+  intros b Hin_b.
+  apply Hnone.
+  right.
+  assumption.
 Qed.
 
 Lemma in_not_in : forall A (x y : A) l,
@@ -323,101 +343,6 @@ Proof.
     tauto.
 Qed.
 
-Require Import Streams.
-
-Definition stream_app
-  {A : Type}
-  (prefix : list A)
-  (suffix : Stream A)
-  : Stream A
-  :=
-  fold_right (@Cons A) suffix prefix.
-
-
-Definition stream_app_cons {A}
-  (a : A)
-  (l : Stream A)
-  : stream_app [a] l = Cons a l
-  := eq_refl.
-
-Lemma stream_app_assoc
-  {A : Type}
-  (l m : list A)
-  (n : Stream A)
-  : stream_app l (stream_app m n) = stream_app (l ++ m) n.
-Proof.
-  induction l; try reflexivity.
-  simpl. apply f_equal. assumption.
-Qed.
-
-Lemma stream_app_f_equal
-  {A : Type}
-  (l1 l2 : list A)
-  (s1 s2 : Stream A)
-  (Hl : l1 = l2)
-  (Hs : EqSt s1 s2)
-  : EqSt (stream_app l1 s1) (stream_app l2 s2)
-  .
-Proof.
-  subst. induction l2; try assumption.
-  simpl. constructor; try reflexivity. assumption.
-Qed.
-
-Fixpoint stream_prefix
-  {A : Type}
-  (l : Stream A)
-  (n : nat)
-  : list A
-  := match n,l with
-  | 0,_ => []
-  | S n, Cons a l => a :: stream_prefix l n
-  end.
-
-Lemma stream_prefix_map
-  {A B : Type}
-  (f : A -> B)
-  (l : Stream A)
-  (n : nat)
-  : List.map f (stream_prefix l n) = stream_prefix (Streams.map f l) n
-  .
-Proof.
-  generalize dependent l. induction n; intros [a l]; try reflexivity.
-  simpl.
-  f_equal.
-  apply IHn.
-Qed.
-
-Lemma stream_prefix_length
-  {A : Type}
-  (l : Stream A)
-  (n : nat)
-  : length (stream_prefix l n) = n
-  .
-Proof.
-  generalize dependent l. induction n; intros [a l]; try reflexivity.
-  simpl in *. f_equal.
-  apply IHn.
-Qed.
-
-Definition stream_suffix
-  {A : Type}
-  (l : Stream A)
-  (n : nat)
-  : Stream A
-  := Str_nth_tl n l.
-
-Lemma stream_prefix_suffix
-  {A : Type}
-  (l : Stream A)
-  (n : nat)
-  : stream_app (stream_prefix l n) (stream_suffix l n) = l
-  .
-Proof.
-  generalize dependent l. unfold stream_suffix.
-  induction n; try reflexivity; intros [a l]; simpl.
-  f_equal. apply IHn.
-Qed.
-
 Lemma nth_error_last
   {A : Type}
   (l : list A)
@@ -503,6 +428,17 @@ Proof.
     apply IHn; assumption.
 Qed.
 
+Lemma list_suffix_length
+  {A : Type}
+  (l : list A)
+  (n : nat)
+  : length (list_suffix l n) = length l - n
+  .
+Proof.
+  generalize dependent l. induction n; intros [|a l]; try reflexivity.
+  simpl. apply IHn.
+Qed.
+
 Lemma list_prefix_prefix
   {A : Type}
   (l : list A)
@@ -554,74 +490,67 @@ Proof.
   assumption.
 Qed.
 
-Lemma stream_prefix_prefix
+Definition Forall_hd
   {A : Type}
-  (l : Stream A)
-  (n1 n2 : nat)
-  (Hn: n1 <= n2)
-  : list_prefix (stream_prefix l n2) n1 = stream_prefix l n1
+  {P : A -> Prop}
+  {a : A}
+  {l : list A}
+  (Hs : Forall P (a :: l))
+  : P a
   .
+  inversion Hs. subst. exact H1.
+Defined.
+
+Definition Forall_tl
+  {A : Type}
+  {P : A -> Prop}
+  {a : A}
+  {l : list A}
+  (Hs : Forall P (a :: l))
+  : Forall P l
+  .
+  inversion Hs. subst. exact H2.
+Defined.
+
+Fixpoint list_annotate
+  {A : Type}
+  (P : A -> Prop)
+  (l : list A)
+  (Hs : Forall P l)
+  : list (sig P)
+  .
+  destruct l as [| a l].
+  - exact [].
+  - 
+  exact ((exist P a (Forall_hd Hs)) :: list_annotate A P l (Forall_tl Hs)).
+Defined.
+
+Lemma list_annotate_unroll
+  {A : Type}
+  (P : A -> Prop)
+  (a : A)
+  (l : list A)
+  (Hs : Forall P (a :: l))
+  : list_annotate P (a :: l) Hs = exist P a (Forall_hd Hs) ::  list_annotate P l (Forall_tl Hs).
 Proof.
-  generalize dependent n2.
-  generalize dependent l.
-  induction n1; intros [a l]; intros [|n2] Hn; try reflexivity.
-  - inversion Hn.
-  - simpl. f_equal. apply IHn1. apply le_S_n.  assumption.
+  reflexivity.
 Qed.
 
-Definition stream_segment
+Fixpoint filter_Forall
   {A : Type}
-  (l : Stream A)
-  (n1 n2 : nat)
-  : list A
-  := list_suffix (stream_prefix l n2) n1
+  (P : A -> Prop)
+  (decP : forall a:A, {P a} + {~P a})
+  (l : list A)
+  : Forall P (filter (predicate_to_function decP) l)
   .
-
-Lemma stream_prefix_segment_suffix
-  {A : Type}
-  (l : Stream A)
-  (n1 n2 : nat)
-  (Hn : n1 <= n2)
-  : EqSt
-   (stream_app
-   ((stream_prefix l n1)
-     ++
-    (stream_segment l n1 n2)
-   )
-    (stream_suffix l n2)
-    )
-    l
-  .
-Proof.
-  rewrite <- (stream_prefix_suffix l n2) at 4.
-  apply stream_app_f_equal; try apply EqSt_reflex.
-  unfold stream_segment.
-  rewrite <- (list_prefix_suffix (stream_prefix l n2) n1) at 2.
-  f_equal.
-  symmetry.
-  apply stream_prefix_prefix.
-  assumption.
-Qed.
-
-Lemma stream_prefix_nth
-  {A : Type}
-  (s : Stream A)
-  (n : nat)
-  (i : nat)
-  (Hi : i < n)  
-  : nth_error (stream_prefix s n) i = Some (Str_nth i s)
-  .
-Proof.
-  generalize dependent n. generalize dependent s.
-  induction i; intros [a s] [|n] Hi; try reflexivity.
-  - inversion Hi.
-  - inversion Hi.
-  - simpl.
-    apply lt_S_n in Hi.
-    specialize (IHi s n Hi).
-    rewrite IHi.
-    reflexivity.
-Qed.
+destruct l; simpl.
+- exact (Forall_nil P).
+- unfold predicate_to_function.
+  specialize (filter_Forall A P decP l).
+  destruct (decP a); simpl.
+  + constructor; assumption.
+  + assumption.
+Defined.
 
 Lemma list_prefix_nth
   {A : Type}
@@ -680,27 +609,6 @@ Proof.
     rewrite Hlast in Hnth. inversion Hnth.
     reflexivity.
   - constructor.
-Qed.
-
-Lemma stream_prefix_nth_last
-  {A : Type}
-  (l : Stream A)
-  (n : nat)
-  (_last : A)
-  : last (stream_prefix l (S n)) _last = Str_nth n l
-  .
-Proof.
-  specialize (nth_error_last (stream_prefix l (S n)) n); intro Hlast.
-  specialize (stream_prefix_length l (S n)); intro Hpref_len.
-  symmetry in Hpref_len.
-  specialize (Hlast Hpref_len _last).
-  specialize (stream_prefix_nth l (S n) n); intro Hnth.
-  assert (Hlt : n < S n) by constructor.
-  specialize (Hnth Hlt).
-  rewrite Hnth in Hlast.
-  simpl.
-  inversion Hlast.
-  reflexivity.
 Qed.
   
 Lemma list_suffix_nth
@@ -773,22 +681,6 @@ Proof.
   unfold list_segment.
   rewrite list_suffix_nth; try assumption.
   apply list_prefix_nth.
-  assumption.
-Qed.
-
-Lemma stream_segment_nth
-  {A : Type}
-  (l : Stream A)
-  (n1 n2 : nat)
-  (Hn : n1 <= n2)
-  (i : nat)
-  (Hi1 : n1 <= i)
-  (Hi2 : i < n2)
-  : nth_error (stream_segment l n1 n2) (i - n1) = Some (Str_nth i l).
-Proof.
-  unfold stream_segment.
-  rewrite list_suffix_nth; try assumption.
-  apply stream_prefix_nth.
   assumption.
 Qed.
 
@@ -911,4 +803,23 @@ Proof.
     + simpl. destruct (f a) eqn:Hfa.
       * right. apply IHl. exists a'. split; try assumption.
       * apply IHl. exists a'. split; try assumption.
+Qed.
+
+Lemma nth_error_eq
+  {A : Type}
+  (l1 l2 : list A)
+  (Hnth: forall n : nat, nth_error l1 n = nth_error l2 n)
+  : l1 = l2.
+Proof.
+  generalize dependent l2.
+  induction l1; intros [| a2 l2] Hnth; try reflexivity.
+  - specialize (Hnth 0); simpl in Hnth. inversion Hnth.
+  - specialize (Hnth 0); simpl in Hnth. inversion Hnth.
+  - assert (H0 := Hnth 0). simpl in H0.
+    inversion H0; subst.
+    f_equal.
+    apply IHl1.
+    intro n.
+    specialize (Hnth (S n)).
+    assumption.
 Qed.

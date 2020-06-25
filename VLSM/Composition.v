@@ -1,11 +1,11 @@
-Require Import List Streams.
+Require Import List Streams Nat.
 Import ListNotations.
 Require Import Logic.FunctionalExtensionality.
 
-Require Import Coq.Logic.FinFun.
+Require Import Coq.Logic.FinFun Coq.Logic.Eqdep.
 
 From CasperCBC
-     Require Import Lib.ListExtras Lib.Preamble VLSM.Common.
+     Require Import Lib.StreamExtras Lib.ListExtras Lib.Preamble VLSM.Common.
 
 (* Section 2.4 VLSM composition *)
 
@@ -312,6 +312,16 @@ Section projections.
       (Proj := indexed_vlsm_constrained_projection j)
       .
 
+    Lemma initial_state_projection
+      (s : @state _ T)
+      (Hinit : @initial_state_prop _ _ S s)
+      : @initial_state_prop _ _ (sign Proj) (s j)
+      .
+    Proof.
+      specialize (Hinit j).
+      assumption.
+    Qed.
+
     Lemma transition_projection : @transition _ _ (indexed_vlsm_constrained_projection_sig j) Proj = @transition _ _ _ (IM j).
     Proof. reflexivity.  Qed.
 
@@ -369,6 +379,84 @@ Section projections.
         | _ => tail
         end
       end.
+
+    Definition from_projection
+      (a : @in_state_out _ T)
+      : Prop
+      := j = projT1 (l a).
+    
+    Definition dec_from_projection
+      (a : in_state_out)
+      : {from_projection a} + {~from_projection a}
+      := eq_dec j (projT1 (l a)).
+    
+    Definition finite_trace_projection_list_alt
+      (trx : list (@in_state_out _ T))
+      (ftrx := (filter (predicate_to_function dec_from_projection) trx))
+      (Hall: Forall from_projection ftrx)
+      :=
+      List.map
+        (fun item : {a : @in_state_out _ T | from_projection a} =>
+          let (item, e) := item in
+          let lj := eq_rect_r _ (projT2 (l item)) e in
+          @Build_in_state_out _ (type Proj)
+            lj
+            (input item)
+            (destination item j)
+            (output item)
+        )
+      (list_annotate from_projection ftrx Hall).
+    
+    Lemma finite_trace_projection_list_alt_iff
+      (trx : list (@in_state_out _ T))
+      (ftrx := (filter (predicate_to_function dec_from_projection) trx))
+      (Hall: Forall from_projection ftrx)
+      : finite_trace_projection_list_alt trx Hall = finite_trace_projection_list trx.
+    Proof.
+      unfold ftrx in *. clear ftrx.
+      generalize dependent Hall.
+      induction trx; intros; try reflexivity.
+      simpl.
+      destruct (eq_dec j (projT1 (l a))) eqn:Heq.
+      - assert
+        (Hunroll :
+          filter (predicate_to_function dec_from_projection) (a :: trx)
+          = a :: filter (predicate_to_function dec_from_projection) trx
+        ).
+        { simpl. unfold predicate_to_function at 1. unfold dec_from_projection at 1.
+          rewrite Heq. reflexivity.
+        }
+        unfold finite_trace_projection_list_alt.
+        generalize dependent Hall.
+        rewrite Hunroll.
+        intro Hall.
+        rewrite list_annotate_unroll.
+        specialize (IHtrx (Forall_tl Hall)).
+        rewrite <- IHtrx.
+        simpl.
+        f_equal.
+        f_equal; try reflexivity.
+        specialize UIP_refl__Streicher_K; intro K.
+        unfold UIP_refl_ in K.
+        unfold UIP_refl_on_ in K.
+        replace (Forall_hd Hall) with e; try reflexivity.
+        apply UIP.
+      -  assert
+        (Hunroll :
+          filter (predicate_to_function dec_from_projection) (a :: trx)
+          = filter (predicate_to_function dec_from_projection) trx
+        ).
+        { simpl. unfold predicate_to_function at 1. unfold dec_from_projection at 1.
+          rewrite Heq. reflexivity.
+        }
+        unfold finite_trace_projection_list_alt.
+        generalize dependent Hall.
+        rewrite Hunroll.
+        intro Hall.
+        specialize (IHtrx Hall).
+        rewrite <- IHtrx.
+        reflexivity.
+    Qed.
     
     Lemma finite_trace_projection_empty
       (s : @state _ T)
@@ -421,7 +509,7 @@ Section projections.
         reflexivity.
     Qed.
 
-    (* The projection of a protocol trace remains a protocol trace *)
+    (* The projection of a finite protocol trace remains a protocol trace *)
 
     Lemma finite_ptrace_projection
       (s : @state _ T)
@@ -526,18 +614,223 @@ Section projections.
       rewrite <- Hlast.
       assumption.
     Qed.
-      
 
-    (* We axiomatize projection friendliness as the converse of finite_ptrace_projection *)
-    Definition projection_friendly
+    Definition in_projection
+       (tr : Stream (@in_state_out _ T))
+       (n : nat)
+       := from_projection (Str_nth n tr)
+       .
+
+    Definition in_projection_dec
+      := forall (tr : Stream (@in_state_out _ T)),
+           bounding (in_projection tr)
+           + { ss : monotone_nat_stream
+             | filtering_subsequence from_projection tr ss
+             }.
+
+    Definition infinite_trace_projection_stream
+      (ss: Stream (@in_state_out _ T))
+      (ks: monotone_nat_stream)
+      (Hfilter: filtering_subsequence from_projection ss ks)
+      : Stream (@in_state_out _ (IT j))
+      :=
+      let subs := stream_subsequence ss ks in
+      let HForAll := stream_filter_Forall from_projection ss ks Hfilter in
+      let subsP := stream_annotate from_projection subs HForAll in
+      Streams.map
+        (fun item : {a : @in_state_out _ T | from_projection a} =>
+          let (item, e) := item in
+          let lj := eq_rect_r _ (projT2 (l item)) e in
+          @Build_in_state_out _ (type Proj) lj (input item) (destination item j) (output item)
+        )
+        subsP.
+
+    Lemma finite_trace_projection_stream
+      (ss: Stream (@in_state_out _ T))
+      (ks: monotone_nat_stream)
+      (Hfilter: filtering_subsequence from_projection ss ks)
+      (n : nat)
+      (kn := Str_nth n (proj1_sig ks))
+      (ss_to_kn := stream_prefix ss (succ kn))
+      (sproj := infinite_trace_projection_stream ss ks Hfilter)
+      : stream_prefix sproj (succ n) = finite_trace_projection_list ss_to_kn
+      .
+    Proof.
+      unfold sproj. unfold infinite_trace_projection_stream.
+      rewrite <- stream_prefix_map.
+      specialize
+        (stream_prefix_annotate
+          from_projection
+          (stream_subsequence ss ks)
+          (stream_filter_Forall from_projection ss ks Hfilter)
+          (succ n)
+        ); intros [Hall Heq].
+      clear -Heq.
+      assert
+        (Heq' : 
+          (@stream_prefix
+            (@sig (@in_state_out message T)
+              (fun a : @in_state_out message T => from_projection a))
+            (@stream_annotate (@in_state_out message T) from_projection
+              (@stream_subsequence (@in_state_out message T) ss ks)
+              (@stream_filter_Forall (@in_state_out message T) from_projection
+                  ss ks Hfilter)) (succ n))
+          =
+          (@stream_prefix
+            (@sig (@in_state_out message T) from_projection)
+            (@stream_annotate (@in_state_out message T) from_projection
+              (@stream_subsequence (@in_state_out message T) ss ks)
+              (@stream_filter_Forall (@in_state_out message T) from_projection
+                  ss ks Hfilter)) (succ n))
+        ) by reflexivity.
+        rewrite Heq'.
+        rewrite Heq.
+        specialize
+          (stream_filter_prefix
+            from_projection
+            dec_from_projection
+            ss
+            ks
+            Hfilter
+            n
+          ); intros Hsfilter.
+          remember stream_prefix as sp.
+          simpl in Hsfilter. subst.
+          unfold succ in *.
+          generalize dependent Hall.
+          rewrite Hsfilter.
+          intros.
+          unfold ss_to_kn. unfold kn.
+          apply finite_trace_projection_list_alt_iff.
+    Qed.
+
+    Definition trace_projection
+      (Hproj_dec : in_projection_dec)
+      (tr : @Trace _ T)
+      : @Trace _ (IT j).
+    destruct tr as [s ls | s ss].
+    - exact (Finite (s j) (finite_trace_projection_list ls)).
+    - specialize (Hproj_dec ss).
+      destruct Hproj_dec as [[n1 _] | [ks Hfilter]].
+      + exact (Finite (s j) (finite_trace_projection_list (stream_prefix ss n1))).
+      + exact (Infinite (s j) (infinite_trace_projection_stream ss ks Hfilter)).
+    Defined.
+
+    Lemma trace_projection_initial_state
+      (Hproj_dec : in_projection_dec)
+      (tr : @Trace _ T)
+      : trace_initial_state (trace_projection Hproj_dec tr)
+      = trace_initial_state tr j
+      .
+    Proof.
+      destruct tr; try reflexivity.
+      simpl.
+      destruct (Hproj_dec s0).
+      - destruct b; reflexivity.
+      - destruct s1; reflexivity.
+    Qed.
+
+    Lemma infinite_ptrace_projection
+      (s: @state _ T)
+      (ss: Stream in_state_out)
+      (Psj: protocol_state_prop Proj (s j))
+      (Htr: infinite_ptrace_from X s ss)
+      (fs : monotone_nat_stream)
+      (Hfs: filtering_subsequence from_projection ss fs)
+      : infinite_ptrace_from Proj (s j) (infinite_trace_projection_stream ss fs Hfs)
+      .
+    Proof.
+      apply infinite_ptrace_from_prefix_rev.
+      specialize (infinite_ptrace_from_prefix X s ss Htr); intro Hftr.
+      intros [| n].
+      - constructor. assumption.
+      - rewrite finite_trace_projection_stream.
+        apply finite_ptrace_projection; try assumption.
+        apply Hftr.
+    Qed.
+ 
+    (* The projection of an protocol trace remains a protocol trace *)
+
+    Lemma ptrace_from_projection
+      (Hproj_dec : in_projection_dec)
+      (tr : @Trace _ T)
+      (Psj : protocol_state_prop Proj (trace_initial_state tr j))
+      (Htr : ptrace_from_prop X tr)
+       : ptrace_from_prop Proj (trace_projection Hproj_dec tr).
+    Proof.
+      destruct tr as [s ls | s ss].
+      - apply finite_ptrace_projection; assumption.
+      - simpl. destruct (Hproj_dec ss) as [[n _]|Hinf].
+        + apply finite_ptrace_projection; try assumption.
+          apply infinite_ptrace_from_prefix. assumption.
+        + destruct Hinf as [ks HFilter].
+          apply infinite_ptrace_projection; assumption.
+    Qed.
+
+    Lemma protocol_trace_projection
+      (Hproj_dec : in_projection_dec)
+      (tr : @Trace _ T)
+      (Htr : protocol_trace_prop X tr)
+      : protocol_trace_prop Proj (trace_projection Hproj_dec tr).
+    Proof.
+      assert (Hfrom := protocol_trace_from X tr Htr).
+      assert (Hinit := protocol_trace_initial X tr Htr).
+      apply protocol_trace_from_iff.
+      split.
+      - apply ptrace_from_projection; try assumption.
+        apply protocol_state_prop_iff.
+        left.
+        apply initial_state_projection in Hinit.
+        exists (exist _ _ Hinit).
+        reflexivity.
+      - rewrite trace_projection_initial_state.
+        apply initial_state_projection.
+        assumption.
+    Qed.
+
+    (* We axiomatize projection friendliness as the converse of protocol_trace_projection *)
+    Definition finite_projection_friendly
       := forall
         (sj : @state _ (IT j))
         (trj : list (@in_state_out _ (IT j)))
-        (Htrj : finite_ptrace_from Proj sj trj),
+        (Htrj : finite_ptrace Proj sj trj),
         exists (sx : @state _ T) (trx : list (@in_state_out _ T)),
-          finite_ptrace_from X sx trx
+          finite_ptrace X sx trx
           /\ sx j = sj
           /\ finite_trace_projection_list trx = trj.
+
+    Definition projection_friendly
+      (Hproj_dec : in_projection_dec)
+      := forall
+      (trj : @Trace _ (IT j))
+      (Htrj : protocol_trace_prop Proj trj),
+      exists (tr : @Trace _ T),
+        protocol_trace_prop X tr
+        /\ trace_projection Hproj_dec tr = trj.
+    
+    Lemma projection_friendly_finite
+      (Hproj_dec : in_projection_dec)
+      (Hfr : projection_friendly Hproj_dec)
+      : finite_projection_friendly
+      .
+    Proof.
+      unfold finite_projection_friendly;  intros.
+      specialize (Hfr (Finite sj trj) Htrj).
+      destruct Hfr as [[s tr| s tr] [Htr Heq]].
+      + exists s. exists tr.
+        split; try assumption.
+        unfold trace_projection in Heq.
+        inversion Heq.
+        split; reflexivity.
+      + unfold trace_projection in Heq.
+        destruct (Hproj_dec tr) as [[n1 _] | (ks, Hfilter)]; inversion Heq.
+        subst; clear Heq.
+        exists s. exists (stream_prefix tr n1).
+        destruct Htr as [Htr Hinit].
+        repeat split; try reflexivity; try assumption.
+        apply infinite_ptrace_from_prefix.
+        assumption.
+    Qed.
 
     Lemma proj_message_full_protocol_prop
       (Full := message_full_vlsm (IM j))

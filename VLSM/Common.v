@@ -2,7 +2,7 @@ Require Import List Streams ProofIrrelevance Coq.Arith.Plus Coq.Arith.Minus.
 Import ListNotations.
  
 From CasperCBC
-Require Import Lib.Preamble Lib.ListExtras.
+Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
 
 (* 2.2.1 VLSM Parameters *)
   Class VLSM_type (message : Type) :=
@@ -581,6 +581,28 @@ Require Import Lib.Preamble Lib.ListExtras.
       assumption.
     Qed.
 
+    Lemma infinite_ptrace_from_prefix_rev
+      (s : state)
+      (ls : Stream in_state_out)       
+      (Hpref: forall n : nat, finite_ptrace_from s (stream_prefix ls n))
+      : infinite_ptrace_from s ls
+      .
+    Proof.
+      generalize dependent Hpref. generalize dependent s. generalize dependent ls.
+      cofix H.
+      intros (a, ls) s Hpref.
+      assert (Hpref0 := Hpref 1).
+      inversion Hpref0; subst.
+      constructor; try assumption.
+      apply H.
+      intro n.
+      specialize (Hpref (S n)).
+      simpl in Hpref.
+      inversion Hpref; subst.
+      assumption.
+    Qed.
+
+
     Lemma infinite_ptrace_from_segment
       (s : state)
       (ls : Stream in_state_out)       
@@ -624,6 +646,37 @@ Require Import Lib.Preamble Lib.ListExtras.
       | Finite s ls => finite_ptrace_from s ls
       | Infinite s sm => infinite_ptrace_from s sm
       end.
+    
+    Lemma protocol_trace_from
+      (tr : Trace)
+      (Htr : protocol_trace_prop tr)
+      : ptrace_from_prop tr
+      .
+    Proof.
+      destruct tr; simpl; destruct Htr as [Htr Hinit]; assumption.
+    Qed.
+    
+    Lemma protocol_trace_initial
+      (tr : Trace)
+      (Htr : protocol_trace_prop tr)
+      : initial_state_prop (trace_initial_state tr)
+      .
+    Proof.
+      destruct tr; simpl; destruct Htr as [Htr Hinit]; assumption.
+    Qed.
+
+    Lemma protocol_trace_from_iff
+      (tr : Trace)
+      : protocol_trace_prop tr
+      <-> ptrace_from_prop tr /\ initial_state_prop (trace_initial_state tr)
+      .
+    Proof.
+      split.
+      - intro Htr; split.
+        + apply protocol_trace_from; assumption.
+        + apply protocol_trace_initial; assumption.
+      - destruct tr; simpl; intros [Htr Hinit]; split; assumption.
+    Qed.
 
     Definition protocol_trace : Type :=
       { tr : Trace | protocol_trace_prop tr}.
