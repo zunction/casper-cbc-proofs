@@ -1,14 +1,50 @@
 Require Import List Streams ProofIrrelevance Coq.Arith.Plus Coq.Arith.Minus.
 Import ListNotations.
- 
+
 From CasperCBC
 Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
 
-(* 2.2.1 VLSM Parameters *)
+(**
+* Basic VLSM infrastructure
+*)
+
+(**
+
+** VLSM definition
+
+*** The type of a VLSM
+
+The type of a VLSM is a triple consisting of the undelying types of
+messages, states, and labels.
+
+In Coq it is defined as a Class taking <<message>> as parameter and having
+[state] and [label] as fields.  <<message>> is a parameter to allow it to be
+easily shared by multiple VLSMs during composition.
+
+*)
   Class VLSM_type (message : Type) :=
     { state : Type
     ; label : Type
     }.
+
+(**
+
+*** The signature of a VLSM
+
+Although the VLSM definition does not single out the notion of a VLSM
+signature, we find it convenient to extract it as the [LSM_sig] class.
+
+The [LSM_sig] class is parameterized by a [VLSM_type] and defines properties
+for initial states ([initial_state_prop]) and initial messages
+([initial_message_prop]), from which we can immediately define the dependent
+types [initial_state] (as [state]s having the [initial_state_prop]erty) and
+[intial_message] (as <<message>>s having the [initial_message_prop]erty).
+
+Additionally, [LSM_sig] requires the identification of an [initial_state] [s0],
+a <<message>> [m0], and a [label] [l0] to ensure the non-emptiness of the
+corresponding sets.
+
+*)
 
   Class LSM_sig {message : Type} (vtype : VLSM_type message) :=
     { initial_state_prop : state -> Prop
@@ -20,10 +56,26 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     ; l0 : label
     }.
 
+(**
+
+*** VLSM class definition
+
+Given a V[LSM_sig]nature, a [VLSM] is defined by providing a [transition]
+function and a [valid]ity condition.
+
+*)
+
   Class VLSM {message : Type} {vtype : VLSM_type message} (lsm : LSM_sig vtype) :=
     { transition : label -> state * option message -> state * option message
     ; valid : label -> state * option message -> Prop
     }.
+
+(**
+
+Given a [VLSM], it is convenient to be able to retrieve its V[LSM_sig]nature
+or [VLSM_type]. Functions [sign] and [type] below achieve this precise purpose.
+
+*)
 
   Definition sign
     {message : Type}
@@ -41,17 +93,47 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
 
   Section VLSM.
 
+(**
+
+In this section we assume a fixed [VLSM].
+*)
+
     Context
       {message : Type}
       {vtype : VLSM_type message}
       {Sig : LSM_sig vtype}
-      (vlsm : VLSM Sig). 
+      (vlsm : VLSM Sig).
 
-  (* 2.2.2 VLSM protocol states and protocol messages *)
 
-  (* We choose here to use the second definition hinted at the end of Section 2.2.2,
-     i.e., we define states and messages together as a property over a product type.
-  *)
+
+(**
+
+*** Protocol states and messages
+
+We further characterize certain objects as being _protocol_, which means they can
+be witnessed or experienced during executions of the protocol. For example,
+a message is a [protocol_message] if there exists an execution of the protocol
+in which it is produced.
+
+We choose here to define protocol states and messages together as the
+[protocol_prop] property, inductively defined over the
+[state * option message] product type,
+as this definition avoids the need of using a mutually recursive definition.
+
+The inductive definition has three cases:
+- if <<s>> is a [state] with the [initial_state_prop]erty, then <<(s, None)>> has the [protocol_prop]erty;
+- if <<m>> is a <<message>> with the [initial_message_prop]erty, then <<(>>[s0, Some]<< m)>> has the [protocol_prop]erty;
+- for all [state]s <<s>>, [option]al <<message>> <<om>>,
+  and [label] <<l>>:
+
+  if there is an (optional) <<message>> <<_om>> such that <<(s, _om)>> has the [protocol_prop]erty;
+
+  and if there is a [state] <<_s>> such that <<(_s, om)>> has the [protocol_prop]erty;
+
+  and if <<l>> [valid] <<(s, om)>>,
+
+  then [transition] <<l (s, om)>> has the [protocol_prop]erty.
+*)
 
     Inductive protocol_prop : state * option message -> Prop :=
     | protocol_initial_state
@@ -74,197 +156,146 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         (Hv : valid l (s, om))
       : protocol_prop (transition l (s, om)).
 
+(**
+
+The [protocol_state_prop]erty and the [protocol_message_prop]erty are now
+definable as simple projections of the above definition.
+
+Moreover, we use these derived properties to define the corresponding
+dependent types [protocol_state] and [protocol_message].
+
+*)
+
     Definition protocol_state_prop (s : state) :=
       exists om : option message, protocol_prop (s, om).
 
     Definition protocol_message_prop (m : message) :=
       exists s : state, protocol_prop (s, (Some m)).
-    
-    Definition option_protocol_message_prop (om : option message) :=
-      match om with 
-      | None => True
-      | Some m => protocol_message_prop m
-      end.
 
     Definition protocol_state : Type :=
       { s : state | protocol_state_prop s }.
 
     Definition protocol_message : Type :=
       { m : message | protocol_message_prop m }.
-    
-    (* Restating validity and transition using protocol_state and protocol_messages. *)
+
+(**
+As often times we work with optional protocol messages, it is convenient
+to define a protocol message property for optional messages:
+*)
+
+    Definition option_protocol_message_prop (om : option message) :=
+      exists s : state, protocol_prop (s, om).
+
+    Lemma option_protocol_message_None
+      : option_protocol_message_prop None.
+    Proof.
+      exists (proj1_sig s0). apply protocol_initial_state.
+    Qed.
+
+    Lemma option_protocol_message_Some
+      (m : message)
+      (Hpm : protocol_message_prop m)
+      : option_protocol_message_prop (Some m)
+      .
+    Proof.
+      destruct Hpm as [s Hpm]. exists s. assumption.
+    Qed.
+
+(**
+**** Recovering the mutually-recursive definitions as lemmas
+
+The definition and results below show that the mutually-recursive definitions
+for [protocol_state]s and [protocol_message]s can be derived from the
+prior definitions.
+
+To achieve this, it is useful to further define _protocol_ validity and
+_protocol_ transitions:
+*)
 
     Definition protocol_valid
                (l : label)
-               (ps_opm : protocol_state * option protocol_message)
-      : Prop :=
-      valid l (proj1_sig (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
+               (som : state * option message)
+      : Prop
+      :=
+      let (s, om) := som in
+         protocol_state_prop s
+      /\ option_protocol_message_prop om
+      /\ valid l (s,om)
+      .
+
+(* begin hide *)
+    Lemma protocol_generated_valid
+      {l : label}
+      {s : state}
+      {_om : option message}
+      {_s : state}
+      {om : option message}
+      (Hps : protocol_prop (s, _om))
+      (Hpm : protocol_prop (_s, om))
+      (Hv : valid l (s, om))
+      : protocol_valid l (s, om)
+      .
+    Proof.
+      repeat split; try assumption.
+      - exists _om. assumption.
+      - exists _s. assumption.
+    Qed.
+(* end hide *)
 
     Definition protocol_transition
-               (l : label)
-               (ps_opm : protocol_state * option protocol_message)
-      : state * option message :=
-      transition l (proj1_sig (fst ps_opm), option_map (@proj1_sig _ _) (snd ps_opm)).
-
-    Definition lift_option_proto_message 
-               (om : option message)
-               (_s : state)
-               (Hm : protocol_prop (_s, om))
-      : option protocol_message.
-      destruct om as [m|].
-      - apply Some. exists m. exists _s. assumption.
-      - exact None.
-    Defined.
-
-    (* Protocol state characterization - similar to the definition in the report. *)
-
-    Lemma protocol_state_prop_iff :
-      forall s' : state,
-        protocol_state_prop s'
-        <-> (exists is : initial_state, s' = proj1_sig is)
-          \/ exists (s : protocol_state) (l : label) (om : option protocol_message),
-            protocol_valid l (s, om)
-            /\ s' = fst (protocol_transition l (s, om)).
-    Proof.
-      intros; split.
-      - intro Hps'. destruct Hps' as [m' Hs].
-        inversion Hs; subst
-        ; try (left; exists is; reflexivity)
-        ; try (left; exists s0; reflexivity).
-        right. exists (exist _ s (ex_intro _ _ Hps)). exists l.
-        exists (lift_option_proto_message om _s Hpm).
-        unfold protocol_valid. unfold protocol_transition.
-        unfold lift_option_proto_message. 
-        destruct om as [m|]; simpl
-        ; simpl
-        ; rewrite H0
-        ; split
-        ; auto
-        .
-      - intros [[[s His] Heq] | [[s Hps] [l [om [Hv Ht]]]]]; subst.
-        + exists None. apply protocol_initial_state.
-        + exists (snd (protocol_transition l (exist (fun s1 : state => protocol_state_prop s1) s Hps, om))).
-          destruct Hps as [_om Hps].
-          specialize (protocol_generated l s _om Hps); intros Hps'.
-          unfold protocol_transition.
-          destruct om as [[m [_s Hpm]]|].
-          * specialize (Hps' _s (Some m) Hpm Hv). simpl.
-            destruct (transition l (s, Some m)) as [s' om'].
-            assumption.
-          * specialize (Hps' (proj1_sig s0) None (protocol_initial_state s0) Hv). simpl.
-            destruct (transition l (s, None)) as [s' om']. assumption.
-    Qed.
-
-    (* Protocol message characterization - similar to the definition in the report. *)
-
-    Lemma protocol_message_prop_iff :
-      forall m' : message,
-        protocol_message_prop m'
-        <-> (exists im : initial_message, m' = proj1_sig im)
-          \/ exists (s : protocol_state) (l : label) (om : option protocol_message),
-            protocol_valid l (s, om)
-            /\ Some m' = snd (protocol_transition l (s, om)).
-    Proof.
-      intros; split.
-      - intros [s' Hpm'].
-        inversion Hpm'; subst
-        ; try (left; exists im; reflexivity).
-        right. exists (exist _ s (ex_intro _ _ Hps)). exists l.
-        exists (lift_option_proto_message om _s Hpm).
-        unfold protocol_valid. unfold protocol_transition.
-        unfold lift_option_proto_message. 
-        destruct om as [m|]
-        ; simpl
-        ; rewrite H0
-        ; split
-        ; auto
-        .
-      - intros [[[m Him] Heq] | [[s Hps] [l [om [Hv Ht]]]]]; subst.
-        + exists (proj1_sig s0). apply protocol_initial_message.
-        + exists (fst (protocol_transition l (exist (fun s1 : state => protocol_state_prop s1) s Hps, om))).
-          destruct Hps as [_om Hps].
-          specialize (protocol_generated l s _om Hps); intros Hps'.
-          unfold protocol_transition.
-          destruct om as [[m [_s Hpm]]|]
-          ; specialize (Hps' _s (Some m) Hpm Hv) || specialize (Hps' (proj1_sig s0) None (protocol_initial_state s0) Hv)
-          ; simpl
-          ; unfold protocol_transition in Ht; simpl in Ht
-          ; destruct (transition l (s, Some m)) as [s' om'] || destruct (transition l (s, None)) as [s' om']
-          ; simpl in Ht; subst
-          ;  assumption
-          .
-    Qed.
-
-    Corollary protocol_state_destruct :
-      forall s' : protocol_state,
-        (exists is : initial_state, proj1_sig s' = proj1_sig is)
-        \/ exists (s : protocol_state) (l : label) (om : option protocol_message),
-          protocol_valid l (s, om)
-          /\ proj1_sig s' = fst (protocol_transition l (s, om)).
-    Proof.
-      intros [s' Hps']. simpl. apply protocol_state_prop_iff. assumption.
-    Qed.
-
-    (* Induction principle for protocol states *)
-
-    Lemma protocol_state_ind
-      : forall (P : state -> Prop),
-        (forall is : initial_state, P (proj1_sig is)) ->
-        (forall (s : protocol_state) (Hind : P (proj1_sig s)) (l : label) (om : option protocol_message)
-           (Hv : protocol_valid l (s, om)),
-            P (fst (protocol_transition l (s, om)))) ->
-        (forall s : protocol_state, P (proj1_sig s)).
-    Proof.
-      intros P HIi HIt.
-      assert (Hind : forall som' : state * option message, protocol_prop som' -> P (fst som')).
-      { intros som' Hp.
-        induction Hp; try apply HIi.
-        specialize (HIt (exist _ s (ex_intro _ _ Hp1)) IHHp1 l (lift_option_proto_message om _s Hp2)).
-        unfold protocol_valid in HIt. 
-        unfold lift_option_proto_message in HIt. 
-        destruct om as [m|]
-        ; specialize (HIt Hv)
-        ; assumption.
-      }
-      intros [s' [om' Hps]]. simpl.
-      specialize (Hind (s', om') Hps). assumption.
-    Qed.
-
-    (* Section 2.2.3 Valid VLSM transitions, VLSM traces, and VLSM identity *)
-
-    (* Valid VLSM transitions *)
-
-    Definition verbose_valid_protocol_transition
-               (l : label)
-               (s s' : state)
-               (om om' : option message)
-      := (exists (_om : option message), protocol_prop (s, _om))
-      /\ (exists (_s : state), protocol_prop (_s, om))
-      /\  valid l (s, om)
-      /\  transition l (s, om) = (s', om')
+      (l : label)
+      (som : state * option message)
+      (som' : state * option message)
+      :=
+      protocol_valid l som
+      /\  transition l som = som'
       .
+
+(* begin hide *)
+    Lemma protocol_transition_valid
+      (l : label)
+      (som : state * option message)
+      (som' : state * option message)
+      (Ht : protocol_transition l som som')
+      : protocol_valid l som.
+    Proof.
+      destruct Ht as [Hpv Ht].
+      assumption.
+    Qed.
+
+    Lemma protocol_valid_transition
+      (l : label)
+      (som : state * option message)
+      (Hv : protocol_valid l som)
+      : exists (som' : state * option message),
+        protocol_transition l som som'
+      .
+    Proof.
+      exists (transition l som).
+      repeat split; assumption.
+    Qed.
 
     Lemma protocol_transition_origin
           {l : label}
           {s s' : state}
           {om om' : option message}
-          (Ht : verbose_valid_protocol_transition l s s' om om')
+          (Ht : protocol_transition l (s, om) (s',om'))
       : protocol_state_prop s
     .
     Proof.
-      destruct Ht as [[_om Hp] _]. exists _om. assumption.
+      destruct Ht as [[[_om Hp] _] _]. exists _om. assumption.
     Qed.
 
     Lemma protocol_transition_destination
           {l : label}
           {s s' : state}
           {om om' : option message}
-          (Ht : verbose_valid_protocol_transition l s s' om om')
+          (Ht : protocol_transition l (s, om) (s', om'))
       : protocol_state_prop s'
     .
     Proof.
-      exists om'. 
-      destruct Ht as [[_om Hs] [[_s Hom] [Hv Ht]]].
+      exists om'.
+      destruct Ht as [[[_om Hs] [[_s Hom] Hv]] Ht].
       rewrite <- Ht. apply protocol_generated with _om _s; assumption.
     Qed.
 
@@ -273,11 +304,11 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           {s s' : state}
           {m : message}
           {om' : option message}
-          (Ht : verbose_valid_protocol_transition l s s' (Some m) om')
+          (Ht : protocol_transition l (s, (Some m)) (s', om'))
       : protocol_message_prop m
     .
     Proof.
-      destruct Ht as [_ [[_s Hom] _]].
+      destruct Ht as [[_ [[_s Hom] _]] _].
       exists _s. assumption.
     Qed.
 
@@ -285,7 +316,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           {l : label}
           {s s' : state}
           {om om' : option message}
-          (Ht : verbose_valid_protocol_transition l s s' om om')
+          (Ht : protocol_transition l (s, om) (s', om'))
       : exists _s, protocol_prop (_s, om).
     Proof.
       destruct om as [m|].
@@ -294,28 +325,27 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       - exists (proj1_sig s0). constructor.
     Qed.
 
-    Lemma protocol_transition_out
-          {l : label}
-          {s s' : state}
-          {om : option message}
-          {m' : message}
-          (Ht : verbose_valid_protocol_transition l s s' om (Some m'))
-      : protocol_message_prop m'
-    .
-    Proof.
-      exists s'. 
-      destruct Ht as [[_om Hs] [[_s Hom] [Hv Ht]]].
-      rewrite <- Ht. apply protocol_generated with _om _s; assumption.
-    Qed.
-
-    Lemma protocol_transition_valid
+    Lemma protocol_prop_transition_out
           {l : label}
           {s s' : state}
           {om om' : option message}
-          (Ht : verbose_valid_protocol_transition l s s' om om')
+          (Ht : protocol_transition l (s, om) (s', om'))
+        : protocol_prop (s', om')
+        .
+    Proof.
+      destruct Ht as [[[_om Hps] [[_s Hpm] Hv]] Ht].
+      rewrite <- Ht.
+      apply protocol_generated with _om _s; assumption.
+    Qed.
+
+    Lemma protocol_transition_is_valid
+          {l : label}
+          {s s' : state}
+          {om om' : option message}
+          (Ht : protocol_transition l (s, om) (s', om'))
       : valid l (s, om).
     Proof.
-      destruct Ht as [_ [_ [Hv _]]].
+      destruct Ht as [[_ [_ Hv]] _].
       assumption.
     Qed.
 
@@ -323,71 +353,200 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           {l : label}
           {s s' : state}
           {om om' : option message}
-          (Ht : verbose_valid_protocol_transition l s s' om om')
+          (Ht : protocol_transition l (s, om) (s', om'))
         :  transition l (s, om) = (s', om')
       .
      Proof.
-      destruct Ht as [_ [_ [_ Ht]]]. assumption.
+      destruct Ht as [_ Ht]. assumption.
      Qed.
 
+    Lemma protocol_prop_valid_out
+      (l : label)
+      (s : state)
+      (om : option message)
+      (Hv : protocol_valid l (s, om))
+      : protocol_prop (transition l (s, om))
+      .
+    Proof.
+      apply protocol_valid_transition in Hv.
+      destruct Hv as [[s' om'] Ht].
+      specialize (protocol_transition_transition  Ht); intro Hteq.
+      rewrite Hteq.
+      apply (protocol_prop_transition_out Ht).
+    Qed.
 
-    (* Valid VLSM traces *) 
-    Record in_state_out :=
+(* end hide *)
+
+(**
+  It can easily be seen that these two notions are strongly related.
+*)
+
+    Lemma protocol_valid_transition_iff
+      (l : label)
+      (som : state * option message)
+      : protocol_valid l som
+      <-> exists (som' : state * option message),
+            protocol_transition l som som'
+      .
+    Proof.
+      split.
+      - apply protocol_valid_transition.
+      - intros [som' Hpt].
+        apply protocol_transition_valid with som'.
+        assumption.
+    Qed.
+
+(**
+The results below offers equivalent characterizations for [protocol_state]s
+and [protocol_message]s, similar to their recursive definition.
+*)
+
+    Lemma protocol_state_prop_iff :
+      forall s' : state,
+        protocol_state_prop s'
+        <-> (exists is : initial_state, s' = proj1_sig is)
+          \/ exists (l : label) (som : state * option message) (om' : option message),
+            protocol_transition l som (s', om').
+    Proof.
+      intros; split.
+      - intro Hps'. destruct Hps' as [om' Hs].
+        inversion Hs; subst
+        ; try (left; exists is; reflexivity)
+        ; try (left; exists s0; reflexivity).
+        right. exists l. exists (s, om). exists om'.
+        repeat split; try assumption.
+        + exists _om. assumption.
+        + exists _s. assumption.
+      - intros [[[s His] Heq] | [l [[s om] [om' [[[_om Hps] [[_s Hpm] Hv]] Ht]]]]]; subst.
+        + exists None. apply protocol_initial_state.
+        + exists om'. rewrite <- Ht. apply protocol_generated with _om _s; assumption.
+    Qed.
+
+    (* Protocol message characterization - similar to the definition in the report. *)
+
+    Lemma protocol_message_prop_iff :
+      forall m' : message,
+        protocol_message_prop m'
+        <-> (exists im : initial_message, m' = proj1_sig im)
+          \/ exists (l : label) (som : state * option message) (s' : state),
+            protocol_transition l som (s', Some m').
+    Proof.
+      intros; split.
+      - intros [s' Hpm'].
+        inversion Hpm'; subst
+        ; try (left; exists im; reflexivity).
+        right. exists l. exists (s, om). exists s'.
+        repeat split; try assumption.
+        + exists _om. assumption.
+        + exists _s. assumption.
+      - intros [[[s His] Heq] | [l [[s om] [s' [[[_om Hps] [[_s Hpm] Hv]] Ht]]]]]; subst.
+        + exists (proj1_sig s0). apply protocol_initial_message.
+        + exists s'. rewrite <- Ht.
+          apply protocol_generated with _om _s; assumption.
+    Qed.
+
+(**
+** Traces
+
+We introduce the concept of a trace to formalize an execution of the protocol.
+It is abstracted as a pair <<(start, steps)>> where <<start>> is a state
+and <<steps>> is a tuple of objects which fully describe the transitions
+underwent during execution. Notably, <<steps>> might be infinite.
+
+In Coq, we can define these objects (which we name [transition_item]s) as consisting of:
+- the [label] [l]
+- the (optional) [input] <<message>>
+- the [destination] [state] of the transition
+- the (optional) [output] <<message>> generated by the transition
+
+*)
+    Record transition_item :=
       {   l : label
           ;   input : option message
           ;   destination : state
           ;   output : option message
       }.
 
-    (* A finite protocol trace originating in a given state *)
-    
-    Inductive finite_ptrace_from : state -> list in_state_out -> Prop :=
-    | finite_ptrace_empty : forall (s : state), protocol_state_prop s -> finite_ptrace_from s []
-    | finite_ptrace_extend : forall  (s : state) (tl : list in_state_out),
-        finite_ptrace_from s tl ->  
-        forall (s' : state) (iom oom : option message) (l : label),
-          verbose_valid_protocol_transition l s' s iom oom ->
-          finite_ptrace_from  s' ({| l := l; input := iom; destination := s; output := oom |} :: tl).
+(**
+Note that it is unnecessary to specify the source state of the transition,
+as it is implied by the preceding [transition_item] (or by the <<start>> state,
+if such an item doesn't exist).
+*)
 
+(* *)
+
+(**
+We will now split our groundwork for defining traces into the finite case and
+the infinite case.
+*)
+
+(* *)
+
+(**
+A [finite_protocol_trace_from] a [state] <<start>> is a pair <<(start, steps)>> where <<steps>>
+is a list of [transition_item]s, and is inductively defined by:
+- <<(s, [])>> is a [finite_protocol_trace_from] <<s>>
+- if there is a [protocol_transition] <<l (s', iom) (s, oom)>>
+
+  and if <<(s,steps)>> is a [protocol_trace_from] <<s>>
+
+  then <<(s', ({| l := l; input := iom; destination := s; output := oom |} :: steps)>>
+  is a [protocol_transition_from] <<s'>>.
+
+Note that the definition is given such that it extends an existing trace by
+adding a transition to its front.
+The reason for this choice is to have this definition be similar to the one
+for infinite traces, which can only be extended at the front.
+*)
+
+    Inductive finite_protocol_trace_from : state -> list transition_item -> Prop :=
+    | finite_ptrace_empty : forall (s : state), protocol_state_prop s -> finite_protocol_trace_from s []
+    | finite_ptrace_extend : forall  (s : state) (tl : list transition_item),
+        finite_protocol_trace_from s tl ->
+        forall (s' : state) (iom oom : option message) (l : label),
+          protocol_transition l (s', iom) (s, oom) ->
+          finite_protocol_trace_from  s' ({| l := l; input := iom; destination := s; output := oom |} :: tl).
+
+(* begin hide *)
     Lemma finite_ptrace_first_valid_transition
           (s : state)
-          (tr : list in_state_out)
-          (te : in_state_out)
-          (Htr : finite_ptrace_from s (te :: tr))
-      : verbose_valid_protocol_transition (l te) s (destination te) (input te) (output te).
+          (tr : list transition_item)
+          (te : transition_item)
+          (Htr : finite_protocol_trace_from s (te :: tr))
+      : protocol_transition (l te) (s, input te) (destination te, output te).
     Proof.
       inversion Htr. assumption.
     Qed.
 
     Lemma finite_ptrace_first_pstate
       (s : state)
-      (tr : list in_state_out)
-      (Htr : finite_ptrace_from s tr)
+      (tr : list transition_item)
+      (Htr : finite_protocol_trace_from s tr)
       : protocol_state_prop s
       .
     Proof.
       inversion Htr; subst; try assumption.
-      - inversion H0. assumption.
+      - destruct H0 as [[Hs _] _]. assumption.
     Qed.
 
     Lemma finite_ptrace_tail
           (s : state)
-          (tr : list in_state_out)
-          (te : in_state_out)
-          (Htr : finite_ptrace_from s (te :: tr))
-      : finite_ptrace_from (destination te) tr.
+          (tr : list transition_item)
+          (te : transition_item)
+          (Htr : finite_protocol_trace_from s (te :: tr))
+      : finite_protocol_trace_from (destination te) tr.
     Proof.
       inversion Htr. assumption.
     Qed.
 
     Lemma finite_ptrace_consecutive_valid_transition
           (s : state)
-          (tr tr2 : list in_state_out)
-          (tr1 : list in_state_out)
-          (te1 te2 : in_state_out)
-          (Htr : finite_ptrace_from s tr)
+          (tr tr2 : list transition_item)
+          (tr1 : list transition_item)
+          (te1 te2 : transition_item)
+          (Htr : finite_protocol_trace_from s tr)
           (Heq : tr = tr1 ++ [te1; te2] ++ tr2)
-      : verbose_valid_protocol_transition (l te2) (destination te1) (destination te2) (input te2) (output te2).
+      : protocol_transition (l te2) (destination te1, input te2) (destination te2, output te2).
     Proof.
       generalize dependent s. generalize dependent tr.
       induction tr1.
@@ -396,15 +555,22 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         intros tr Heq is Htr; subst. inversion Htr; subst.
         simpl in IHtr1. specialize (IHtr1 s H2). assumption.
     Qed.
+(* end hide *)
 
-    Definition finite_ptrace (s : state) (ls : list in_state_out) : Prop :=
-      finite_ptrace_from s ls /\ initial_state_prop s.
+(**
+To complete our definition of a finite protocol trace, we must also guarantee that <<start>> is an
+initial state according to the protocol.
+*)
 
+    Definition finite_protocol_trace (s : state) (ls : list transition_item) : Prop :=
+      finite_protocol_trace_from s ls /\ initial_state_prop s.
+
+        (* begin hide *)
     Lemma extend_right_finite_trace_from
       : forall s1 ts s3 iom3 oom3 l3 (s2 := List.last (List.map destination ts) s1),
-        finite_ptrace_from s1 ts ->
-        verbose_valid_protocol_transition l3 s2 s3 iom3 oom3 ->
-        finite_ptrace_from s1 (ts ++ [{| l := l3; destination := s3; input := iom3; output := oom3 |}]).
+        finite_protocol_trace_from s1 ts ->
+        protocol_transition l3 (s2, iom3) (s3, oom3) ->
+        finite_protocol_trace_from s1 (ts ++ [{| l := l3; destination := s3; input := iom3; output := oom3 |}]).
     Proof.
       intros s1 ts s3 iom3 oom3 l3 s2 Ht12 Hv23.
       induction Ht12.
@@ -425,62 +591,75 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         eapply remove_hd_last.
     Qed.
 
-    Lemma finite_ptrace_from_app_iff (s : state) (ls ls' : list in_state_out) (s' := (last (List.map destination ls) s))
-      : finite_ptrace_from s ls /\ finite_ptrace_from s' ls'
+    (* end hide *)
+
+(**
+We can now prove several general properties of [finite_protocol_trace]s. For example,
+the following lemma states that given two such traces, such that the latter's starting state
+is equal to the former's last state, it is possible to _concatenate_ them into a single
+[finite_protocol_trace].
+*)
+
+    Lemma finite_protocol_trace_from_app_iff (s : state) (ls ls' : list transition_item) (s' := (last (List.map destination ls) s))
+      : finite_protocol_trace_from s ls /\ finite_protocol_trace_from s' ls'
         <->
-        finite_ptrace_from s (ls ++ ls').
+        finite_protocol_trace_from s (ls ++ ls').
     Proof.
-      intros. generalize dependent ls'. generalize dependent s. 
+      intros. generalize dependent ls'. generalize dependent s.
       induction ls; intros; split.
       - intros [_ H]. assumption.
       - simpl; intros; split; try assumption. constructor. inversion H; try assumption.
         apply (protocol_transition_origin H1).
-      - simpl. intros [Htr Htr']. 
+      - simpl. intros [Htr Htr'].
         destruct a. apply finite_ptrace_extend.
         + apply IHls. inversion Htr. split. apply H2.
-          unfold s' in Htr'. 
+          unfold s' in Htr'.
           assert (last_identity: last (List.map destination ls) destination0 = last
           (List.map destination
              ({| l := l1; input := input0; destination := destination0; output := output0 |} :: ls)) s). {
           rewrite map_cons. rewrite unroll_last. simpl. reflexivity. }
-          rewrite last_identity. assumption. 
+          rewrite last_identity. assumption.
         + inversion Htr. apply H6.
        - intros. inversion H. subst. specialize (IHls s1). simpl in IHls. specialize (IHls ls'). apply IHls in H3.
-         destruct H3. split. 
+         destruct H3. split.
          + constructor. apply H0. apply H4.
          + assert (last_identity : s' = last (List.map destination ls) s1). {
-           unfold s'. rewrite map_cons. rewrite unroll_last. reflexivity. 
+           unfold s'. rewrite map_cons. rewrite unroll_last. reflexivity.
          }
          rewrite last_identity. assumption.
     Qed.
 
-    Lemma finite_ptrace_from_prefix
+(** Several other lemmas in this vein are necessary for proving results regarding
+traces, but we choose to omit them here, as they are not essential to our exposition. *)
+
+    (* begin hide *)
+    Lemma finite_protocol_trace_from_prefix
       (s : state)
-      (ls : list in_state_out)       
-      (Htr : finite_ptrace_from s ls)
+      (ls : list transition_item)
+      (Htr : finite_protocol_trace_from s ls)
       (n : nat)
-      : finite_ptrace_from s (list_prefix ls n).
+      : finite_protocol_trace_from s (list_prefix ls n).
     Proof.
       specialize (list_prefix_suffix ls n); intro Hdecompose.
       rewrite <- Hdecompose in Htr.
-      apply finite_ptrace_from_app_iff in Htr.
+      apply finite_protocol_trace_from_app_iff in Htr.
       destruct Htr as [Hpr _].
       assumption.
     Qed.
 
-    Lemma finite_ptrace_from_suffix
+    Lemma finite_protocol_trace_from_suffix
       (s : state)
-      (ls : list in_state_out)       
-      (Htr : finite_ptrace_from s ls)
+      (ls : list transition_item)
+      (Htr : finite_protocol_trace_from s ls)
       (n : nat)
       (nth : state)
       (Hnth : nth_error (s :: List.map destination ls) n = Some nth)
-      : finite_ptrace_from nth (list_suffix ls n)
+      : finite_protocol_trace_from nth (list_suffix ls n)
       .
     Proof.
       specialize (list_prefix_suffix ls n); intro Hdecompose.
       rewrite <- Hdecompose in Htr.
-      apply finite_ptrace_from_app_iff in Htr.
+      apply finite_protocol_trace_from_app_iff in Htr.
       destruct Htr as [_ Htr].
       assert (Heq : last (List.map destination (list_prefix ls n)) s = nth).
       { rewrite list_prefix_map.
@@ -495,42 +674,48 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       assumption.
     Qed.
 
-    Lemma finite_ptrace_from_segment
+    Lemma finite_protocol_trace_from_segment
       (s : state)
-      (ls : list in_state_out)       
-      (Htr : finite_ptrace_from s ls)
+      (ls : list transition_item)
+      (Htr : finite_protocol_trace_from s ls)
       (n1 n2 : nat)
       (Hle : n1 <= n2)
       (n1th : state)
       (Hnth : nth_error (s :: List.map destination ls) n1 = Some n1th)
-      : finite_ptrace_from n1th (list_segment ls n1 n2).
+      : finite_protocol_trace_from n1th (list_segment ls n1 n2).
     Proof.
-      apply finite_ptrace_from_suffix with s.
-      - apply finite_ptrace_from_prefix. assumption.
+      apply finite_protocol_trace_from_suffix with s.
+      - apply finite_protocol_trace_from_prefix. assumption.
       - destruct n1; try assumption.
         simpl. simpl in Hnth.
         rewrite list_prefix_map.
         rewrite list_prefix_nth; assumption.
     Qed.
+    (* end hide *)
 
-    (* An infinite protocol trace originating in a given state *)
-    
-    CoInductive infinite_ptrace_from :
-      state -> Stream in_state_out -> Prop :=
-    | infinite_ptrace_extend : forall  (s : state) (tl : Stream in_state_out),
-        infinite_ptrace_from s tl ->  
+(** We now define [infinite_protocol_trace]s. The definitions
+resemble their finite counterparts, adapted to the technical
+necessities of defining infinite objects. Notably, <<steps>> is
+stored as a stream, as opposed to a list.
+*)
+
+    CoInductive infinite_protocol_trace_from :
+      state -> Stream transition_item -> Prop :=
+    | infinite_ptrace_extend : forall  (s : state) (tl : Stream transition_item),
+        infinite_protocol_trace_from s tl ->
         forall (s' : state) (iom oom : option message) (l : label),
-          verbose_valid_protocol_transition l s' s iom oom ->
-          infinite_ptrace_from  s' (Cons {| l := l; input := iom; destination := s; output := oom |}  tl).
+          protocol_transition l (s', iom) (s, oom) ->
+          infinite_protocol_trace_from  s' (Cons {| l := l; input := iom; destination := s; output := oom |}  tl).
 
-    Lemma infinite_ptrace_consecutive_valid_transition 
+    (* begin hide *)
+    Lemma infinite_ptrace_consecutive_valid_transition
           (is : state)
-          (tr tr2 : Stream in_state_out)
-          (tr1 : list in_state_out)
-          (te1 te2 : in_state_out)
-          (Htr : infinite_ptrace_from is tr)
+          (tr tr2 : Stream transition_item)
+          (tr1 : list transition_item)
+          (te1 te2 : transition_item)
+          (Htr : infinite_protocol_trace_from is tr)
           (Heq : tr = stream_app (tr1 ++ [te1; te2]) tr2)
-      : verbose_valid_protocol_transition (l te2) (destination te1) (destination te2) (input te2) (output te2).
+      : protocol_transition (l te2) (destination te1, input te2) (destination te2, output te2).
     Proof.
       generalize dependent is. generalize dependent tr.
       induction tr1.
@@ -540,58 +725,58 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         specialize (IHtr1 s H2). assumption.
     Qed.
 
-    Lemma infinite_ptrace_from_app_iff
+    Lemma infinite_protocol_trace_from_app_iff
       (s : state)
-      (ls : list in_state_out)
-      (ls' : Stream in_state_out)
+      (ls : list transition_item)
+      (ls' : Stream transition_item)
       (s' := (last (List.map destination ls) s))
-      : finite_ptrace_from s ls /\ infinite_ptrace_from s' ls'
+      : finite_protocol_trace_from s ls /\ infinite_protocol_trace_from s' ls'
         <->
-        infinite_ptrace_from s (stream_app ls ls').
+        infinite_protocol_trace_from s (stream_app ls ls').
     Proof.
-      intros. generalize dependent ls'. generalize dependent s. 
+      intros. generalize dependent ls'. generalize dependent s.
       induction ls; intros; split.
       - intros [_ H]. assumption.
       - simpl; intros; split; try assumption. constructor. inversion H; try assumption.
         apply (protocol_transition_origin H1).
-      - simpl. intros [Htr Htr']. 
+      - simpl. intros [Htr Htr'].
         destruct a. apply infinite_ptrace_extend.
         + apply IHls. inversion Htr. split. apply H2.
-          unfold s' in Htr'. 
+          unfold s' in Htr'.
           assert (last_identity: last (List.map destination ls) destination0 = last
           (List.map destination
              ({| l := l1; input := input0; destination := destination0; output := output0 |} :: ls)) s). {
           rewrite map_cons. rewrite unroll_last. simpl. reflexivity. }
-          rewrite last_identity. assumption. 
+          rewrite last_identity. assumption.
         + inversion Htr. apply H6.
        - intros. inversion H. subst. specialize (IHls s1). simpl in IHls. specialize (IHls ls'). apply IHls in H3.
-         destruct H3. split. 
+         destruct H3. split.
          + constructor. apply H0. apply H4.
          + assert (last_identity : s' = last (List.map destination ls) s1). {
-           unfold s'. rewrite map_cons. rewrite unroll_last. reflexivity. 
+           unfold s'. rewrite map_cons. rewrite unroll_last. reflexivity.
          }
          rewrite last_identity. assumption.
     Qed.
 
-    Lemma infinite_ptrace_from_prefix
+    Lemma infinite_protocol_trace_from_prefix
       (s : state)
-      (ls : Stream in_state_out)       
-      (Htr : infinite_ptrace_from s ls)
+      (ls : Stream transition_item)
+      (Htr : infinite_protocol_trace_from s ls)
       (n : nat)
-      : finite_ptrace_from s (stream_prefix ls n).
+      : finite_protocol_trace_from s (stream_prefix ls n).
     Proof.
       specialize (stream_prefix_suffix ls n); intro Hdecompose.
       rewrite <- Hdecompose in Htr.
-      apply infinite_ptrace_from_app_iff in Htr.
+      apply infinite_protocol_trace_from_app_iff in Htr.
       destruct Htr as [Hpr _].
       assumption.
     Qed.
 
-    Lemma infinite_ptrace_from_prefix_rev
+    Lemma infinite_protocol_trace_from_prefix_rev
       (s : state)
-      (ls : Stream in_state_out)       
-      (Hpref: forall n : nat, finite_ptrace_from s (stream_prefix ls n))
-      : infinite_ptrace_from s ls
+      (ls : Stream transition_item)
+      (Hpref: forall n : nat, finite_protocol_trace_from s (stream_prefix ls n))
+      : infinite_protocol_trace_from s ls
       .
     Proof.
       generalize dependent Hpref. generalize dependent s. generalize dependent ls.
@@ -609,17 +794,17 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     Qed.
 
 
-    Lemma infinite_ptrace_from_segment
+    Lemma infinite_protocol_trace_from_segment
       (s : state)
-      (ls : Stream in_state_out)       
-      (Htr : infinite_ptrace_from s ls)
+      (ls : Stream transition_item)
+      (Htr : infinite_protocol_trace_from s ls)
       (n1 n2 : nat)
       (Hle : n1 <= n2)
       (n1th := Str_nth n1 (Cons s (Streams.map destination ls)))
-      : finite_ptrace_from n1th (stream_segment ls n1 n2).
+      : finite_protocol_trace_from n1th (stream_segment ls n1 n2).
     Proof.
-      apply finite_ptrace_from_suffix with s.
-      - apply infinite_ptrace_from_prefix. assumption.
+      apply finite_protocol_trace_from_suffix with s.
+      - apply infinite_protocol_trace_from_prefix. assumption.
       - destruct n1; try reflexivity.
         unfold n1th. clear n1th.
         simpl.
@@ -628,31 +813,48 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         reflexivity.
     Qed.
 
-    Definition infinite_ptrace (s : state) (st : Stream in_state_out)
-      := infinite_ptrace_from s st /\ initial_state_prop s.
+    (* end hide *)
+
+    Definition infinite_ptrace (s : state) (st : Stream transition_item)
+      := infinite_protocol_trace_from s st /\ initial_state_prop s.
+
+(**
+Finally, we define [Trace] as a sum-type of its finite/infinite variants.
+It inherits some previously introduced definitions, culminating with the
+[protocol_trace].
+*)
 
     Inductive Trace : Type :=
-    | Finite : state -> list in_state_out -> Trace
-    | Infinite : state -> Stream in_state_out -> Trace.
+    | Finite : state -> list transition_item -> Trace
+    | Infinite : state -> Stream transition_item -> Trace.
 
-    Definition trace_initial_state (tr : Trace) : state :=
-      match tr with 
+    Definition trace_first (tr : Trace) : state :=
+      match tr with
       | Finite s _ => s
       | Infinite s _ => s
-      end. 
+      end.
+
+    Definition trace_last (tr : Trace) : option state
+      :=
+        match tr with
+        | Finite s ls => Some (last (List.map destination ls) s)
+        | Infinite _ _ => None
+        end.
 
     Definition protocol_trace_prop (tr : Trace) : Prop :=
-      match tr with 
-      | Finite s ls => finite_ptrace s ls
+      match tr with
+      | Finite s ls => finite_protocol_trace s ls
       | Infinite s sm => infinite_ptrace s sm
       end.
 
     Definition ptrace_from_prop (tr : Trace) : Prop :=
-      match tr with 
-      | Finite s ls => finite_ptrace_from s ls
-      | Infinite s sm => infinite_ptrace_from s sm
+      match tr with
+      | Finite s ls => finite_protocol_trace_from s ls
+      | Infinite s sm => infinite_protocol_trace_from s sm
       end.
-    
+
+    (* begin hide *)
+
     Lemma protocol_trace_from
       (tr : Trace)
       (Htr : protocol_trace_prop tr)
@@ -661,11 +863,11 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     Proof.
       destruct tr; simpl; destruct Htr as [Htr Hinit]; assumption.
     Qed.
-    
+
     Lemma protocol_trace_initial
       (tr : Trace)
       (Htr : protocol_trace_prop tr)
-      : initial_state_prop (trace_initial_state tr)
+      : initial_state_prop (trace_first tr)
       .
     Proof.
       destruct tr; simpl; destruct Htr as [Htr Hinit]; assumption.
@@ -674,7 +876,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     Lemma protocol_trace_from_iff
       (tr : Trace)
       : protocol_trace_prop tr
-      <-> ptrace_from_prop tr /\ initial_state_prop (trace_initial_state tr)
+      <-> ptrace_from_prop tr /\ initial_state_prop (trace_first tr)
       .
     Proof.
       split.
@@ -684,13 +886,15 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       - destruct tr; simpl; intros [Htr Hinit]; split; assumption.
     Qed.
 
+    (* end hide *)
+
     Definition protocol_trace : Type :=
       { tr : Trace | protocol_trace_prop tr}.
-    
-    (* Protocol runs *) 
+    (* begin hide *)
+    (* Protocol runs *)
     Record proto_run : Type := mk_proto_run
                                  { start : initial_state
-                                   ; transitions : list in_state_out
+                                   ; transitions : list transition_item
                                    ; final : state * option message
                                  }.
 
@@ -765,7 +969,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       specialize (protocol_generated l1 s _om IHHr1 _s om IHHr2 Hv). intro. assumption.
     Qed.
 
-    Lemma protocol_is_run 
+    Lemma protocol_is_run
           (som' : state * option message)
           (Hp : protocol_prop som')
       : exists vr : vlsm_run, (som' = final (proj1_sig vr)).
@@ -773,7 +977,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       induction Hp.
       - exists (exist _ _ (empty_run_initial_state is)); reflexivity.
       - exists (exist _ _ (empty_run_initial_message im)); reflexivity.
-      - destruct IHHp1 as [[state_run Hsr] Heqs]. destruct IHHp2 as [[msg_run Hmr] Heqm]. 
+      - destruct IHHp1 as [[state_run Hsr] Heqs]. destruct IHHp2 as [[msg_run Hmr] Heqm].
         specialize (extend_run state_run Hsr). simpl. intros Hvr.
         specialize (Hvr msg_run Hmr l1). simpl in Heqs. simpl in Heqm.
         rewrite <- Heqs in Hvr. rewrite <- Heqm in Hvr. specialize (Hvr Hv).
@@ -808,21 +1012,21 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
 
     Lemma trace_is_run
       (is : initial_state)
-      (tr : list in_state_out)
-      (Htr : finite_ptrace_from (proj1_sig is) tr)
+      (tr : list transition_item)
+      (Htr : finite_protocol_trace_from (proj1_sig is) tr)
       : exists r : proto_run,
         vlsm_run_prop r /\
         start r = is /\ transitions r = tr
       .
     Proof.
       generalize dependent tr.
-      apply (rev_ind (fun tr => (finite_ptrace_from (proj1_sig is) tr ->
+      apply (rev_ind (fun tr => (finite_protocol_trace_from (proj1_sig is) tr ->
                 exists r : proto_run, vlsm_run_prop r /\ start r = is /\ transitions r = tr))).
       - intros H.
         exists {| start := is; transitions := []; final := (proj1_sig is, None) |}; simpl; repeat split; try reflexivity.
         apply empty_run_initial_state.
-      - intros lst prefix IHprefix H. 
-        apply finite_ptrace_from_app_iff in H.
+      - intros lst prefix IHprefix H.
+        apply finite_protocol_trace_from_app_iff in H.
         destruct H as [Hprefix Hlst].
         specialize (IHprefix Hprefix).
         destruct IHprefix as [r0 [Hr0 [Hstart Htr_r0]]].
@@ -840,7 +1044,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         apply protocol_is_run in Hmsg.
         destruct Hmsg as [[r_msg Hr_msg] Hmsg].
         specialize (Hextend r_msg Hr_msg lst_l).
-        specialize (protocol_transition_valid Hlst); intro Hvalid.
+        specialize (protocol_transition_is_valid Hlst); intro Hvalid.
         simpl in Hmsg. rewrite <- Hmsg in Hextend. simpl  in Hextend.
         specialize (Hextend Hvalid). rewrite Hstart in Hextend.
         specialize (protocol_transition_transition Hlst); intro Htransition.
@@ -849,24 +1053,29 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         apply Hextend.
         Qed.
 
-    (* protocol states/messages correspond to protocol traces *)
+        (* end hide *)
+
+(** Having defined [protocol_trace]s, we now connect them to protocol states
+and messages, in the following sense: for each state-message pair (<<s>>, <<m>>)
+that has the [protocol_prop]erty, there exists a [protocol_trace] which ends
+in <<s>> by outputting <<m>> *)
 
     Lemma protocol_is_trace
-          (som' : state * option message)
-          (Hp : protocol_prop som')
-          (s' := fst som')
-          (om' := snd som')
-         
-      : initial_state_prop s' \/ exists (is : state) (tr : list in_state_out),
-            finite_ptrace is tr
-            /\ option_map destination (last_error tr) = Some s'
-            /\ option_map output (last_error tr) = Some om'.
+          (s : state)
+          (om : option message)
+          (Hp : protocol_prop (s, om))
+
+      : initial_state_prop s
+      \/ exists (is : state) (tr : list transition_item),
+            finite_protocol_trace is tr
+            /\ option_map destination (last_error tr) = Some s
+            /\ option_map output (last_error tr) = Some om.
     Proof.
-      specialize (protocol_is_run som' Hp); intros [vr Heq].
+      specialize (protocol_is_run (s,om) Hp); intros [vr Heq].
       specialize (run_is_trace vr); simpl; intros Htr.
       destruct vr as [r Hvr]; simpl in *.
       destruct (transitions r) eqn:Htrace.
-      - inversion Hvr; subst; simpl in Htrace. 
+      - inversion Hvr; subst; simpl in Htrace; simpl in Heq; inversion Heq; subst.
         + destruct is as [s0 His]. left. assumption.
         + destruct s0 as [s0 His]. left. assumption.
         + destruct ts; inversion Htrace.
@@ -875,51 +1084,53 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         specialize (vlsm_run_last_final (exist _ r Hvr)); simpl; rewrite Htrace; simpl.
         rewrite <- Heq.
         intros Hlf; apply Hlf. intros HC; inversion HC.
-    Qed. 
+    Qed.
 
-    (* Projections of traces *)
-    Inductive Trace_states : Type :=
-    | Finite_states : list state -> Trace_states
-    | Infinite_states : Stream state -> Trace_states.
-
+(**
+Next function extract the nth state of a trace, where the sequence of
+states of a trace is obtained by appending the all destination
+states in the transition list/stream to the initial state of the trace.
+*)
     Definition trace_nth (tr : Trace)
       : nat -> option state :=
       fun (n : nat) =>
         match tr with
         | Finite s ls => nth_error (s::List.map destination ls) n
         | Infinite s st => Some (Str_nth n (Cons s (Streams.map destination st)))
-        end. 
+        end.
 
-    Definition protocol_state_trace (tr : protocol_trace) : Trace_states :=
-      match proj1_sig tr with
-      | Finite s ls => Finite_states (s :: List.map destination ls)
-      | Infinite s st => Infinite_states (Cons s (map destination st)) end.
-    
-    Definition protocol_state_trace_prop (tr : Trace_states)
-      := exists (ptr : protocol_trace), tr = protocol_state_trace ptr.
-    
+(** Another benefit of defining traces is that we can succintly
+describe indirect transitions between arbitrary pairs of states.
+
+We say that state <<second>> is in state <<first>>'s futures if
+there exists a finite (possibly empty) protocol trace that begins
+with <<first>> and ends in <<second>>.
+
+This relation is often used in stating safety and liveness properties.*)
 
     Definition in_futures
       (pfirst psecond : protocol_state)
       (first := proj1_sig pfirst)
       (second := proj1_sig psecond)
       : Prop :=
-      exists (tr : list in_state_out),
-        finite_ptrace_from first tr /\
+      exists (tr : list transition_item),
+        finite_protocol_trace_from first tr /\
         last (List.map destination tr) first = second.
-        
+
+    (* begin hide *)
+
     Lemma in_futures_reflexive
       (pfirst: protocol_state)
       : in_futures pfirst pfirst.
-      
-      Proof.
-      unfold in_futures.
-      exists [].
-      split.
-      - apply finite_ptrace_empty.
-        destruct pfirst. assumption.
-       - simpl. auto.
-      Qed.
+
+    Proof.
+    unfold in_futures.
+    exists [].
+    split.
+    - apply finite_ptrace_empty.
+      destruct pfirst. assumption.
+     - simpl. auto.
+    Qed.
 
     Lemma in_futures_witness
       (pfirst psecond : protocol_state)
@@ -944,14 +1155,14 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       destruct prefix_run as [prefix_run Hpref_run].
       destruct prefix_run as [prefix_start prefix_tr prefix_final].
       subst; simpl in *.
-      specialize (finite_ptrace_from_app_iff (proj1_sig prefix_start) prefix_tr suffix_tr); intro Happ.
+      specialize (finite_protocol_trace_from_app_iff (proj1_sig prefix_start) prefix_tr suffix_tr); intro Happ.
       simpl in Happ.
       rewrite Hprefix_last in Happ. rewrite <- Hprefix_run in Happ.
       simpl in Happ.
       destruct Happ as [Happ _].
       destruct Hprefix_tr as [Hprefix_tr Hinit].
       specialize (Happ (conj Hprefix_tr Hsuffix_tr)).
-      assert (Hfinite_tr: finite_ptrace (proj1_sig prefix_start) (prefix_tr ++ suffix_tr))
+      assert (Hfinite_tr: finite_protocol_trace (proj1_sig prefix_start) (prefix_tr ++ suffix_tr))
         by (constructor; assumption).
       assert (Htr : protocol_trace_prop (Finite (proj1_sig prefix_start) (prefix_tr ++ suffix_tr)))
         by assumption.
@@ -971,7 +1182,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           subst; simpl in *. f_equal.
         * apply nth_error_last.
           rewrite map_length. assumption.
-      + rewrite map_app. 
+      + rewrite map_app.
         assert (Hnth_pref : forall suf, nth_error (List.map destination prefix_tr ++ suf) m = Some first).
         { intro. rewrite nth_error_app1.
           - specialize (nth_error_last (List.map destination prefix_tr) m); intro Hnth.
@@ -990,7 +1201,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           apply Hnth_pref.
         * { rewrite nth_error_app2.
             - rewrite map_length.
-              rewrite <- Heqm. 
+              rewrite <- Heqm.
               assert (Hdelta : m + S delta - S m = delta)
                 by (rewrite <- plus_Snm_nSm; apply minus_plus).
               rewrite Hdelta.
@@ -1007,7 +1218,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     Definition trace_segment
       (tr : Trace)
       (n1 n2 : nat)
-      : list in_state_out
+      : list transition_item
       := match tr with
       | Finite s l => list_segment l n1 n2
       | Infinite s l => stream_segment l n1 n2
@@ -1020,12 +1231,12 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       (Hle : n1 <= n2)
       (first : state)
       (Hfirst : trace_nth tr n1 = Some first)
-      : finite_ptrace_from first (trace_segment tr n1 n2).
+      : finite_protocol_trace_from first (trace_segment tr n1 n2).
     Proof.
       destruct tr as [s tr | s tr]; simpl in *; destruct Htr as [Htr Hinit].
-      - apply finite_ptrace_from_segment with s; try assumption.
+      - apply finite_protocol_trace_from_segment with s; try assumption.
       - inversion Hfirst; subst; clear Hfirst.
-        apply (infinite_ptrace_from_segment s tr Htr n1 n2 Hle).
+        apply (infinite_protocol_trace_from_segment s tr Htr n1 n2 Hle).
     Qed.
 
     Lemma in_futures_witness_reverse
@@ -1061,7 +1272,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
             + symmetry. apply list_prefix_nth_last. assumption.
             + apply nth_error_length in Hs2.
               specialize (list_prefix_length (List.map destination tr) (S m) Hs2); intro Hpref_len.
-              rewrite Hpref_len. 
+              rewrite Hpref_len.
               apply le_n_S. assumption.
           - unfold stream_segment.
             rewrite list_suffix_map. rewrite stream_prefix_map.
@@ -1072,28 +1283,14 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
               inversion Hs2; subst.
               reflexivity.
             + specialize (stream_prefix_length (Streams.map destination tr) (S m)); intro Hpref_len.
-              rewrite Hpref_len. 
+              rewrite Hpref_len.
               apply le_n_S. assumption.
           }
     Qed.
 
-    Definition trace_last (tr : Trace) : option state
-      :=
-        match tr with
-        | Finite s ls => Some (last (List.map destination ls) s)
-        | Infinite _ _ => None
-        end.
-
-    Definition trace_first (tr : Trace) : state
-      :=
-        match tr with
-        | Finite s _ => s
-        | Infinite s _ => s
-        end.
-
     Inductive Trace_messages : Type :=
     | Finite_messages : list (option message) -> Trace_messages
-    | Infinite_messages : Stream (option message) -> Trace_messages. 
+    | Infinite_messages : Stream (option message) -> Trace_messages.
 
     Definition protocol_output_messages_trace (tr : protocol_trace) : Trace_messages :=
       match proj1_sig tr with
@@ -1105,55 +1302,59 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       | Finite _ ls => Finite_messages (List.map input ls)
       | Infinite _ st => Infinite_messages (map input st) end.
 
-    (* Defining equivocation on these trace definitions *)
-    (* Section 7 :
-       A message m received by a protocol state s with a transition label l in a
-       protocol execution trace is called "an equivocation" if it wasn't produced
-       in that trace
-    *)
-
     Definition trace_prefix
                (tr : Trace)
-               (last : in_state_out)
-               (prefix : list in_state_out)
+               (last : transition_item)
+               (prefix : list transition_item)
       :=
         match tr with
         | Finite s ls => exists suffix, ls = prefix ++ (last :: suffix)
         | Infinite s st => exists suffix, st = stream_app prefix (Cons last suffix)
         end.
 
-    (** A finite trace is terminating if there's no other trace that contains it
-        as a (proper) prefix.
-    **)
+    (* end hide *)
 
-    Definition terminating_trace_prop (tr : Trace) : Prop 
+(**
+Stating livness properties will require quantifying over complete
+executions of the protocol. To make this possible, we will now define
+_complete_ [protocol_trace]s.
+
+A [protocol_trace] is _terminating_ if there's no other [protocol_trace]
+that contains it as a prefix.
+*)
+
+    Definition terminating_trace_prop (tr : Trace) : Prop
        :=
-         match tr with 
-         | Finite s ls => 
-             (exists (tr : protocol_trace) 
-             (last : in_state_out), 
-             trace_prefix (proj1_sig tr) last ls) -> False 
+         match tr with
+         | Finite s ls =>
+             (exists (tr : protocol_trace)
+             (last : transition_item),
+             trace_prefix (proj1_sig tr) last ls) -> False
          | Infinite s ls => False
          end.
+
+(** A [protocol_trace] is _complete_, if it is either _terminating_ or infinite.
+*)
 
     Definition complete_trace_prop (tr : Trace) : Prop
        := protocol_trace_prop tr
           /\
-          match tr with 
+          match tr with
           | Finite _ _ => terminating_trace_prop tr
           | Infinite _ _ => True
           end.
 
+    (* begin hide *)
     Lemma trace_prefix_protocol
           (tr : protocol_trace)
-          (last : in_state_out)
-          (prefix : list in_state_out)
+          (last : transition_item)
+          (prefix : list transition_item)
           (Hprefix : trace_prefix (proj1_sig tr) last prefix)
       : protocol_trace_prop (Finite (trace_first (proj1_sig tr)) (prefix ++ [last])).
     Proof.
       destruct tr as [tr Htr]. simpl in *.
       generalize dependent tr. generalize dependent last.
-      apply (rev_ind (fun prefix => forall (last : in_state_out) (tr : Trace), protocol_trace_prop tr -> trace_prefix tr last prefix -> finite_ptrace (trace_first tr) (prefix ++ [last]))).
+      apply (rev_ind (fun prefix => forall (last : transition_item) (tr : Trace), protocol_trace_prop tr -> trace_prefix tr last prefix -> finite_protocol_trace (trace_first tr) (prefix ++ [last]))).
       - intros last tr Htr Hprefix; destruct tr as [ | ]; unfold trace_prefix in Hprefix;   simpl in Hprefix
         ; destruct Hprefix as [suffix Heq]; subst; destruct Htr as [Htr Hinit]
         ; unfold trace_first; simpl; constructor; try assumption
@@ -1170,7 +1371,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         ; split; try assumption
         .
         + assert
-            (Hex : exists suffix0 : list in_state_out,
+            (Hex : exists suffix0 : list transition_item,
                 (p ++ [last_p]) ++ last :: suffix = p ++ last_p :: suffix0
             ) by (exists (last :: suffix); rewrite <- app_assoc; reflexivity)
           ; specialize (Hind Hex); clear Hex
@@ -1180,9 +1381,9 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           ; try assumption
           .
           rewrite <- (app_cons {| l := l1; input := input0; destination := destination0; output := output0 |} suffix) in Htr.
-          rewrite app_assoc in Htr. 
+          rewrite app_assoc in Htr.
           rewrite <- (app_assoc p _ _) in Htr. simpl in Htr.
-          rewrite <- app_assoc in Htr. 
+          rewrite <- app_assoc in Htr.
           specialize
             (finite_ptrace_consecutive_valid_transition
                s
@@ -1197,7 +1398,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           simpl.
           rewrite map_app. simpl. rewrite last_is_last. tauto.
         + assert
-            (Hex : exists suffix0 : Stream in_state_out,
+            (Hex : exists suffix0 : Stream transition_item,
                 stream_app (p ++ [last_p])  (Cons last suffix) = stream_app p (Cons last_p suffix0)
             ) by (exists (Cons last suffix); rewrite <- stream_app_assoc; reflexivity)
           ; specialize (Hind Hex); clear Hex
@@ -1207,7 +1408,7 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
           ; try assumption
           .
           rewrite <- stream_app_cons in Htr.
-          rewrite stream_app_assoc in Htr. 
+          rewrite stream_app_assoc in Htr.
           rewrite <- (app_assoc p _ _) in Htr. simpl in Htr.
           specialize
             (infinite_ptrace_consecutive_valid_transition
@@ -1226,14 +1427,22 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
 
     (* Implicitly, the state itself must be in the trace, and minimally the last element of the trace *)
     (* Also implicitly, the trace leading up to the state is finite *)
+    (* Defining equivocation on these trace definitions *)
+
+    (* Section 7 :
+       A message m received by a protocol state s with a transition label l in a
+       protocol execution trace is called "an equivocation" if it wasn't produced
+       in that trace
+    *)
+
 
     Definition equivocation_in_trace
                (msg : message)
                (tr : protocol_trace)
       : Prop
       :=
-        exists (last : in_state_out),
-        exists (prefix : list in_state_out),
+        exists (last : transition_item),
+        exists (prefix : list transition_item),
           trace_prefix (proj1_sig tr) last prefix
           /\  input last = Some msg
           /\  ~ In (Some msg) (List.map output prefix)
@@ -1242,17 +1451,17 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     Definition equivocation (msg : message) (s : state) : Prop :=
       exists (tr : protocol_trace), trace_last (proj1_sig tr) = Some s /\ equivocation_in_trace msg tr.
 
-    (* Now we can have decidable equivocations! *) 
+    (* Now we can have decidable equivocations! *)
     (* 6.2.1 Identifying equivocations *)
     Definition has_been_sent (msg : message) (s : state) : Prop :=
-      forall (tr : protocol_trace) 
-        (last : in_state_out)
-        (prefix : list in_state_out)
+      forall (tr : protocol_trace)
+        (last : transition_item)
+        (prefix : list transition_item)
         (Hpr : trace_prefix (proj1_sig tr) last prefix)
         (Hlast : destination last = s),
-        List.Exists (fun (elem : in_state_out) => output elem = Some msg) prefix. 
+        List.Exists (fun (elem : transition_item) => output elem = Some msg) prefix.
 
-    (* Since equality of proto_messages is decidable, this function must exist : *) 
+    (* Since equality of proto_messages is decidable, this function must exist : *)
     Definition proto_message_eqb {Eqd : EqDec message}
                (om1 : option message)
                (om2 : option message)
@@ -1266,24 +1475,13 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
 
     Fixpoint has_been_sentb
              {Eqd : EqDec message}
-             (msg : message) (ls : list in_state_out) : bool
+             (msg : message) (ls : list transition_item) : bool
       :=
         existsb (fun x => proto_message_eqb (output x) (Some msg)) ls.
 
-    (* Now we can show that the above and below definitions are unnecessary *) 
-
-    (* Implicitly, the trace must be a protocol trace and also end with the state *) 
-    Definition finite_ptrace_upto 
-               (s : state)
-               (tr : protocol_trace)
-      : Prop
-      :=
-        trace_last (proj1_sig tr) = Some s
-    .
-
     (* 6.2.2 Equivocation-free as a composition constraint *)
     Definition composition_constraint : Type :=
-      label -> state * option message -> Prop. 
+      label -> state * option message -> Prop.
 
     Definition equivocation_free : composition_constraint :=
       fun l som => match (snd som) with
@@ -1291,27 +1489,28 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
                 | Some msg => equivocation msg (fst som) -> False
                 end.
 
-    (* Decidable VLSMs *) 
+    (* Decidable VLSMs *)
 
     Class VLSM_vdecidable :=
-      { valid_decidable : forall l som, {valid l som} + {~valid l som} 
+      { valid_decidable : forall l som, {valid l som} + {~valid l som}
       }.
-
+(* end hide *)
   End VLSM.
 
-  Section VLSM_equality. (* Section 2.2.3 *)
+(**
+*** VLSM Inclusion and Equality.
 
+We can also define VLSM _inclusion_  and _equality_ in terms of traces.
+- VLSM X is _included_ in VLSM Y if every [protocol_trace] available to X
+is also available to Y.
+- VLSM X and VLSM Y are _equal_ if their [protocol_trace]s are exactly the same.
+*)
+
+  Section VLSM_equality.
     Context
       {message : Type}
       {vtype : VLSM_type message}.
 
-    Definition VLSM_incl
-      {SigX SigY: LSM_sig vtype}
-      (X : VLSM SigX) (Y : VLSM SigY)
-      :=
-      forall t : Trace,
-        protocol_trace_prop X t -> protocol_trace_prop Y t
-      .
 
     Definition VLSM_eq
       {SigX SigY: LSM_sig vtype}
@@ -1321,10 +1520,20 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         protocol_trace_prop X t <-> protocol_trace_prop Y t
       .
 
+    Definition VLSM_incl
+      {SigX SigY: LSM_sig vtype}
+      (X : VLSM SigX) (Y : VLSM SigY)
+      :=
+      forall t : Trace,
+        protocol_trace_prop X t -> protocol_trace_prop Y t
+      .
+
+    (* begin hide *)
+
     Lemma VLSM_eq_incl_l
       {SigX SigY: LSM_sig vtype}
       (X : VLSM SigX) (Y : VLSM SigY)
-      : VLSM_eq X Y -> VLSM_incl X Y 
+      : VLSM_eq X Y -> VLSM_incl X Y
       .
     Proof.
       intro Heq.
@@ -1332,11 +1541,11 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       apply Heq.
       assumption.
     Qed.
-    
+
     Lemma VLSM_eq_incl_r
       {SigX SigY: LSM_sig vtype}
       (X : VLSM SigX) (Y : VLSM SigY)
-      : VLSM_eq X Y -> VLSM_incl Y X 
+      : VLSM_eq X Y -> VLSM_incl Y X
       .
     Proof.
       intro Heq.
@@ -1362,52 +1571,123 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
         + apply Hxy.
         + apply Hyx.
     Qed.
-
+  (* end hide *)
   End VLSM_equality.
 
-  Section VLSM_incl_from_protocol_state.
+(** It is natural to look for sufficient conditions for VLSM inclusion (or equality),
+which are easy to verify in a practical setting. One such result is the following.
 
-  Context
-    {message : Type}
-    {T : VLSM_type message}
-    {S1 S2 : LSM_sig T}
-    (X1 : VLSM S1)
-    (X2 : VLSM S2)
-    (Hinitial_state : 
-      forall s : state,
-        @initial_state_prop _ _ S1 s -> @initial_state_prop _ _ S2 s
-    )
-    (Hprotocol_state : 
-      forall (s : state) (om : option message),
-        protocol_prop X1 (s,om) -> protocol_state_prop X2 s
-    )
-    (Hprotocol_transition :
-      forall (l : label) (is os : state) (iom oom : option message),
-        verbose_valid_protocol_transition X1 l is os iom oom
-        -> verbose_valid_protocol_transition X2 l is os iom oom
-    )
-    .
+For VLSM <<X>> to be included in VLSM <<Y>>, the following set of conditions is sufficient:
+- <<X>>'s [initial_state]s are included in <<Y>>'s [initial state]s
+- Every message <<m>> (including the empty one) which can be input to a
+[protocol_valid] transition in <<X>>, is a [protocol_message] in <<Y>>
+- <<X>>'s [protocol_valid] is included in <<Y>>'s [valid].
+- For all [protocol_valid] inputs (in <<X>>), <<Y>>'s [transition] acts
+like <<X>>'s [transition].
+*)
+
+Section basic_VLSM_incl.
+
+Context
+  {message : Type}
+  {T : VLSM_type message}
+  {SX SY : LSM_sig T}
+  (X : VLSM SX)
+  (Y : VLSM SY)
+  (Hinitial_state :
+    forall s : state,
+      @initial_state_prop _ _ SX s -> @initial_state_prop _ _ SY s
+  )
+  (Hprotocol_message :
+    forall (l : label) (s : state) (om : option message),
+      protocol_valid X l (s, om)
+      -> option_protocol_message_prop Y om
+  )
+  (Hvalid :
+    forall (l : label) (s : state) (om : option message),
+      protocol_valid X l (s, om)
+      -> @valid _ _ _ Y l (s, om)
+  )
+  (Htransition :
+    forall (l : label) (s : state) (om : option message),
+      protocol_valid X l (s, om)
+      -> @transition _ _ _ X l (s, om) = @transition _ _ _ Y l (s, om)
+  )
+  .
+
+(* begin hide *)
+Lemma VLSM_incl_protocol_state
+  (s : state)
+  (om : option message)
+  (Hps : protocol_prop X (s,om))
+  : protocol_state_prop Y s.
+Proof.
+  remember (s, om) as som.
+  generalize dependent om. generalize dependent s.
+  induction Hps; intros; inversion Heqsom; subst; clear Heqsom.
+  - exists None.
+    unfold s in *. clear s.
+    destruct is as [is His]; simpl.
+    apply Hinitial_state in His.
+    replace is with (proj1_sig (exist _ is His)); try reflexivity.
+    apply (protocol_initial_state Y).
+  - exists None.
+    unfold s in *. clear s.
+    destruct s0 as [is His]; simpl.
+    apply Hinitial_state in His.
+    replace is with (proj1_sig (exist _ is His)); try reflexivity.
+    apply (protocol_initial_state Y).
+  - exists om0.
+    specialize (protocol_generated_valid X Hps1 Hps2 Hv); intros Hpv.
+    rewrite Htransition in H0; try assumption.
+    specialize (IHHps1 s _om eq_refl). destruct IHHps1 as [_omf Hfps].
+    replace (s1, om0) with (  @transition _ _ _ Y l1 (s, om))
+    ; try assumption.
+    specialize (Hprotocol_message l1 s om Hpv).
+    destruct Hprotocol_message as [_sX HpmX].
+    apply (protocol_generated Y) with _omf _sX; try assumption.
+    specialize (Hvalid l1 s om Hpv).
+    assumption.
+Qed.
+
+Lemma VLSM_incl_protocol_transition
+  (l : label)
+  (is os : state)
+  (iom oom : option message)
+  (Ht : protocol_transition X l (is, iom) (os, oom))
+  : protocol_transition Y l (is, iom) (os, oom)
+  .
+Proof.
+  destruct Ht as [[[_om Hps] [[_s Hpm] Hv]] Ht].
+  specialize (protocol_generated_valid X Hps Hpm Hv); intros Hpv.
+  repeat split.
+  - apply VLSM_incl_protocol_state with _om. assumption.
+  - apply Hprotocol_message in Hpv. assumption.
+  - specialize (Hvalid l is iom Hpv).
+    assumption.
+  - rewrite <- Htransition; assumption.
+Qed.
 
   Lemma VLSM_incl_finite_ptrace
     (s : state)
-    (ls : list in_state_out)
-    (Hpxt : finite_ptrace_from X1 s ls)
-    : finite_ptrace_from X2 s ls
+    (ls : list transition_item)
+    (Hpxt : finite_protocol_trace_from X s ls)
+    : finite_protocol_trace_from Y s ls
     .
   Proof.
     induction Hpxt.
     - constructor.
       destruct H as [m H].
-      apply Hprotocol_state in H. assumption.
+      apply VLSM_incl_protocol_state in H. assumption.
     - constructor; try assumption.
-      apply Hprotocol_transition. assumption.
+      apply VLSM_incl_protocol_transition. assumption.
   Qed.
 
   Lemma VLSM_incl_infinite_ptrace
     (s : state)
-    (ls : Stream in_state_out)
-    (Hpxt : infinite_ptrace_from X1 s ls)
-    : infinite_ptrace_from X2 s ls
+    (ls : Stream transition_item)
+    (Hpxt : infinite_protocol_trace_from X s ls)
+    : infinite_protocol_trace_from Y s ls
     .
   Proof.
     generalize dependent ls. generalize dependent s.
@@ -1416,15 +1696,17 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     inversion Hx; subst.
     specialize (H destination ls H3).
     constructor; try assumption.
-    apply Hprotocol_transition.
+    apply VLSM_incl_protocol_transition.
     assumption.
   Qed.
 
-  Lemma VLSM_incl_from_protocol_state
-    : VLSM_incl X1 X2
+  (* end hide *)
+
+  Lemma basic_VLSM_incl
+    : VLSM_incl X Y
     .
   Proof.
-    intros [s ls| s ss]; simpl; intros [Hxt Hinit].  
+    intros [s ls| s ss]; simpl; intros [Hxt Hinit].
     - apply VLSM_incl_finite_ptrace in Hxt.
       split; try assumption.
       apply Hinitial_state. assumption.
@@ -1433,128 +1715,19 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
       apply Hinitial_state. assumption.
   Qed.
 
-  End VLSM_incl_from_protocol_state.
+End basic_VLSM_incl.
 
-  Section basic_VLSM_incl.
+(**
+*** Pre-loaded VLSMs
 
-  Context
-    {message : Type}
-    {T : VLSM_type message}
-    {S1 S2 : LSM_sig T}
-    (X1 : VLSM S1)
-    (X2 : VLSM S2)
-    (Hinitial_state : 
-      forall s : state,
-        @initial_state_prop _ _ S1 s -> @initial_state_prop _ _ S2 s
-    )
-    (Hprotocol_message : 
-      forall (l : label) (s : state) (om : option message),
-        @valid _ _ _ X1 l (s, om)
-        -> exists _s : state, protocol_prop X2 (_s, om)
-    )
-    (Hvalid : 
-      forall (l : label) (s : state) (om : option message),
-        @valid _ _ _ X1 l (s, om)
-        -> @valid _ _ _ X2 l (s, om)
-    )
-    (Htransition :
-      forall (l : label) (s : state) (om : option message),
-        @transition _ _ _ X1 l (s, om) = @transition _ _ _ X2 l (s, om)
-    )
-    .
-  
-  Lemma VLSM_incl_protocol_state
-    (s : state)
-    (om : option message)
-    (Hps : protocol_prop X1 (s,om))
-    : protocol_state_prop X2 s.
-  Proof.
-    remember (s, om) as som.
-    generalize dependent om. generalize dependent s.
-    induction Hps; intros; inversion Heqsom; subst; clear Heqsom.
-    - exists None.
-      unfold s in *. clear s.
-      destruct is as [is His]; simpl.
-      apply Hinitial_state in His.
-      replace is with (proj1_sig (exist _ is His)); try reflexivity.
-      apply (protocol_initial_state X2).
-    - exists None.
-      unfold s in *. clear s.
-      destruct s0 as [is His]; simpl.
-      apply Hinitial_state in His.
-      replace is with (proj1_sig (exist _ is His)); try reflexivity.
-      apply (protocol_initial_state X2).
-    - exists om0. 
-      rewrite Htransition in H0.
-      specialize (IHHps1 s _om eq_refl). destruct IHHps1 as [_omf Hfps].
-      replace (s1, om0) with (  @transition _ _ _ X2 l1 (s, om))
-      ; try assumption.
-      specialize (Hprotocol_message l1 s om Hv).
-      destruct Hprotocol_message as [_sX HpmX].
-      apply (protocol_generated X2) with _omf _sX; try assumption.
-      apply Hvalid.
-      assumption.
-  Qed.
+Given a VLSM <<X>>, we introduce the _pre-loaded_ version of it,
+which is identical to <<X>>, except that it is endowed with the
+whole message universe as its initial messages. The high degree
+of freedom allowed to the _pre-loaded_ version lets it experience
+everything experienced by <<X>> but also other types of behaviour,
+including _Byzantine_ behaviour, which makes it a useful concept in
+Byzantine fault tolerance analysis. *)
 
-  Lemma VLSM_incl_verbose_valid_protocol_transition
-    (l : label)
-    (is os : state)
-    (iom oom : option message)
-    (Ht : verbose_valid_protocol_transition X1 l is os iom oom)
-    : verbose_valid_protocol_transition X2 l is os iom oom
-    .
-  Proof.
-    destruct Ht as [[_om Hps] [[_s Hpm] [Hv Ht]]].
-    repeat split.
-    - apply VLSM_incl_protocol_state with _om. assumption.
-    - apply Hprotocol_message in Hv. assumption.
-    - apply Hvalid. assumption.
-    - rewrite <- Htransition. assumption.
-  Qed.
-
-  Lemma basic_VLSM_incl
-    : VLSM_incl X1 X2
-    .
-  Proof.
-    apply (VLSM_incl_from_protocol_state X1 X2); try assumption.
-    - apply VLSM_incl_protocol_state.
-    - apply VLSM_incl_verbose_valid_protocol_transition.
-  Qed.
-
-  End basic_VLSM_incl.
-
-  Section VLSM_incl_from_protocol_prop.
-
-  Context
-    {message : Type}
-    {T : VLSM_type message}
-    {S1 S2 : LSM_sig T}
-    (X1 : VLSM S1)
-    (X2 : VLSM S2)
-    (Hinitial_state : 
-      forall s : state,
-        @initial_state_prop _ _ S1 s -> @initial_state_prop _ _ S2 s
-    )
-    (Hprotocol_prop : 
-      forall som : state * option message,
-        protocol_prop X1 som -> protocol_prop X2 som
-    )
-    (Hprotocol_transition :
-      forall (l : label) (is os : state) (iom oom : option message),
-        verbose_valid_protocol_transition X1 l is os iom oom
-        -> verbose_valid_protocol_transition X2 l is os iom oom
-    )
-    .
-
-  Lemma VLSM_incl_from_protocol_prop
-    : VLSM_incl X1 X2
-    .
-  Proof.
-    apply (VLSM_incl_from_protocol_state X1 X2); try assumption.
-    intros. exists om. apply Hprotocol_prop. assumption.
-  Qed.
-
-  End VLSM_incl_from_protocol_prop.
 
   Section pre_loaded_vlsm.
     Context
@@ -1575,14 +1748,15 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     |}.
 
   Context (X : VLSM Sig).
-  
+
   Definition pre_loaded_vlsm
     : VLSM (pre_loaded_vlsm_sig X)
-    := 
+    :=
     {| transition := @transition _ _ _ X
      ; valid := @valid _ _ _ X
     |}.
 
+  (* begin hide *)
   Lemma pre_loaded_protocol_prop
     (s : state)
     (om : option message)
@@ -1598,28 +1772,18 @@ Require Import Lib.Preamble Lib.ListExtras Lib.StreamExtras.
     - apply (protocol_generated pre_loaded_vlsm) with _om _s; assumption.
   Qed.
 
-  Lemma pre_loaded_verbose_valid_protocol_transition
-    (l : label)
-    (is os : state)
-    (iom oom : option message)
-    (Ht : verbose_valid_protocol_transition X l is os iom oom)
-    : verbose_valid_protocol_transition pre_loaded_vlsm l is os iom oom
-    .
-  Proof.
-    destruct Ht as [[_om Hps] [[_s Hpm] [Hv Ht]]].
-    repeat (split; try assumption).
-    - exists _om. apply pre_loaded_protocol_prop. assumption.
-    - exists _s. apply pre_loaded_protocol_prop. assumption.
-  Qed.
+  (* end hide *)
 
   Lemma vlsm_incl_pre_loaded_vlsm
     : VLSM_incl X pre_loaded_vlsm
     .
   Proof.
-    apply (VLSM_incl_from_protocol_prop X pre_loaded_vlsm).
-    - intros; assumption.
-    - intros [s om]. apply pre_loaded_protocol_prop.
-    - apply pre_loaded_verbose_valid_protocol_transition.
+    apply (basic_VLSM_incl X pre_loaded_vlsm)
+    ; intros; try (assumption || reflexivity)
+    ; destruct H as [_ [[_s Hpm] Hv]].
+    - exists _s. apply pre_loaded_protocol_prop. assumption.
+    - assumption.
   Qed.
 
 End pre_loaded_vlsm.
+
