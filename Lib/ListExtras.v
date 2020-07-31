@@ -7,7 +7,6 @@ Require Import Coq.Logic.FinFun.
 
 Require Import CasperCBC.Lib.Preamble.
 
-
 Definition last_error {S} (l : list S) : option S :=
   match l with
   | [] => None
@@ -108,11 +107,7 @@ Lemma filter_in : forall A (f : A -> bool) x s,
   f x = true ->
   In x (filter f s).
 Proof.
-  induction s; intros; inversion H; subst; clear H; simpl.
-  - rewrite H0. left. reflexivity.
-  - apply IHs in H1; try assumption.
-    destruct (f a); try assumption.
-    right. assumption.
+  intros. apply filter_In. split; assumption.
 Qed.
 
 Lemma filter_incl {A} (f : A -> bool) : forall s1 s2,
@@ -143,6 +138,21 @@ Proof.
       * assumption.
 Qed.
 
+Lemma filter_length_fn
+  {A : Type}
+  (f g : A -> bool)
+  (s : list A)
+  (Hfg : Forall (fun a => f a = true -> g a = true) s)
+  : length (filter f s) <= length (filter g s).
+Proof.
+  induction s; simpl.
+  - lia.
+  - inversion Hfg; subst. specialize (IHs H2).
+  destruct (f a) eqn:Hfa.
+    + rewrite H1; try reflexivity. simpl. lia.
+    + destruct (g a); simpl; lia.
+Qed.
+
 Lemma filter_eq_fn {A} : forall (f : A -> bool) (g : A -> bool) s,
   (forall a, In a s -> f a = true <-> g a = true) ->
   filter f s = filter g s.
@@ -164,19 +174,27 @@ Lemma filter_nil
   {A : Type}
   (f : A -> bool)
   (l : list A)
-  (Hnone : forall a : A, In a l -> f a = false)
-  : filter f l = [].
+  : Forall (fun a : A => f a = false) l
+  <-> filter f l = [].
 Proof.
-  induction l; try reflexivity.
-  assert (Hno_a := Hnone a).
-  assert (Hin_a : In a (a :: l)) by (left;reflexivity).
-  specialize (Hno_a Hin_a).
-  simpl. rewrite Hno_a.
-  apply IHl.
-  intros b Hin_b.
-  apply Hnone.
-  right.
-  assumption.
+  rewrite Forall_forall.
+  split; intro Hnone.
+  - induction l; try reflexivity.
+    assert (Hno_a := Hnone a).
+    assert (Hin_a : In a (a :: l)) by (left;reflexivity).
+    specialize (Hno_a Hin_a).
+    simpl. rewrite Hno_a.
+    apply IHl.
+    intros b Hin_b.
+    apply Hnone.
+    right.
+    assumption.
+  - induction l; intros x Hx; inversion Hx; subst; clear Hx
+    ; simpl in Hnone.
+    + destruct (f x) eqn:Hx; try reflexivity. inversion Hnone.
+    + destruct (f a) eqn:Ha.
+      * inversion Hnone.
+      * apply IHl; assumption.
 Qed.
 
 Lemma in_not_in : forall A (x y : A) l,
@@ -538,7 +556,7 @@ Fixpoint list_annotate
   (P : A -> Prop)
   (l : list A)
   (Hs : Forall P l)
-  : list (sig P). 
+  : list (sig P).
 Proof.
   destruct l as [| a l].
   - exact [].
@@ -587,7 +605,7 @@ Fixpoint nth_error_filter_index
   (l : list A)
   (n : nat)
   :=
-  match l with 
+  match l with
   | [] => None
   | a :: l =>
     match f a with
@@ -611,10 +629,10 @@ Lemma nth_error_filter_index_le
   (Hin2 : nth_error_filter_index f l n2 = Some in2)
   : in1 <= in2.
 Proof.
-  generalize dependent in2. 
-  generalize dependent in1. 
-  generalize dependent n2. 
-  generalize dependent n1. 
+  generalize dependent in2.
+  generalize dependent in1.
+  generalize dependent n2.
+  generalize dependent n1.
   induction l; intros.
   - inversion Hin1.
   - simpl in Hin1. simpl in Hin2.
@@ -654,8 +672,8 @@ Lemma nth_error_filter
   (n : nat)
   (a : A)
   (Hnth : nth_error (filter f l) n = Some a)
-  : exists (nth : nat), 
-    nth_error_filter_index f l n = Some nth 
+  : exists (nth : nat),
+    nth_error_filter_index f l n = Some nth
     /\ nth_error l nth = Some a.
 Proof.
   generalize dependent a. generalize dependent n.
