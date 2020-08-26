@@ -197,6 +197,53 @@ Proof.
       * apply IHl; assumption.
 Qed.
 
+Lemma existsb_first 
+  {A : Type}
+  (l : list A)
+  (f : A -> bool)
+  (Hsomething : existsb f l = true) :
+  exists (prefix : list A)
+         (suffix : list A)
+         (first : A),
+         (f first = true) /\
+         l = prefix ++ [first] ++ suffix /\
+         (existsb f prefix = false).
+
+Proof.
+  generalize dependent l.
+  induction l.
+  - intros.
+    simpl in *.
+    discriminate Hsomething.
+  - intros.
+    unfold existsb in Hsomething.
+    destruct (f a) eqn : eq_a.
+    + simpl in Hsomething.
+      exists [].
+      exists l.
+      exists a.
+      split.
+      assumption.
+      simpl.
+      intuition.
+    + simpl in *.
+      specialize (IHl Hsomething).
+      destruct IHl as [prefix [suffix [first [Hf [Hconcat Hnone_before]]]]].
+      exists (a :: prefix).
+      exists suffix.
+      exists first.
+      split.
+      assumption.
+      split.
+      rewrite Hconcat.
+      auto.
+      unfold existsb.
+      rewrite eq_a.
+      simpl.
+      unfold existsb in Hnone_before.
+      assumption.
+Qed.
+
 Lemma in_not_in : forall A (x y : A) l,
   In x l ->
   ~ In y l ->
@@ -433,6 +480,42 @@ Fixpoint list_prefix
     | _,[] => []
     | S n, a :: l => a :: list_prefix l n
     end.
+    
+Lemma list_prefix_split
+  {A : Type}
+  (l left right: list A)
+  (left_len : nat)
+  (Hlen : left_len = length left)
+  (Hsplit : l = left ++ right) :
+  list_prefix l left_len = left.
+
+Proof.
+  generalize dependent l.
+  generalize dependent left.
+  generalize dependent right.
+  generalize dependent left_len.
+  induction left_len.
+  - intros.
+    symmetry in Hlen.
+    rewrite length_zero_iff_nil in Hlen.
+    rewrite Hlen.
+    unfold list_prefix.
+    destruct l;
+    reflexivity.
+  - intros.
+    destruct left.
+    + discriminate Hlen.
+    + assert (left_len = length left). {
+        simpl in Hlen.
+        inversion Hlen.
+        intuition.
+      }
+      specialize (IHleft_len right left H (left ++ right) eq_refl).
+      rewrite Hsplit.
+      simpl.
+      rewrite IHleft_len.
+      reflexivity.
+Qed.
 
 Lemma list_prefix_map
   {A B : Type}
@@ -1064,4 +1147,18 @@ Proof.
       * simpl. subst. reflexivity.
       * intro Hprefix'. inversion Hprefix'; try (elim n; assumption).
         elim Hprefix. assumption.
+Qed.
+
+Lemma in_fast
+  {A : Type}
+  (l : list A)
+  (a : A)
+  (b : A)
+  (Hin : In a (b :: l))
+  (Hneq : b <> a) :
+  In a l.
+Proof.
+  destruct Hin.
+  - subst. elim Hneq. reflexivity.
+  - assumption.
 Qed.
