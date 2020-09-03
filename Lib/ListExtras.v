@@ -197,7 +197,7 @@ Proof.
       * apply IHl; assumption.
 Qed.
 
-Lemma existsb_first 
+Lemma existsb_first
   {A : Type}
   (l : list A)
   (f : A -> bool)
@@ -279,6 +279,24 @@ Proof.
   symmetry; now apply in_correct.
 Qed.
 
+Definition inclb
+  {A : Type}
+  {Heq : EqDec A}
+  (l1 l2 : list A)
+  : bool
+  := forallb (fun x : A => inb eq_dec x l2) l1.
+
+Lemma incl_function {A} {Heq : EqDec A} : PredicateFunction2 (@incl A) (inclb).
+Proof.
+  intros l1 l2. unfold inclb. rewrite forallb_forall.
+  split; intros Hincl x Hx; apply in_correct; apply Hincl; assumption.
+Qed.
+
+Definition incl_correct {A} {Heq : EqDec A}
+  (l1 l2 : list A)
+  : incl l1 l2 <-> inclb l1 l2 = true
+  := incl_function l1 l2.
+  
 Lemma map_injective : forall A B (f : A -> B),
   Injective f -> Injective (map f).
 Proof.
@@ -480,7 +498,7 @@ Fixpoint list_prefix
     | _,[] => []
     | S n, a :: l => a :: list_prefix l n
     end.
-    
+
 Lemma list_prefix_split
   {A : Type}
   (l left right: list A)
@@ -1163,14 +1181,14 @@ Proof.
   - assumption.
 Qed.
 
-Lemma union_fold 
+Lemma union_fold
   {A : Type}
   {eq_dec_a : EqDec A}
   (haystack : list (list A))
   (a : A) :
   In a (fold_right (set_union eq_dec_a) [] haystack)
-  <-> 
-  exists (needle : list A), (In a needle) /\ (In needle haystack). 
+  <->
+  exists (needle : list A), (In a needle) /\ (In needle haystack).
 Proof.
   split.
   - generalize dependent a.
@@ -1183,11 +1201,11 @@ Proof.
       unfold fold_right in H.
       rewrite set_union_iff in H.
       destruct H.
-      * exists a. 
-        split. 
-        assumption. 
-        simpl. 
-        left. 
+      * exists a.
+        split.
+        assumption.
+        simpl.
+        left.
         reflexivity.
       * unfold fold_right in IHhaystack.
         specialize (IHhaystack a0 H).
