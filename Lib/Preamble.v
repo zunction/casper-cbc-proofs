@@ -1,4 +1,5 @@
 Require Import Reals Bool Relations RelationClasses List ListSet EqdepFacts ProofIrrelevance Eqdep_dec.
+From CasperCBC Require Export Classes.
 Import ListNotations.
 
 Tactic Notation "spec" hyp(H) :=
@@ -37,9 +38,6 @@ Proof.
   - subst. apply f_equal. apply proof_irrelevance.
 Qed.
 
-Class EqDec X :=
-  eq_dec : forall x y : X, {x = y} + {x <> y}.
-
 (* https://coq.discourse.group/t/writing-equality-decision-that-reduces-dec-x-x-for-opaque-x/551/2 *)
 
 Lemma eq_dec_refl A (eq_dec : forall x y : A, {x = y} + {x <> y}) x :
@@ -50,44 +48,7 @@ Proof.
   now apply K_dec_type with (P := fun prf => prf = eq_refl).
 Qed.
 
-Lemma nat_eq_dec : EqDec nat.
-Proof.
-  unfold EqDec. induction x; destruct y.
-  - left. reflexivity.
-  - right. intros C; inversion C.
-  - right. intros C; inversion C.
-  - specialize (IHx y). destruct IHx as [Heq | Hneq].
-    + left. subst. reflexivity.
-    + right. intros Heq. inversion Heq. contradiction.
-Qed.
-
-Lemma option_eq_dec
-   {X : Type}
-   (Xdec : EqDec X) :
-   EqDec (option X).
-Proof.
-  unfold EqDec.
-  intros.
-  destruct x; destruct y.
-  - destruct (eq_dec x x0).
-    * left.
-      rewrite e.
-      reflexivity.
-    * right.
-      intros contra.
-      inversion contra.
-      elim n.
-      assumption.
-   - right.
-     discriminate.
-   - right.
-     discriminate.
-   - left.
-     reflexivity.
-Qed.
-
-Definition option_bool_eq : EqDec (option bool)
-  := option_eq_dec Bool.bool_dec.
+Instance nat_eq_dec: EqDecision nat := eq_nat_dec.
 
 Definition mid {X Y Z : Type} (xyz : X * Y * Z) : Y :=
   snd (fst xyz).
@@ -213,13 +174,13 @@ Class Injective {A B} (f : A -> B) : Prop :=
 Class Commutative {A B : Type} (f : A -> A -> B) :=
   commutative : forall a1 a2, f a1 a2 = f a2 a1.
 
-Class Decidable {A} (r : A -> Prop) :=
-  dec : forall (a : A), r a \/ ~ r a.
+Class DecidablePred {A} (r : A -> Prop) :=
+  pred_dec : forall (a : A), r a \/ ~ r a.
 
 Class PredicateFunction {A} (r : A -> Prop) (r_fn : A -> bool) : Prop :=
   {
     equiv : forall a, r a <-> r_fn a = true;
-    predicate_function_dec :> Decidable r;
+    predicate_function_dec :> DecidablePred r;
   }.
 
 Definition predicate_not {A} (p : A -> Prop) : A -> Prop :=
@@ -306,9 +267,9 @@ Class CompareStrictOrder {A} (compare : A -> A -> comparison) : Prop :=
 
 (* Strictly-ordered comparisons give decidable equality *)
 Lemma compare_eq_dec {A} `{CompareStrictOrder A} :
-  forall x y : A, {x = y} + {x <> y}.
+  EqDecision A.
 Proof.
-  intros;
+  intros x y.
   destruct (compare x y) eqn:Hxy;
     (left; apply StrictOrder_Reflexive; assumption)
     || (right; intro; subst; [now apply compare_eq_lt in Hxy || now apply compare_eq_gt in Hxy]).
@@ -406,10 +367,8 @@ Class StrictlyComparable (X : Type) : Type :=
      compare_strictorder :> CompareStrictOrder compare;
     }.
 
-Lemma strictly_comparable_eq_dec
-  {M : Type}
-  (HM : StrictlyComparable M)
-  : EqDec M.
+Instance strictly_comparable_eq_dec `{StrictlyComparable M}
+  : EqDecision M.
 Proof.
   intros x y.
   apply compare_eq_dec.
@@ -424,18 +383,17 @@ Definition comparable
   a = b \/ R a b \/ R b a.
 
 Definition comparableb
-  {A : Type}
-  {eq_A : EqDec A}
+  `{EqDecision A}
   (f : A -> A -> bool)
   (a b : A)
   : bool
   :=
-  if eq_dec a b then true
+  if decide (a = b) then true
   else orb (f a b) (f b a).
 
 Lemma comparable_function
   {A : Type}
-  {eq_A : EqDec A}
+  {eq_A : EqDecision A}
   (f : A -> A -> bool)
   (R : A -> A -> Prop)
   (HR : PredicateFunction2 R f)
@@ -443,11 +401,11 @@ Lemma comparable_function
 Proof.
   intros a b. unfold comparable. unfold comparableb.
   split; intro.
-  - destruct H as [Heq | [Hab | Hba]]; destruct (eq_dec a b); try reflexivity.
+  - destruct H as [Heq | [Hab | Hba]]; destruct (decide (a = b)); try reflexivity.
     + elim n. assumption.
     + apply HR in Hab. rewrite Hab. reflexivity.
     + apply HR in Hba. rewrite Hba. rewrite orb_comm. reflexivity.
-  - destruct (eq_dec a b); try (left; assumption).
+  - destruct (decide (a = b)); try (left; assumption).
     right.
     apply orb_true_iff in H.
     destruct H as [H | H]; apply HR in H.
@@ -456,8 +414,7 @@ Proof.
 Qed.
 
 Lemma comparable_function_neg
-  {A : Type}
-  {eq_A : EqDec A}
+  `{EqDecision A}
   (f : A -> A -> bool)
   (R : A -> A -> Prop)
   (HR : PredicateFunction2 R f)
@@ -466,7 +423,7 @@ Lemma comparable_function_neg
   : a <> b /\ ~R a b /\ ~R b a.
 Proof.
   unfold comparableb in Hnc.
-  destruct (eq_dec a b); try discriminate Hnc.
+  destruct (decide (a = b)); try discriminate Hnc.
   split; try assumption.
   destruct (f a b) eqn:Hab; try discriminate Hnc.
   destruct (f b a) eqn:Hba; try discriminate Hnc.
@@ -476,7 +433,7 @@ Proof.
 Qed.
 
 Lemma compare_two_cases
-  {M} `{Hsc : StrictlyComparable M}
+  `{Hsc : StrictlyComparable M}
   : forall m1 m2 : M,
     (compare m1 m2 = Eq /\ compare m2 m1 = Eq) \/
     (compare m1 m2 = Lt /\ compare m2 m1 = Gt) \/
@@ -843,10 +800,7 @@ Qed.
 Definition predicate_to_function
   {A : Type}
   {P : A -> Prop}
-  (decP : forall a:A, {P a} + {~P a})
+  (decP : forall a : A, Decision (P a))
   (a : A)
   : bool
-  := match decP a with
-  | left _ => true
-  | _ => false
-  end.
+  := bool_decide (P a).
