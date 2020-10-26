@@ -2278,4 +2278,3 @@ Byzantine fault tolerance analysis. *)
   Qed.
 
 End pre_loaded_with_all_messages_vlsm.
-
