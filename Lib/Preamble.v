@@ -291,12 +291,6 @@ Proof.
     || (right; intro; subst; [now apply compare_eq_lt in Hxy || now apply compare_eq_gt in Hxy]).
 Qed.
 
-Definition eq_bool {X} `{CompareStrictOrder X} (x y : X) : bool :=
-  match compare_eq_dec x y with
-  | left _ => true
-  | right _ => false
-  end.
-
 (* Asymmetry of comparison operators *)
 Class CompareAsymmetric {A} (compare : A -> A -> comparison) : Prop :=
     compare_asymmetric : forall x y, compare x y = Lt <-> compare y x = Gt.
