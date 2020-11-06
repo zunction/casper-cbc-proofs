@@ -29,7 +29,7 @@ Class Inhabited (A : Type) : Type := populate { inhabitant : A }.
 Hint Mode Inhabited ! : typeclass_instances.
 Arguments populate {_} _ : assert.
 
-Class Comparison A := compare : A → A -> comparison.
+Class Comparison A := compare : A -> A -> comparison.
 
 Class Inj {A B} (R : relation A) (S : relation B) (f : A -> B) : Prop :=
   inj x y : S (f x) (f y) -> R x y.
