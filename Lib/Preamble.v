@@ -227,9 +227,9 @@ Proof.
 Qed.
 
 (* Reflexivity of comparison operators *)
-Class CompareReflexive `{Comparison A} : Prop :=
+Class CompareReflexive {A} `(Comparison A) : Prop :=
  compare_eq : forall x y, compare x y = Eq <-> x = y.
-Hint Mode CompareReflexive ! - : typeclass_instances.
+Hint Mode CompareReflexive ! ! : typeclass_instances.
 
 (* About reflexive comparison operators *)
 Lemma compare_eq_refl `{CompareReflexive A} :
@@ -270,41 +270,41 @@ Proof.
 Qed.
 
 (* Transitivity of comparison operators *)
-Class CompareTransitive `{Comparison A} : Prop :=
+Class CompareTransitive {A} `(Comparison A) : Prop :=
   compare_transitive : forall x y z comp,
    compare x y = comp ->
    compare y z = comp ->
    compare x z = comp.
-Hint Mode CompareTransitive ! - : typeclass_instances.
+Hint Mode CompareTransitive ! ! : typeclass_instances.
 
 (* Strict-orderedness of comparison operators *)
-Class CompareStrictOrder `{Comparison A} : Prop :=
+Class CompareStrictOrder {A} `(Comparison A) : Prop :=
   {
-    StrictOrder_Reflexive :> CompareReflexive;
-    StrictOrder_Transitive :> CompareTransitive;
+    CompareStrictOrder_Reflexive :> CompareReflexive compare;
+    CompareStrictOrder_Transitive :> CompareTransitive compare;
   }.
-Hint Mode CompareStrictOrder ! - : typeclass_instances.
+Hint Mode CompareStrictOrder ! ! : typeclass_instances.
 
 (* Strictly-ordered comparisons give decidable equality *)
 Instance compare_eq_dec `{CompareStrictOrder A} : EqDecision A.
 Proof.
   intros x y.
   destruct (compare x y) eqn:Hxy;
-    (left; apply StrictOrder_Reflexive; assumption)
+    (left; apply CompareStrictOrder_Reflexive; assumption)
     || (right; intro; subst; [now apply compare_eq_lt in Hxy || now apply compare_eq_gt in Hxy]).
 Qed.
 
 (* Asymmetry of comparison operators *)
-Class CompareAsymmetric `{Comparison A} : Prop :=
+Class CompareAsymmetric {A} `(Comparison A) : Prop :=
  compare_asymmetric : forall x y, compare x y = Lt <-> compare y x = Gt.
-Hint Mode CompareAsymmetric ! - : typeclass_instances.
+Hint Mode CompareAsymmetric ! ! : typeclass_instances.
 
 (* Strictly-ordered comparisons give asymmetry *)
-Instance CompareStrictOrder_Asymmetric `{CompareStrictOrder A} : CompareAsymmetric.
+Instance CompareStrictOrder_Asymmetric `{CompareStrictOrder A} : CompareAsymmetric compare.
 Proof.
   constructor; intros.
   - destruct (compare y x) eqn:Hyx; try reflexivity; exfalso.
-    + apply compare_eq in Hyx.
+    + apply (compare_eq y x) in Hyx.
       subst; contradict H1.
       apply compare_eq_lt.
     + eapply compare_transitive in H1; eauto.
@@ -345,7 +345,7 @@ Proof.
   constructor; typeclasses eauto.
 Qed.
 
-Instance compare_lt_asymmetric {A} `{CompareStrictOrder A} :
+Instance compare_lt_asymmetric `{CompareStrictOrder A} :
   Asymmetric compare_lt.
 Proof.
   intros x y.
@@ -356,11 +356,11 @@ Proof.
 Qed.
 
 (* A generic type class for inhabited types with a strictly ordered comparison operator *)
-Class StrictlyComparable X `{Inhabited X, Comparison X} :=
-  compare_strictorder :> CompareStrictOrder.
-Hint Mode StrictlyComparable ! - - : typeclass_instances.
+Class StrictlyComparable {X} `(Comparison X) `{Inhabited X} :=
+  compare_strictorder :> CompareStrictOrder compare.
+Hint Mode StrictlyComparable ! ! - : typeclass_instances.
 
-Instance strictly_comparable_eq_dec `{StrictlyComparable M} : EqDecision M := _.
+Instance strictly_comparable_eq_dec `{StrictlyComparable M} : EqDecision M := compare_eq_dec.
 
 Definition comparable
   {A : Type}
@@ -461,7 +461,7 @@ Proof.
 Qed.
 
 Lemma compare_two_cases
-  `{StrictlyComparable M}
+  `{CompareStrictOrder M}
   : forall m1 m2 : M,
     (compare m1 m2 = Eq /\ compare m2 m1 = Eq) \/
     (compare m1 m2 = Lt /\ compare m2 m1 = Gt) \/
@@ -482,7 +482,7 @@ Tactic Notation "case_pair" constr(about_M) constr(m1) constr(m2) :=
   assert (H_fresh := @compare_two_cases _ about_M m1 m2);
   destruct H_fresh as [[H_eq1 H_eq2] | [[H_lt H_gt] | [H_gt H_lt]]].
 
-Instance sigify_eq_dec `{StrictlyComparable X} (P : X -> Prop) :
+Instance sigify_eq_dec `{CompareStrictOrder X} (P : X -> Prop) :
   EqDecision {x | P x}.
 Proof.
   intros x1 x2.
@@ -494,13 +494,13 @@ Proof.
   contradiction.
 Qed.
 
-Program Instance sigify_compare `{StrictlyComparable X} (P : X -> Prop) : Comparison {x | P x}.
-Next Obligation.
- exact (compare X0 X1).
+Instance sigify_compare {X} `(Comparison X) (P : X -> Prop) : Comparison {x | P x}.
+intros [X0 P0] [X1 P1].
+exact (compare X0 X1).
 Defined.
 
 (* StrictlyComparable option type *)
-Instance option_compare `{Comparison X} : Comparison (option X) :=
+Instance option_compare {X} `(Comparison X) : Comparison (option X) :=
   fun ox oy =>
   match ox, oy with
   | None, None => Eq
@@ -509,36 +509,36 @@ Instance option_compare `{Comparison X} : Comparison (option X) :=
   | Some x, Some y => compare x y
   end.
 
-Instance option_compare_reflexive `{StrictlyComparable X} :
- @CompareReflexive _ option_compare.
+Instance option_compare_reflexive `{CompareStrictOrder X} :
+ CompareReflexive (option_compare compare).
 Proof.
   intros [x|] [y|]; simpl; split; intro Hxy; inversion Hxy; try reflexivity.
-  - f_equal. apply compare_eq. apply H3.    
-  - f_equal. rewrite <- H3 at 1. apply compare_eq in H3. apply H3.
+  - f_equal. apply compare_eq. apply H2.    
+  - f_equal. rewrite <- H2 at 1. apply compare_eq in H2. apply H2.
 Qed.
 
-Instance option_compare_transitive `{StrictlyComparable X} :
- @CompareTransitive _ option_compare.
+Instance option_compare_transitive `{CompareStrictOrder X} :
+ CompareTransitive (option_compare compare).
 Proof.
   intros [x|] [y|] [z|] [| |]; simpl; intros Hxy Hyz; try discriminate; try reflexivity.
-  - apply (StrictOrder_Transitive x y z _); assumption.
-  - apply (StrictOrder_Transitive x y z _); assumption.
-  - apply (StrictOrder_Transitive x y z _); assumption.
+  - apply (CompareStrictOrder_Transitive x y z _); assumption.
+  - apply (CompareStrictOrder_Transitive x y z _); assumption.
+  - apply (CompareStrictOrder_Transitive x y z _); assumption.
 Qed.
 
-Instance strictorder_option `{StrictlyComparable X} :
-  @CompareStrictOrder _ option_compare.
+Instance strictorder_option `{CompareStrictOrder X} :
+  CompareStrictOrder (option_compare compare).
 Proof.
   split; typeclasses eauto.
 Qed.
 
 (* Now we can have the following for free : *)
 Program Instance OptionStrictlyComparable `{StrictlyComparable X}
-  : StrictlyComparable (option X).
+  : StrictlyComparable (option_compare compare).
 
 (* Composing StrictlyComparable types *)
 (* Constructing the compare function *)
-Instance compare_compose {X Y} `{StrictlyComparable X} `{StrictlyComparable Y} : Comparison (X * Y) :=
+Instance compare_compose {X Y} `(Comparison X) `(Comparison Y) : Comparison (X * Y) :=
   fun p1 p2 =>
     match p1, p2 with
     | (x1, y1), (x2, y2) => match compare x1 x2 with
@@ -550,43 +550,39 @@ Instance compare_compose {X Y} `{StrictlyComparable X} `{StrictlyComparable Y} :
                            end
     end.
 
-(* Constructing the inhabited proof *)
-Instance strictly_comparable_compose_inhabited `{StrictlyComparable X} `{StrictlyComparable Y} :
-  Inhabited (X * Y) := _.
-
 (* Constructing the strictorder proof *)
-Instance reflexive_compose {X Y} `{StrictlyComparable X} `{StrictlyComparable Y} :
-  @CompareReflexive _ (@compare_compose X Y _ _ _ _ _ _).
+Instance reflexive_compose `{CompareStrictOrder X} `{CompareStrictOrder Y} :
+  CompareReflexive (@compare_compose X Y compare compare).
 Proof.
   intros (x1, y1) (x2, y2).
   split; intros.
-  - unfold compare in H5; simpl in H5.
+  - unfold compare in H3; simpl in H3.
     destruct (compare x1 x2) eqn:H_x;
     destruct (compare y1 y2) eqn: H_y;
     try congruence.
-    apply StrictOrder_Reflexive in H_x;
-    apply StrictOrder_Reflexive in H_y.
+    apply CompareStrictOrder_Reflexive in H_x;
+    apply CompareStrictOrder_Reflexive in H_y.
     subst; reflexivity.
-  - inversion H5; subst.
+  - inversion H3; subst.
     unfold compare; simpl.
     do 2 rewrite compare_eq_refl; reflexivity.
 Qed.
 
-Lemma compare_compose_lt {X Y} `{StrictlyComparable X} `{StrictlyComparable Y} :
+Lemma compare_compose_lt `{CompareStrictOrder X} `{CompareStrictOrder Y} :
   forall (x1 x2 : X) (y1 y2 : Y) (c : comparison),
-  compare_compose (x1, y1) (x2, y2) = c ->
+  compare_compose X Y compare compare (x1, y1) (x2, y2) = c ->
   compare x1 x2 = c \/
   x1 = x2 /\ compare y1 y2 = c.
 Proof.
   intros x1 x2 y1 y2 c H_12.
   simpl in H_12.
   destruct (compare x1 x2) eqn:H_x; try (left; assumption).
-  right. split. now apply StrictOrder_Reflexive in H_x.
+  right. split. now apply CompareStrictOrder_Reflexive in H_x.
   destruct (compare y1 y2) eqn:H_y; try discriminate; assumption.
 Qed.
 
-Instance transitive_compose {X Y} `{StrictlyComparable X} `{StrictlyComparable Y} :
-  @CompareTransitive _ (@compare_compose X Y _ _ _ _ _ _).
+Instance transitive_compose `{CompareStrictOrder X} `{CompareStrictOrder Y} :
+  CompareTransitive (compare_compose X Y compare compare).
 Proof.
   intros (x1, y1) (x2, y2) (x3, y3) comp H12 H23.
   destruct comp eqn:H_comp; try
@@ -611,10 +607,10 @@ Proof.
       destruct right'.
       assert (compare y1 y3 = Lt) by (eapply compare_transitive; eauto).
       unfold compare_compose.
+      rewrite H3.
       rewrite H5.
-      rewrite H7.
       rewrite compare_eq_refl.
-      rewrite H9; reflexivity.
+      rewrite H7; reflexivity.
   - clear comp H_comp.
     unfold compare in *.
     pose proof compare_compose_lt x1 x2 y1 y2 _ H12 as H_useful.
@@ -633,152 +629,144 @@ Proof.
       destruct right'.
       assert (compare y1 y3 = Gt) by (eapply compare_transitive; eauto).
       unfold compare_compose.
+      rewrite H3.
       rewrite H5.
-      rewrite H7.
       rewrite compare_eq_refl.
-      rewrite H9; reflexivity.
+      rewrite H7; reflexivity.
+Qed.
+
+Instance compare_strict_order_compose `{CompareStrictOrder X} `{CompareStrictOrder Y} :
+  CompareStrictOrder (compare_compose X Y compare compare).
+Proof.
+  split; typeclasses eauto.
 Qed.
 
 (* Now we can have the following for free : *)
-Program Instance ComposeStrictlyComparable {X Y} `{StrictlyComparable X} `{StrictlyComparable Y} :
-  StrictlyComparable (X * Y).
-Next Obligation.
+Instance ComposeStrictlyComparable `{StrictlyComparable X} `{StrictlyComparable Y} :
+  StrictlyComparable (X * Y) (compare_compose X Y compare compare).
+Proof.
 constructor; typeclasses eauto.
 Qed.
 
-Program Instance TripleStrictlyComparable {X Y Z} `{StrictlyComparable X} `{StrictlyComparable Y} `{StrictlyComparable Z} : StrictlyComparable (X * Y * Z).
-
-Instance triple_strictly_comparable_proj1_inhabited
-  {X Y Z} `{StrictlyComparable (X * Y * Z)}
-  : Inhabited X.
+Instance TripleStrictlyComparable
+  `{StrictlyComparable X} `{StrictlyComparable Y} `{StrictlyComparable Z} :
+  StrictlyComparable (X * Y * Z) (compare_compose (X*Y) Z (compare_compose X Y compare compare) compare).
 Proof.
-  typeclasses eauto.
+  apply ComposeStrictlyComparable.
+Qed.
+
+Instance triple_strictly_comparable_proj1_inhabited `{StrictlyComparable (X * Y * Z)} : Inhabited X.
+Proof.
+  destruct H0 as [((x,y),z)]; constructor.
+  exact x.
 Defined.
 
-Definition triple_strictly_comparable_proj1_compare
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  (x1 x2 : X) : comparison.
+Instance triple_strictly_comparable_proj1_compare
+ `{StrictlyComparable (X * Y * Z)} : Comparison X.
 Proof.
-  destruct HscXYZ as [((x, y), z) compare _].
-  exact (compare (x1, y, z) (x2, y, z)).
+intros x1 x2.
+destruct H0 as [((x,y),z)].
+exact (compare (x1, y, z) (x2, y, z)).
 Defined.
 
-Lemma triple_strictly_comparable_proj1_strictorder
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  : CompareStrictOrder (@triple_strictly_comparable_proj1_compare X Y Z HscXYZ).
+Instance triple_strictly_comparable_proj1_strictorder `{StrictlyComparable (X * Y * Z)} :
+  CompareStrictOrder triple_strictly_comparable_proj1_compare.
 Proof.
   split.
   - intros x y.
-      unfold triple_strictly_comparable_proj1_compare.
-      destruct HscXYZ.
-      destruct inhabited0 as [(x0, y0) z0].
+    unfold compare, triple_strictly_comparable_proj1_compare.
+    destruct H0 as [((x0,y0),z0)].
     split; intro.
-    + apply StrictOrder_Reflexive in H. inversion H. reflexivity.
-    + subst. apply StrictOrder_Reflexive . reflexivity.
+    + apply compare_eq in H0.
+      inversion H0; reflexivity.
+    + subst. apply CompareStrictOrder_Reflexive. reflexivity.
   - intros x1 x2 x3 cmp.
-    unfold triple_strictly_comparable_proj1_compare.
-    destruct HscXYZ.
-    destruct inhabited0 as [(x0, y0) z0].
-    apply StrictOrder_Transitive.
+    unfold compare, triple_strictly_comparable_proj1_compare.
+    destruct H0 as [((x0,y0),z0)].
+    apply compare_transitive.
 Qed.
 
-Definition triple_strictly_comparable_proj1
-  {X Y Z} (HscT :  StrictlyComparable (X * Y * Z))
-  : StrictlyComparable X
-  :=
-  {| inhabited := triple_strictly_comparable_proj1_inhabited;
-    compare := triple_strictly_comparable_proj1_compare;
-    compare_strictorder := triple_strictly_comparable_proj1_strictorder;
-  |}.
+Program Instance triple_strictly_comparable_proj1
+  `{StrictlyComparable (X * Y * Z)}
+  : @StrictlyComparable X triple_strictly_comparable_proj1_compare triple_strictly_comparable_proj1_inhabited.
 
-Definition triple_strictly_comparable_proj2_inhabited
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  : Y.
+Instance triple_strictly_comparable_proj2_inhabited
+  {X Y Z} `{StrictlyComparable (X * Y * Z)}
+  : Inhabited Y.
 Proof.
-  destruct HscXYZ as [[(x, y) z] _ _].
+  destruct H0 as [((x,y),z)]; constructor.
   exact y.
 Defined.
 
-Definition triple_strictly_comparable_proj2_compare
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  (y1 y2 : Y) : comparison.
+Instance triple_strictly_comparable_proj2_compare
+ `{StrictlyComparable (X * Y * Z)} : Comparison Y.
 Proof.
-  destruct HscXYZ as [[(x, y) z] compare _].
-  exact (compare (x, y1, z) (x, y2, z)).
+intros y1 y2.
+destruct H0 as [((x,y),z)].
+exact (compare (x, y1, z) (x, y2, z)).
 Defined.
 
-Lemma triple_strictly_comparable_proj2_strictorder
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  : CompareStrictOrder (@triple_strictly_comparable_proj2_compare X Y Z HscXYZ).
+Instance triple_strictly_comparable_proj2_strictorder
+   `{StrictlyComparable (X * Y * Z)} :
+  CompareStrictOrder triple_strictly_comparable_proj2_compare.
 Proof.
   split.
   - intros x y.
-      unfold triple_strictly_comparable_proj2_compare.
-      destruct HscXYZ.
-      destruct inhabited0 as [(x0, y0) z0].
+    unfold compare, triple_strictly_comparable_proj2_compare.
+    destruct H as [((x0,y0),z0)].
     split; intro.
-    + apply StrictOrder_Reflexive in H. inversion H. reflexivity.
-    + subst. apply StrictOrder_Reflexive . reflexivity.
+    + apply (@compare_eq _ H0) in H. (* FIXME: diverges when using compare_eq *)
+      * inversion H; reflexivity.
+      * typeclasses eauto.
+    + subst. apply compare_eq. reflexivity.
   - intros x1 x2 x3 cmp.
-    unfold triple_strictly_comparable_proj2_compare.
-    destruct HscXYZ.
-    destruct inhabited0 as [(x0, y0) z0].
-    apply StrictOrder_Transitive.
+    unfold compare, triple_strictly_comparable_proj2_compare.
+    destruct H as [((x0,y0),z0)].
+    apply compare_transitive.
 Qed.
 
-Definition triple_strictly_comparable_proj2
-  {X Y Z} (HscT :  StrictlyComparable (X * Y * Z))
-  : StrictlyComparable Y
-  :=
-  {| inhabited := triple_strictly_comparable_proj2_inhabited;
-    compare := triple_strictly_comparable_proj2_compare;
-    compare_strictorder := triple_strictly_comparable_proj2_strictorder;
-  |}.
+Program Instance triple_strictly_comparable_proj2
+  `{StrictlyComparable (X * Y * Z)}
+  : StrictlyComparable Y.
 
-Definition triple_strictly_comparable_proj3_inhabited
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  : Z.
+Instance triple_strictly_comparable_proj3_inhabited
+  `{StrictlyComparable (X * Y * Z)}
+  : Inhabited Z.
 Proof.
-  destruct HscXYZ as [[(x, y) z] _ _].
+  destruct H as [((x,y),z)]; constructor.
   exact z.
 Defined.
 
-Definition triple_strictly_comparable_proj3_compare
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  (z1 z2 : Z) : comparison.
+Instance triple_strictly_comparable_proj3_compare
+ `{StrictlyComparable (X * Y * Z)} : Comparison Z.
 Proof.
-  destruct HscXYZ as [[(x, y) z] compare _].
-  exact (compare (x, y, z1) (x, y, z2)).
+intros z1 z2.
+destruct H as [((x,y),z)].
+exact (compare (x, y, z1) (x, y, z2)).
 Defined.
 
-Lemma triple_strictly_comparable_proj3_strictorder
-  {X Y Z} `{HscXYZ : StrictlyComparable (X * Y * Z)}
-  : CompareStrictOrder (@triple_strictly_comparable_proj3_compare X Y Z HscXYZ).
+Instance triple_strictly_comparable_proj3_strictorder
+   `{StrictlyComparable (X * Y * Z)} :
+  @CompareStrictOrder _ triple_strictly_comparable_proj3_compare.
 Proof.
   split.
   - intros x y.
-      unfold triple_strictly_comparable_proj3_compare.
-      destruct HscXYZ.
-      destruct inhabited0 as [(x0, y0) z0].
+    unfold compare, triple_strictly_comparable_proj3_compare.
+    destruct H as [((x0,y0),z0)].
     split; intro.
-    + apply StrictOrder_Reflexive in H. inversion H. reflexivity.
-    + subst. apply StrictOrder_Reflexive . reflexivity.
+    + apply (@compare_eq _ H0) in H. (* FIXME: diverges when using compare_eq *)
+      * inversion H; reflexivity.
+      * typeclasses eauto.
+    + subst. apply compare_eq. reflexivity.
   - intros x1 x2 x3 cmp.
-    unfold triple_strictly_comparable_proj3_compare.
-    destruct HscXYZ.
-    destruct inhabited0 as [(x0, y0) z0].
-    apply StrictOrder_Transitive.
+    unfold compare, triple_strictly_comparable_proj3_compare.
+    destruct H as [((x0,y0),z0)].
+    apply compare_transitive.
 Qed.
 
-Definition triple_strictly_comparable_proj3
-  {X Y Z} (HscT :  StrictlyComparable (X * Y * Z))
-  : StrictlyComparable Z
-  :=
-  {| inhabited := triple_strictly_comparable_proj3_inhabited;
-    compare := triple_strictly_comparable_proj3_compare;
-    compare_strictorder := triple_strictly_comparable_proj3_strictorder;
-  |}.
-
+Program Instance triple_strictly_comparable_proj3
+  `{StrictlyComparable (X * Y * Z)}
+  : @StrictlyComparable Z _ (@triple_strictly_comparable_proj3_compare _ _ _ _ _).
 
 Definition bounding (P : nat -> Prop)
   :=  {n1 : nat | forall (n2 : nat), n1 <= n2 -> ~P n2}.
