@@ -6,6 +6,7 @@ VLSM/CommonTraces.v
 VLSM/Composition.v
 VLSM/Decisions.v
 VLSM/ProjectionTraces.v
+VLSM/GenericTraceProjection.v
 VLSM/CommonFutures.v
 VLSM/Validating.v
 VLSM/ByzantineTraces.v
