@@ -1,0 +1,107 @@
+\subsection{States, messages, representatives}
+
+The full-node protocol states are {\em sets} of messages,
+each message being a triple $(c, v, j)$, where:
+\begin{itemize}
+    \item $c$ is a (proposed) consensus value;
+    \item $v$ identifies the message sender;
+    \item $j$, the justification, is the {\em protocol state} seen by the sender
+        at the time of message sending.
+\end{itemize}
+
+There are two technical difficulties with the above definition:
+\begin{itemize}
+    \item States and messages are mutually recursive: states are sets of messages, each containing a state;
+    \item Message ordering should not matter
+\end{itemize}
+
+To solve the first issue, we choose to postpone the definition of messages for now and first define states inductively as follows:
+
+\begin{coq}
+Inductive state : Type :=
+  | Empty : state
+  | Next : C ->  V -> state -> state -> state.
+\end{coq}
+
+This definition says that a state can be built by extending an existing state
+given a consensus value \verb|C|, a validator \verb|V|, and another state representing
+the justification. To clarify that the three are the components of a message, we introduce the following notation for \verb"Next":
+
+\begin{coq}
+Notation "'add' ( c , v , j ) 'to' sigma" :=
+  (Next c v j sigma)
+  (at level 20).
+\end{coq}
+
+This definition addresses the first difficulty mentioned above by capturing the recursive nature of states.
+
+The second issue critical to the notion of state equality. Defining an equivalence between states which disregards message ordering is possible but non-trivial: the definition would itself need to be recursive, as it requires an equivalence
+on messages, which in turn is defined in terms of the same state equivalence.
+
+To circumvent the hindrance of working with mutually recursive state equality, we instead took the approach of using canonical representatives for states,
+which we call LocallySorted states, on which we express state equality as syntactic equality in Coq.  Although this definition is still recursive, it is easier to express and to work with than with the former equivalence because it is defined in terms of a single state.
+
+To define sorted states, we need to be able to compare messages,
+which amounts to defining a total order relation on states.
+This can be defined as a lexicographic ordering on the state seen as a list
+of messages, tweaked slightly to perform recursion in order to compare justifications:
+\begin{coq}
+Fixpoint state_compare (sigma1 sigma2 : state) : comparison :=
+  match sigma1, sigma2 with
+  | Empty, Empty => Eq
+  | Empty, _ => Lt
+  | _, Empty => Gt
+  | add (c1, v1, j1) to sigma1, add (c2, v2, j2) to sigma2 =>
+    match compare c1 c2 with
+    | Eq =>
+      match compare v1 v2 with
+      | Eq =>
+        match state_compare j1 j2 with
+        | Eq => state_compare sigma1 sigma2
+        | cmp_j => cmp_j
+        end
+      | cmp_v => cmp_v
+      end
+    | cmp_c => cmp_c
+    end
+  end.
+\end{coq}
+
+Note that defining this ordering requires that there exist orderings on
+consensus values and validators, but these can be any orderings,
+and a total ordering is guaranteed to exists for any set in set theory
+by the axiom of choice \cite{Gonzalez}. The existence of these orderings is reflected in our \verb|StrictlyComparable| types for consensus values and validators.
+
+This ordering naturally induces an ordering on messages, and thus allows us
+to define the notion of a \verb|LocallySorted| state, i.e., one in which
+each message is smaller than the next and all justifications are themselves
+\verb|LocallySorted|.
+
+Choosing \verb|LocallySorted| states as representatives for states thus reducing the equality testing between states to syntactic equality checking.
+
+Protocol states are defined by means of an inductive predicate on states as follows:
+\begin{coq}
+Inductive protocol_state : state -> Prop :=
+  | protocol_state_empty : protocol_state Empty
+  | protocol_state_next
+         : forall s j
+         , protocol_state s
+        -> protocol_state j
+        -> incl_messages j s
+        -> forall c v
+         , valid_estimate c j
+        -> not_heavy (add_in_sorted_fn (c,v,j) s)
+        -> protocol_state (add_in_sorted_fn (c,v,j) s).
+\end{coq}
+
+The above definition reads as:
+\begin{itemize}
+    \item a protocol state is either empty; or
+    \item it can be obtained from an existing protocol state $s$ by extending
+        it with a message $(c, v, j)$ such that:
+        \begin{itemize}
+            \item $j$ is a protocol state included in $s$;
+            \item $c$ is a consensus value which the estimator agrees on for $j$;
+            \item adding $(c,v,j)$ to $s$ does not exceed the fault tolerance threshold.
+        \end{itemize}
+\end{itemize}
