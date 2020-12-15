@@ -13,7 +13,7 @@ From CasperCBC
     VLSM.Equivocators.MessageProperties
     VLSM.Equivocators.Composition.Common
     VLSM.Equivocators.Composition.Projections
-    VLSM.Actions
+    VLSM.Plans
     .
 
 Section all_equivocating.

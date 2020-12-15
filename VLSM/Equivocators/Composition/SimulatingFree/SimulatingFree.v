@@ -14,7 +14,7 @@ From CasperCBC
     VLSM.Equivocators.Composition.Common
     VLSM.Equivocators.Composition.Projections
     VLSM.Equivocators.Composition.SimulatingFree.FullReplayTraces
-    VLSM.Actions
+    VLSM.Plans
     .
 
 Section all_equivocating.
