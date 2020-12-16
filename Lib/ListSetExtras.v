@@ -302,6 +302,26 @@ Proof.
       exists x. split; assumption.
 Qed.
 
+Lemma set_union_iterated_incl
+  `{EqDecision A}
+  (ss ss': list (set A))
+  (Hincl : incl ss ss')
+  :
+  incl 
+  (fold_right (set_union decide_eq) nil ss)
+  (fold_right (set_union decide_eq) nil ss').
+Proof.
+  unfold incl.
+  intros.
+  apply set_union_in_iterated in H.
+  apply set_union_in_iterated.
+  rewrite Exists_exists in *.
+  destruct H as [x Heqx].
+  exists x.
+  unfold incl in Hincl.
+  intuition.
+Qed.
+
 Lemma set_union_empty_left `{EqDecision A}  : forall (s : list A),
   NoDup s ->
   set_eq (set_union decide_eq nil s) s.
@@ -626,6 +646,33 @@ Proof.
   simpl.
   reflexivity.
 Qed.
+
+Definition set_remove_list `{EqDecision A} (l1 l2 : list A) : list A :=
+  fold_right (set_remove decide_eq) l2 l1.
+
+Lemma set_remove_list_1 
+  `{EqDecision A} 
+  (a : A)
+  (l1 l2 : list A)
+  (Hin : In a (set_remove_list l1 l2)) :
+  In a l2.
+Proof.
+  unfold set_remove_list in Hin.
+  induction l1.
+  - simpl in Hin; intuition.
+  - simpl in Hin.
+    apply set_remove_1 in Hin.
+    apply IHl1 in Hin.
+    assumption.
+Qed. 
+
+
+Definition get_maximal_elements {A}
+  (preceeds : A -> A -> Prop)
+  (preceeds_dec : RelDecision preceeds)
+  (l : list A)
+  : list A :=
+  filter (fun a => forallb (fun b => negb (bool_decide (preceeds b a))) l) l.
 
 Lemma set_prod_nodup `(s1: set A) `(s2: set B):
   NoDup s1 ->
