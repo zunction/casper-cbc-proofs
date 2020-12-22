@@ -208,13 +208,20 @@ Section StrongSynchrony.
          clock _ (clocks i) (s i) < clock _ (clocks i) s'
          -> all_earlier_messages_received i s.
 
+  Context
+    (Free := free_composite_vlsm IM i0)
+    (composite_has_been_sent_capability : has_been_sent_capability Free := composite_has_been_sent_capability IM i0 (free_constraint IM) finite_index Hsents)
+    .
+
+  Existing Instance composite_has_been_sent_capability.
+
   (** This strong constraint allows no equivocations and
       no failures of synchrony.
    *)
   Definition no_synch_faults_no_equivocation_constraint :
     composite_label IM -> composite_state IM * option message -> Prop
     := fun l som =>
-         no_equivocations IM i0 (free_constraint _) finite_index Hsents l som
+         no_equivocations Free l som
          /\ delivery_time_constraint l som
          /\ timely_reception_constraint l som.
 

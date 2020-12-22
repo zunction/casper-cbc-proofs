@@ -420,6 +420,30 @@ Section Simple.
       symmetry;exact Hconsistency.
     Qed.
 
+  (** It is now straightforward to define a [no_equivocations] composition constraint.
+      An equivocating transition can be detected by calling the [has_been_sent]
+      oracle on its arguments and we simply forbid them **)
+
+      Definition equivocation
+      {Hbs : has_been_sent_capability}
+      (m : message)
+      (s : state)
+      : Prop
+      :=
+      has_not_been_sent s m.
+   
+     Definition no_equivocations
+       {Hbs : has_been_sent_capability}
+       (l : vlabel vlsm)
+       (som : state * option message)
+       : Prop
+       :=
+       let (s, om) := som in
+       match om with
+       | None => True
+       | Some m => has_been_sent s m
+       end.
+   
     Class has_been_received_capability := {
       has_been_received: state_message_oracle;
       has_been_received_dec :> RelDecision has_been_received;
@@ -1176,8 +1200,8 @@ Section Composite.
   Proof.
     intros s m.
     apply (Decision_iff (P:=List.Exists (fun i => has_been_sent (IM i) (s i) m) index_listing)).
-    rewrite <- exists_finite by (apply finite_index). reflexivity.
-    apply Exists_dec.
+    - rewrite <- exists_finite by (apply finite_index). reflexivity.
+    - apply Exists_dec.
   Qed.
 
   (** 'composite_has_been_sent' has the 'proper_sent' property. *)
@@ -1366,28 +1390,6 @@ Section Composite.
     ; proper_not_sent := composite_proper_not_sent
     }.
 
-  (** It is now straightforward to define a [no_equivocations] composition constraint.
-      An equivocating transition can be detected by calling the [has_been_sent]
-      oracle on its arguments and we simply forbid them **)
-
-  Definition equivocation
-   (m : message)
-   (s : vstate X)
-   : Prop
-   :=
-   has_not_been_sent X s m.
-
-  Definition no_equivocations
-    (l : vlabel X)
-    (som : vstate X * option message)
-    : Prop
-    :=
-    let (s, om) := som in
-    match om with
-    | None => True
-    | Some m => has_been_sent X s m
-    end.
-
   Context
         {validator : Type}
         (A : validator -> index)
@@ -1526,27 +1528,25 @@ Section Composite.
       in the future **)
 
   Definition equivocation_dec_statewise
-     (Hdec : forall (s : vstate X) (v : validator),
-       {is_equivocating_statewise s v} + {~is_equivocating_statewise s v})
+     (Hdec : RelDecision is_equivocating_statewise)
       : basic_equivocation (vstate X) (validator)
     :=
     {|
       state_validators := fun _ => validator_listing;
       state_validators_nodup := fun _ => proj1 finite_validator;
-      is_equivocating_fn := fun (s : vstate X) (v : validator) =>
-        if Hdec s v then true else false
+      is_equivocating := is_equivocating_statewise;
+      is_equivocating_dec := Hdec
     |}.
 
   Definition equivocation_dec_tracewise
-     (Hdec : forall (s : vstate X) (v : validator),
-       {is_equivocating_tracewise s v} + {~is_equivocating_tracewise s v})
+     (Hdec : RelDecision is_equivocating_tracewise)
       : basic_equivocation (vstate X) (validator)
     :=
     {|
       state_validators := fun _ => validator_listing;
       state_validators_nodup := fun _ => proj1 finite_validator;
-      is_equivocating_fn := fun (s : vstate X) (v : validator) =>
-        if Hdec s v then true else false
+      is_equivocating := is_equivocating_tracewise;
+      is_equivocating_dec := Hdec
     |}.
 
   Definition equivocation_fault_constraint
