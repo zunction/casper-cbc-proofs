@@ -72,6 +72,31 @@ Definition mk_singleton_state
   :=
   existT _ 0 (fun _ => s).
 
+Definition is_singleton_state
+  (s : equivocator_state)
+  : Prop
+  := projT1 s = 0.
+
+Lemma is_singleton_state_dec
+  (s : equivocator_state)
+  : Decision (is_singleton_state s).
+Proof.
+  apply nat_eq_dec.
+Qed.
+
+Definition is_equivocating_state
+  (s : equivocator_state)
+  : Prop
+  := not (is_singleton_state s).
+
+Lemma is_equivocating_state_dec
+  (s : equivocator_state)
+  : Decision (is_equivocating_state s).
+Proof.
+  apply Decision_not.
+  apply is_singleton_state_dec.
+Qed.
+
 Definition equivocator_label : Type := @label message equivocator_type.
 
 Definition mk_label
@@ -343,7 +368,7 @@ Proof.
       destruct Hom as [_s Hom].
       specialize (Hgen l (bs' (of_nat_lt Hi)) _om' Hbs't _s om0 Hom Hv).
       match type of Hgen with
-      | protocol_prop _ ?t => 
+      | protocol_prop _ ?t =>
         change t  with (vtransition X l (bs' (of_nat_lt Hi), om0))
           in Hgen
       end.
@@ -380,7 +405,7 @@ Proof.
       destruct IHHbs2 as [(_som, Hom) _].
       specialize (Hgen l (bs0 (of_nat_lt Hi))  _om0 Hbs0t _som om0 Hom Hv).
       match type of Hgen with
-      | protocol_prop _ ?t => 
+      | protocol_prop _ ?t =>
         change t  with (vtransition X l (bs0 (of_nat_lt Hi), om0))
           in Hgen
       end.
