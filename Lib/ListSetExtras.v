@@ -1,3 +1,4 @@
+Require Import Bool.
 Require Import Coq.Lists.ListSet.
 Require Import List.
 Import ListNotations.
@@ -435,6 +436,20 @@ Proof.
       rewrite IHl. reflexivity.
 Qed.
 
+Lemma set_add_new `{EqDecision A}:
+  forall (x:A) l,
+    ~In x l -> set_add decide_eq x l = l++[x].
+Proof.
+  induction l.
+  - reflexivity.
+  - simpl.
+    destruct (decide (x = a)).
+    + intro H_not_in. exfalso. apply H_not_in. left. symmetry. assumption.
+    + intro H_not_in.
+      rewrite IHl by tauto.
+      reflexivity.
+Qed.
+
 Lemma set_remove_not_in `{EqDecision A} : forall x (s : list A),
   ~ In x s ->
   set_remove decide_eq x s = s.
@@ -647,8 +662,17 @@ Proof.
   reflexivity.
 Qed.
 
+(* For each element X of l1, exactly one occurrence of X is removed
+   from l2. If no such occurrence exists, nothing happens. *)
+
 Definition set_remove_list `{EqDecision A} (l1 l2 : list A) : list A :=
   fold_right (set_remove decide_eq) l2 l1.
+
+Example set_remove_list1 : set_remove_list [3;1;3] [1;1;2;3;3;3;3] = [1;2;3;3].
+Proof. intuition. Qed.
+
+Example set_remove_list2 : set_remove_list [4] [1;2;3] = [1;2;3].
+Proof. intuition. Qed.
 
 Lemma set_remove_list_1 
   `{EqDecision A} 
@@ -666,13 +690,41 @@ Proof.
     assumption.
 Qed. 
 
+Definition forallb_false {A}
+  (l : list A)
+  (Hne : l <> [])
+  (f : A -> bool) :
+  forallb f l = false -> 
+  exists (a : A), In a l /\ (f a) = false.
+Proof.
+  intros.
+  induction l;[congruence|].
+  simpl in H.
+  destruct (f a) eqn : eqfa.
+  - simpl in H. 
+    destruct l.
+    + simpl in H. congruence.
+    + spec IHl. congruence.
+      specialize (IHl H).
+      destruct IHl as [a' [Hina' Heqa']].
+      exists a'. intuition.
+  - exists a. intuition.
+Qed.
 
-Definition get_maximal_elements {A}
-  (preceeds : A -> A -> Prop)
-  (preceeds_dec : RelDecision preceeds)
+(* Returns all elements X of l such that X does not compare less
+   than any other element w.r.t to the preceeds relation *)
+
+Definition get_maximal_elements
+  `(preceeds : A -> A -> bool)
   (l : list A)
   : list A :=
-  filter (fun a => forallb (fun b => negb (bool_decide (preceeds b a))) l) l.
+  filter (fun a => forallb (fun b => negb (preceeds a b)) l) l.
+
+Example get_maximal_elements1: get_maximal_elements Nat.ltb [1; 4; 2; 4] = [4;4].
+Proof. intuition. Qed.
+
+Example get_maximal_elements2 : get_maximal_elements Nat.leb [1; 4; 2; 4] = [].
+Proof. intuition. Qed. 
 
 Lemma set_prod_nodup `(s1: set A) `(s2: set B):
   NoDup s1 ->
@@ -701,6 +753,98 @@ Proof.
       congruence.
 Qed.
 
+(** An alternative to [set_diff].
+    Unlike [set_diff], the result may contain
+    duplicates if the first argument list <<l>> does.
+
+    This definition exists to make proving
+    [len_set_diff_decrease] more convenient,
+    because <<length>> of <<filter>> can be simplified
+    step by step while doing induction over <<l>>.
+ *)
+Definition set_diff_filter `{EqDecision A} (l r : list A) :=
+  filter (fun a => if in_dec decide_eq a r then false else true) l.
+
+(**
+   The characteristic membership property, parallel to
+   [set_diff_iff].
+ *)
+Lemma set_diff_filter_iff `{EqDecision A} (a:A) l r:
+  In a (set_diff_filter l r) <-> (In a l /\ ~In a r).
+Proof.
+  induction l;simpl.
+  - tauto.
+  - destruct (in_dec decide_eq a0 r) as [H|H];simpl;rewrite IHl;
+      clear -H;intuition congruence.
+Qed.
+
+Lemma set_diff_filter_nodup `{EqDecision A} (l r:list A):
+  NoDup l -> NoDup (set_diff_filter l r).
+Proof (@NoDup_filter _ _ _).
+
+(**
+   Prove that subtracting a superset cannot produce
+   a smaller result.
+   This lemma is used to prove [len_set_diff_decrease].
+ *)
+Lemma len_set_diff_incl_le `{EqDecision A} (l a b: list A)
+      (H_incl: forall x, In x b -> In x a):
+  length (set_diff_filter l a) <= length (set_diff_filter l b).
+Proof.
+  induction l;[reflexivity|].
+  simpl.
+  destruct (in_dec decide_eq a0 a);destruct (in_dec decide_eq a0 b).
+  - assumption.
+  - simpl. apply le_S. assumption.
+  - exfalso. apply n, H_incl, i.
+  - simpl. apply le_n_S. assumption.
+Qed.
+
+(**
+   Prove that strictly increasing the set to be subtracted,
+   by adding an element actually found in <<l>> will decrease
+   the size of the result.
+ *)
+Lemma len_set_diff_decrease `{EqDecision A} (new:A) (l a b: list A)
+      (H_incl: forall x, In x b -> In x a)
+      (H_new_is_new: In new a /\ ~In new b)
+      (H_new_is_relevant: In new l):
+  length (set_diff_filter l a) < length (set_diff_filter l b).
+Proof.
+  induction l;destruct H_new_is_relevant.
+  - subst a0.
+    simpl.
+    destruct (in_dec decide_eq new a);[|exfalso;tauto].
+    destruct (in_dec decide_eq new b);[exfalso;tauto|].
+    simpl. unfold lt. apply le_n_S.
+    apply len_set_diff_incl_le;assumption.
+  - specialize (IHl H);clear H.
+    simpl.
+    destruct (in_dec decide_eq a0 a);destruct (in_dec decide_eq a0 b).
+    + assumption.
+    + simpl. apply le_n_S. apply len_set_diff_incl_le;assumption.
+    + exfalso. apply n, H_incl, i.
+    + simpl. apply Lt.lt_n_S. assumption.
+Qed.
+
+Lemma len_set_diff_map_set_add `{EqDecision B} (new:B) `{EqDecision A} (f: B -> A)
+      (a: list B) (l: list A)
+      (H_new_is_new: ~In (f new) (map f a))
+      (H_new_is_relevant: In (f new) l):
+  length (set_diff_filter l (map f (set_add decide_eq new a)))
+  < length (set_diff_filter l (map f a)).
+Proof.
+  apply len_set_diff_decrease with (f new).
+  - intro x. rewrite 2 in_map_iff.
+    intros [x0 [Hx0 Hin]]. exists x0.
+    rewrite set_add_iff. tauto.
+  - split;[|assumption].
+    apply in_map.
+    apply set_add_iff.
+    left. reflexivity.
+  - assumption.
+Qed.
+
 Require Import Setoid.
 
 Add Parametric Relation A : (set A) (@set_eq A)
@@ -717,5 +861,67 @@ Qed.
 Add Parametric Morphism A : (@In A)
   with signature @eq A ==> @incl A ==> Basics.impl as In_incl.
 Proof. firstorder. Qed.
+
+Lemma set_union_iterated_preserves_prop
+  `{EqDecision A}
+  (ss : list (set A))
+  (P : A -> Prop)
+  (Hp : forall (s : set A), forall (a : A), (In s ss /\ In a s) -> P a) :
+  forall (a : A), In a (fold_right (set_union decide_eq) nil ss) -> P a.
+Proof.
+  intros.
+  apply set_union_in_iterated in H. rewrite Exists_exists in H.
+  destruct H as [s [Hins Hina]].
+  apply Hp with (s := s).
+  intuition.
+Qed.
+
+Lemma filter_set_eq `{EqDecision X}
+   (l : list X) 
+   (f g : X -> bool)
+   (resf := filter f l)
+   (resg := filter g l) :
+   set_eq resf resg -> resf = resg.
+Proof.
+  intros.
+  unfold resf, resg in *.
+  apply filter_ext_in. intros.
+  unfold set_eq in H.
+  destruct H as [H H'].
+  unfold incl in *.
+  specialize (H a). specialize (H' a).
+  assert (f a = true <-> g a = true). {
+    split; intros.
+    - spec H. apply filter_In. intuition.
+      apply filter_In in H. intuition.
+    - spec H'. apply filter_In. intuition.
+      apply filter_In in H'. intuition.
+  }
+  specialize (eq_true_iff_eq (f a) (g a) H1).
+  intuition.
+Qed.
+
+Lemma filter_complement `{EqDecision X}
+   (l : list X) 
+   (f f' : X -> bool)
+   (g := (fun (x : X) => negb (f x)))
+   (g' := (fun (x : X) => negb (f' x))) :
+   filter f l = filter f' l <-> 
+   filter g l = filter g' l.
+Proof.
+   split; intros.
+   - specialize (ext_in_filter f f' l H) as Hext.
+     apply filter_ext_in.
+     intros.
+     unfold g. unfold g'.
+     specialize (Hext a H0).
+     rewrite Hext. intuition.
+   - specialize (ext_in_filter g g' l H) as Hext.
+     apply filter_ext_in. intros.
+     specialize (Hext a H0). 
+     unfold g in Hext.
+     unfold g' in Hext.
+     destruct (f a); destruct (f' a); (simpl in *; intuition congruence).
+Qed.
 
 Unset Implicit Arguments.

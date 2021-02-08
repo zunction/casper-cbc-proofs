@@ -239,6 +239,52 @@ Proof.
       * apply IHl; assumption.
 Qed.
 
+Lemma Exists_first
+  {A : Type}
+  (l : list A)
+  (P : A -> Prop)
+  (Pdec : forall a, Decision (P a))
+  (Hsomething : Exists P l)
+  : exists (prefix : list A)
+         (suffix : list A)
+         (first : A),
+         P first /\
+         l = prefix ++ [first] ++ suffix /\
+         ~Exists P prefix.
+
+Proof.
+  induction l;[solve[inversion Hsomething]|].
+  destruct (decide (P a)).
+  - exists nil, l, a.
+    rewrite Exists_nil.
+    tauto.
+  - apply Exists_cons in Hsomething.
+    destruct Hsomething;[exfalso;tauto|].
+    specialize (IHl H);clear H.
+    destruct IHl as [prefix [suffix [first [Hf [-> Hnone_before]]]]].
+    exists (a :: prefix), suffix, first.
+    rewrite Exists_cons.
+    tauto.
+Qed.
+
+Lemma existsb_Exists {A} (f : A -> bool):
+  forall l, existsb f l = true <-> Exists (fun x => f x = true) l.
+Proof.
+  intro l.
+  rewrite Exists_exists.
+  apply existsb_exists.
+Qed.
+
+Lemma existsb_forall {A} (f : A -> bool):
+  forall l, existsb f l = false <-> forall x, In x l -> f x = false.
+Proof.
+  intro l.
+  setoid_rewrite <- not_true_iff_false.
+  rewrite existsb_Exists, <- Forall_forall.
+  symmetry.
+  apply Forall_Exists_neg.
+Qed.
+
 Lemma existsb_first
   {A : Type}
   (l : list A)
@@ -250,40 +296,12 @@ Lemma existsb_first
          (f first = true) /\
          l = prefix ++ [first] ++ suffix /\
          (existsb f prefix = false).
-
 Proof.
-  generalize dependent l.
-  induction l.
-  - intros.
-    simpl in *.
-    discriminate Hsomething.
-  - intros.
-    unfold existsb in Hsomething.
-    destruct (f a) eqn : eq_a.
-    + simpl in Hsomething.
-      exists [].
-      exists l.
-      exists a.
-      split.
-      assumption.
-      simpl.
-      intuition.
-    + simpl in *.
-      specialize (IHl Hsomething).
-      destruct IHl as [prefix [suffix [first [Hf [Hconcat Hnone_before]]]]].
-      exists (a :: prefix).
-      exists suffix.
-      exists first.
-      split.
-      assumption.
-      split.
-      rewrite Hconcat.
-      auto.
-      unfold existsb.
-      rewrite eq_a.
-      simpl.
-      unfold existsb in Hnone_before.
-      assumption.
+  setoid_rewrite <-not_true_iff_false.
+  setoid_rewrite existsb_Exists.
+  apply Exists_first.
+  intro a;apply decide_eq.
+  apply existsb_Exists;assumption.
 Qed.
 
 Lemma in_not_in : forall A (x y : A) l,
@@ -356,19 +374,6 @@ Proof.
   apply in_map_iff in Hin.
   destruct Hin as [x [Heq Hin]].
   exists x. split; try assumption. apply Hincl. assumption.
-Qed.
-
-Lemma existsb_forall {A} (f : A -> bool):
-  forall l, existsb f l = false <-> forall x, In x l -> f x = false.
-Proof.
-  induction l; split; intros.
-  - inversion H0.
-  - reflexivity.
-  - inversion H. apply orb_false_iff in  H2. destruct H2 as [Hfa Hex]. rewrite Hfa.
-    rewrite Hex. simpl. destruct H0 as [Heq | Hin]; subst; try assumption.
-    apply IHl; try assumption.
-  - simpl. rewrite H; try (left; reflexivity). rewrite IHl; try reflexivity.
-    intros. apply H. right. assumption.
 Qed.
 
 Definition app_cons {A}
@@ -1242,6 +1247,17 @@ Proof.
   apply in_map_option.
 Qed.
 
+Lemma map_option_incl
+  {A B : Type}
+  (f : A -> option B)
+  (l1 l2 : list A)
+  (Hincl : incl l1 l2)
+  : incl (map_option f l1) (map_option f l2).
+Proof.
+  intro b. repeat rewrite in_map_option.
+  firstorder.
+Qed.
+
 Lemma nth_error_eq
   {A : Type}
   (l1 l2 : list A)
@@ -1502,126 +1518,6 @@ Proof.
         right. right. exists suf2'. simpl. f_equal. assumption.
 Qed.
 
-Fixpoint zip_apply 
-  {A B : Type}
-  (lf : list (A -> B))
-  (la : list A) :
-  list B :=
-  match lf, la with 
-  | _, [] => []
-  | [], _ => []
-  | (hf :: tlf), (ha :: tla) => (hf ha) :: (zip_apply tlf tla)
-  end.
-  
-Lemma zip_apply_app
-  {A B : Type}
-  (lf1 lf2 : list (A -> B))
-  (la1 la2 : list A) 
-  (Heq : length lf1 = length la1 /\ length lf2 = length la2) :
-  zip_apply (lf1 ++ lf2) (la1 ++ la2) = (zip_apply lf1 la1) ++ (zip_apply lf2 la2).
-Proof.
-  generalize dependent la1.
-  induction lf1.
-  - intros. simpl in *.
-    destruct Heq as [Heq _].
-    symmetry in Heq.
-    apply length_zero_iff_nil in Heq.
-    rewrite Heq; simpl.
-    reflexivity.
-  - intros.
-    destruct Heq as [Heqf Heqa].
-    simpl.
-    assert (Hne : la1 <> []). {
-      simpl in Heqf.
-      intros contra.
-      apply length_zero_iff_nil in contra.
-      lia.
-    }
-    
-    destruct (la1 ++ la2) eqn : eq_la.
-    + apply app_eq_nil in eq_la. intuition.
-    + destruct la1. intuition.
-      simpl.
-      specialize (IHlf1 la1).
-      spec IHlf1. {
-        intuition.
-      }
-      simpl in eq_la.
-      inversion eq_la.
-      rewrite IHlf1.
-      rewrite <- H0.
-      reflexivity.
-Qed.
-
-Lemma in_zip_apply_if
-  {A B : Type}
-  (lf : list (A -> B))
-  (la : list A) 
-  (f : (A -> B)) 
-  (a : A)
-  (n : nat)
-  (Hf : nth_error lf n = Some f)
-  (Ha : nth_error la n = Some a) : 
-  In (f a) (zip_apply lf la).
-Proof.
-  generalize dependent lf.
-  generalize dependent la.
-  induction n.
-  - intros.
-    simpl in *.
-    destruct la; destruct lf.
-    discriminate Ha.
-    discriminate Ha.
-    discriminate Hf.
-    simpl.
-    inversion Hf.
-    inversion Ha.
-    left.
-    reflexivity.
-  - intros.
-    destruct la; destruct lf;
-    simpl in *.
-    discriminate Ha.
-    discriminate Ha.
-    discriminate Hf.
-    specialize (IHn la Ha lf Hf).
-    right.
-    apply IHn.
-Qed.
-
-Lemma in_zip_apply_if2
-  {A B : Type}
-  (lf : list (A -> B))
-  (la : list A) 
-  (b : B)
-  (Hin : In b (zip_apply lf la)) :
-  exists (f : (A -> B))
-         (a : A)
-         (n : nat),
-         nth_error lf n = Some f /\
-         nth_error la n = Some a /\
-         f a = b.
-Proof.
-  generalize dependent la.
-  induction lf as [|f lf].
-  - destruct la; simpl in *; intuition.
-  - intros. 
-    destruct la eqn : eq_la. simpl in *. intuition.
-    simpl in *.
-    destruct Hin.
-    + exists f. 
-      exists a.
-      exists 0.
-      repeat split.
-      assumption.
-    + specialize (IHlf l H).
-      destruct IHlf as [f' [a' [n' H']]].
-      exists f'.
-      exists a'.
-      exists (S n').
-      repeat split; simpl; intuition.
-Qed.
-
 Lemma list_max_exists
    (l : list nat) 
    (nz : list_max l > 0) :
@@ -1650,15 +1546,36 @@ Proof.
       reflexivity. 
 Qed.
 
+Lemma list_max_exists2
+   (l : list nat) 
+   (Hne : l <> []) :
+   In (list_max l) l.
+Proof.
+  destruct (list_max l) eqn : eq_max.
+  - destruct l;[intuition congruence|].
+    specialize (list_max_le (n :: l) 0) as Hle.
+    destruct Hle as [Hle _].
+    rewrite eq_max in Hle. spec Hle. apply le_refl.
+    rewrite Forall_forall in Hle.
+    specialize (Hle n). spec Hle. intuition.
+    simpl. lia.
+  - specialize (list_max_exists l) as Hmax.
+    spec Hmax. lia. rewrite <- eq_max. intuition.
+Qed.
+
+(* Returns all values which occur with maximum frequency in the given list.
+   Note that these values are returned with their original multiplicity. *)
+
 Definition mode
-  {A : Type}
   `{EqDecision A}
   (l : list A) : list A  :=
   let mode_value := list_max (List.map (count_occ decide_eq l) l) in
   filter (fun a => beq_nat (count_occ decide_eq l a) mode_value) l.
 
+Example mode1 : mode [1; 1; 2; 3; 3] = [1; 1; 3; 3].
+Proof. intuition. Qed.
+
 Lemma mode_not_empty
-  {A : Type}
   `{EqDecision A}
   (l : list A)
   (Hne : l <> []) :
@@ -1719,18 +1636,15 @@ Proof.
   intuition.
 Qed.
 
+(* Computes the list suff which satisfies <<pref ++ suff = l>> or
+   reports that no such list exists. *)
+
 Fixpoint complete_prefix 
-  {A : Type}
   `{EqDecision A}
   (l pref : list A) : option (list A) :=
   match l, pref with
-  | [], [] => Some []
+  | l , [] => Some l
   | [], (b :: pref') => None
-  | (a :: l'), [] => let res' := complete_prefix l' [] in
-                     match res' with
-                     | None => None
-                     | Some s => Some (a :: s)
-                     end
   | (a :: l'), (b :: pref') => match (decide_eq a b) with
                                | right _ => None
                                | _ => let res' := complete_prefix l' pref' in
@@ -1741,12 +1655,15 @@ Fixpoint complete_prefix
                                end
   end.
 
+Example complete_prefix_some : complete_prefix [1;2;3;4] [1;2] = Some [3;4].
+Proof. intuition. Qed.
+Example complete_prefix_none : complete_prefix [1;2;3;4] [1;3] = None.
+Proof. intuition. Qed.
+
 Lemma complete_prefix_empty 
-  {A : Type}
   `{EqDecision A}
   (l : list A) :
   complete_prefix l [] = Some l.
-
 Proof.
   induction l.
   - simpl. reflexivity.
@@ -1758,7 +1675,6 @@ Proof.
 Qed.
 
 Lemma complete_prefix_correct 
-  {A : Type}
   `{EqDecision A}
   (l pref suff : list A) :
   l = pref ++ suff <->
@@ -1778,10 +1694,8 @@ Proof.
       * specialize (IHl [] l).
         spec IHl.
         intuition.
-        unfold complete_prefix in IHl.
-        rewrite IHl.
-        rewrite H.
-        f_equal.
+        rewrite app_nil_l in H.
+        f_equal. intuition.
       * destruct (decide (a = a0)) eqn : eq_d.
         specialize (IHl pref suff).
         unfold complete_prefix in IHl.
@@ -1818,8 +1732,10 @@ Proof.
        discriminate H.
 Qed.
 
+(* Computes the list pref which satisfies <<pref ++ suff = l>> or
+   reports that no such list exists. *)
+
 Definition complete_suffix 
-  {A : Type}
   `{EqDecision A}
   (l suff : list A) : option (list A) :=
   let res := complete_prefix (rev l) (rev suff) in
@@ -1828,8 +1744,10 @@ Definition complete_suffix
   | Some ls => Some (rev ls)
   end.
   
+Example complete_suffix_some : complete_suffix [1;2;3;4] [3;4] = Some [1;2].
+Proof. intuition. Qed.
+  
 Lemma complete_suffix_correct 
-  {A : Type}
   `{EqDecision A}
   (l pref suff : list A) :
   l = pref ++ suff <->
@@ -1867,6 +1785,17 @@ Proof.
     assumption.
     intros.
     discriminate H.
+Qed.
+
+Lemma complete_suffix_empty 
+  `{EqDecision A}
+  (l : list A) :
+  complete_suffix l [] = Some l.
+Proof.
+  unfold complete_suffix. simpl.
+  rewrite complete_prefix_empty.
+  f_equal. 
+  apply rev_involutive.
 Qed.
 
 (** elements belonging to first type in a list of a sum type *)
