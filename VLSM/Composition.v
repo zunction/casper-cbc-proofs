@@ -279,13 +279,6 @@ updating an initial composite state, say [s0], to <<sj>> on component <<j>>.
       :=
       List.map (lift_to_composite_transition_item j) trj.
 
-    Definition lift_to_composite_finite_trace
-      (j : index)
-      (trj : list (vtransition_item (IM j)))
-      : list (@transition_item _ composite_type)
-      :=
-      List.map (lift_to_composite_transition_item j) trj.
-
     Definition lift_to_composite_trace
       (j : index)
       (trj : vTrace (IM j))
