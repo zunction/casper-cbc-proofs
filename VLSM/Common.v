@@ -180,8 +180,9 @@ In Coq, we can define these objects (which we name [transition_item]s) as consis
 
   Lemma last_error_destination_last
     (tr : list transition_item)
-    (s default : state)
+    (s : state)
     (Hlast : option_map destination (last_error tr) = Some s)
+    (default : state)
     : last (List.map destination tr) default = s.
   Proof.
     unfold option_map in Hlast.
