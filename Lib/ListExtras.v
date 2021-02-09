@@ -1177,8 +1177,12 @@ Proof.
       * apply IHl. exists a'. split; try assumption.
 Qed.
 
-Definition cat_option {A : Type} := 
+(* Unpack list of [option A] into list of [A] *)
+Definition cat_option {A : Type} : list (option A) -> list A := 
   @map_option (option A) A id.
+
+Example cat_option1 : cat_option [Some 1; Some 5; None; Some 6; None] = [1; 5; 6].
+Proof. intuition. Qed.
   
 Lemma cat_option_length
   {A : Type}
