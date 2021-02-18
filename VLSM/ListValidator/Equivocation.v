@@ -1670,7 +1670,98 @@ Context
       apply H4.
       assumption.
     Qed.
-
+    
+    Lemma send_oracle_prop'
+      (s : state)
+      (Hprotocol : protocol_state_prop preX s)
+      (m : message) :
+      has_been_sent_prop X send_oracle s m.
+    Proof.
+      unfold has_been_sent_prop.
+      apply prove_all_have_message_from_stepwise.
+      2 : intuition.
+      split.
+      - intros. intro contra.
+        unfold send_oracle in contra.
+        unfold Common.initial_state_prop in H. simpl in H.
+        unfold initial_state_prop in H.
+        destruct H as [c Heqs].
+        subst s0.
+        destruct (decide (fst m0 = index_self));[|intuition].
+        rewrite get_history_all_bottom in contra.
+        intuition.
+      - intros.
+        destruct H as [Hpr Htr].
+        simpl in *.
+        unfold vvalid in Hpr.
+        unfold valid in Hpr. simpl in Hpr.
+        destruct l eqn : eq_l.
+        + inversion Htr.
+          split; intros; simpl.
+          * destruct (decide (msg = (index_self, s0)));[left;f_equal;intuition|].
+            right.
+            unfold send_oracle in H.
+            destruct (decide (fst msg = index_self)); [|intuition].
+            rewrite history_disregards_cv in H.
+            rewrite e in H.
+            rewrite history_append in H.
+            unfold send_oracle.
+            rewrite decide_True by intuition.
+            simpl in H.
+            rewrite <- Is_true_iff_eq_true in H.
+            apply orb_true_iff in H.
+            2, 3 : apply protocol_prop_no_bottom; intuition.
+            2 : intuition.
+            destruct H.
+            -- destruct (decide (snd msg = s0)).
+               ++ destruct msg. simpl in *. intuition congruence.
+               ++ rewrite state_eqb_eq in H.
+                  congruence.
+            -- subst index_self. intuition.
+          * destruct H.
+            -- inversion H. 
+               assert (fst msg = index_self) by (rewrite <- H3; simpl; intuition).
+               unfold send_oracle.
+               rewrite decide_True by intuition.
+               rewrite history_disregards_cv.
+               simpl.
+               rewrite history_append. simpl.
+               2, 3 : apply protocol_prop_no_bottom; intuition.
+               2 : intuition.
+               rewrite <- Is_true_iff_eq_true.
+               apply orb_true_iff.
+               left. apply state_eqb_eq; intuition.
+            -- unfold send_oracle.
+               unfold send_oracle in H.
+               destruct (decide ((fst msg) = index_self)).
+               ++ rewrite history_disregards_cv.
+                  rewrite e.
+                  rewrite history_append. simpl.
+                  2, 3 : apply protocol_prop_no_bottom; intuition.
+                  2 : intuition.
+                  rewrite <- Is_true_iff_eq_true.
+                  apply orb_true_iff. right. rewrite <- Is_true_iff_eq_true in H.
+                  rewrite e in H. intuition.
+               ++ intuition.
+        + destruct im;[|intuition].
+          split; intros.
+          * right.
+            unfold send_oracle in *.
+            destruct (decide (fst msg = index_self));[|intuition].
+            inversion Htr.
+            rewrite <- H1 in H.
+            rewrite <- history_oblivious in H.
+            intuition.
+            rewrite e. intuition.
+          * destruct H;[inversion Htr; intuition congruence|].
+            inversion Htr.
+            unfold send_oracle in *.
+            destruct (decide (fst msg = index_self)); [|intuition].
+            rewrite <- history_oblivious.
+            intuition.
+            rewrite e. intuition.
+    Qed.
+    
     Lemma send_oracle_prop
       (s : state)
       (Hprotocol : protocol_state_prop preX s)
