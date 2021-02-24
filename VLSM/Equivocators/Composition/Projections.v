@@ -109,7 +109,7 @@ Lemma equivocators_transition_item_project_proper_descriptor_characterization
       end
     /\ forall
       (s : composite_state equivocator_IM)
-      (Hv : free_composite_valid equivocator_IM (l item) (s, input item))
+      (Hv : composite_valid equivocator_IM (l item) (s, input item))
       (Ht : composite_transition equivocator_IM (l item) (s, input item) = (destination item, output item)),
       proper_descriptor (IM i) (eqv_descriptors' i) (s i) /\
       eqv_descriptors' = equivocator_descriptors_update eqv_descriptors i (eqv_descriptors' i) /\
@@ -118,7 +118,7 @@ Lemma equivocators_transition_item_project_proper_descriptor_characterization
       | Some itemx =>
         forall (sx : composite_state IM)
           (Hsx : sx = equivocators_state_project eqv_descriptors' s),
-          free_composite_valid IM (l itemx) (sx, input itemx) /\
+          composite_valid IM (l itemx) (sx, input itemx) /\
           composite_transition IM (l itemx) (sx, input itemx) = (destination itemx, output itemx)
       | None =>
         equivocators_state_project eqv_descriptors (destination item) = equivocators_state_project eqv_descriptors' s
@@ -206,14 +206,14 @@ Lemma equivocators_transition_item_project_proper_characterization
       end
     /\ forall
       (s : composite_state equivocator_IM)
-      (Hv : free_composite_valid equivocator_IM (l item) (s, input item))
+      (Hv : composite_valid equivocator_IM (l item) (s, input item))
       (Ht : composite_transition equivocator_IM (l item) (s, input item) = (destination item, output item)),
       proper_equivocator_descriptors eqv_descriptors' s /\
       match oitem with
       | Some itemx =>
         forall (sx : composite_state IM)
           (Hsx : sx = equivocators_state_project eqv_descriptors' s),
-          free_composite_valid IM (l itemx) (sx, input itemx) /\
+          composite_valid IM (l itemx) (sx, input itemx) /\
           composite_transition IM (l itemx) (sx, input itemx) = (destination itemx, output itemx)
       | None =>
         equivocators_state_project eqv_descriptors (destination item) = equivocators_state_project eqv_descriptors' s
@@ -471,7 +471,7 @@ Context
   (FreeE := free_composite_vlsm equivocator_IM)
   (PreFreeE := pre_loaded_with_all_messages_vlsm FreeE)
   (SeededXE := seeded_equivocators_no_equivocation_vlsm IM Hbs finite_index seed)
-  (SeededX := vlsm_add_initial_messages X seed)
+  (SeededX := pre_loaded_vlsm X seed)
   .
 
 Lemma seeded_equivocators_initial_message
@@ -924,7 +924,7 @@ Proof.
     ) as Hproject.
   spec Hproject.
   { apply VLSM_incl_finite_protocol_trace_from; [|assumption].
-    specialize (false_seeded_composite_no_equivocation_vlsm equivocator_IM (free_constraint equivocator_IM) (equivocator_Hbs IM Hbs) finite_index)
+    specialize (false_composite_no_equivocation_vlsm_with_pre_loaded equivocator_IM (free_constraint equivocator_IM) (equivocator_Hbs IM Hbs) finite_index)
       as Heq.
     match goal with
     |- VLSM_incl_part ?m1 ?m2 =>
@@ -935,7 +935,7 @@ Proof.
   }
   destruct Hproject as [trX [initial_choice [Hinitial_choice [Hproject_tr [Hproject_lst HtrX]]]]].
   exists trX, initial_choice.
-  specialize (vlsm_is_add_initial_False X) as Heq.
+  specialize (vlsm_is_pre_loaded_with_False X) as Heq.
   apply VLSM_eq_incl_iff in Heq.
   destruct Heq as [_ Hincl].
   apply (VLSM_incl_finite_protocol_trace_from _ _ Hincl) in HtrX.
