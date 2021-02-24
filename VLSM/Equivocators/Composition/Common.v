@@ -341,5 +341,4 @@ Proof.
   unfold equivocator_IM in emi.
   exists emi. assumption.
 Qed.
-
 End fully_equivocating_composition.
