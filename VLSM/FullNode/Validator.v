@@ -33,7 +33,6 @@ Section CompositeValidator.
   Existing Instance eq_V.
   Existing Instance message_preceeds_dec.
 
-
   Definition full_node_validator_observable_messages_fn
     (s : state C V)
     (v : V)
@@ -744,6 +743,105 @@ Section proper_sent_received.
       sent_messages_full := sent_messages_prop;
       sent_messages_consistency := VLSM_full_validator_sent_consistency
     }.
+    
+  Definition send_oracle 
+    (s : vstate vlsm) 
+    (m : message) :
+    Prop :=
+    In m (State.sent_messages s).
+  
+  Global Instance send_oracle_dec : RelDecision send_oracle.
+  Proof.
+    unfold RelDecision; intros s m.
+    unfold send_oracle.
+    destruct (inb decide_eq m (State.sent_messages s)) eqn : eq_inb.
+    - apply in_correct in eq_inb. left. intuition.
+    - apply in_correct' in eq_inb. right. intuition. 
+  Qed.
+  
+  Global Instance fullnode_has_been_sent : has_been_sent_capability vlsm.
+  Proof.
+    apply (@has_been_sent_capability_from_stepwise _ vlsm send_oracle _).
+    split.
+    - intros.
+      simpl in H. unfold initial_state_prop in H.
+      subst s. unfold send_oracle. intuition.
+    - intros.
+      unfold send_oracle in *.
+      destruct H as [Hprotocol Htrans].
+      unfold transition in Htrans. simpl in Htrans.
+      unfold vtransition in Htrans. unfold transition in Htrans.
+      unfold protocol_valid in Hprotocol.
+      unfold valid in Hprotocol. simpl in Hprotocol.
+      unfold vvalid in Hprotocol. unfold valid in Hprotocol.
+      simpl in *.
+      split; intros H.
+      + unfold State.sent_messages in *. simpl in *.
+        destruct s as [s_set s_pointer].
+        destruct l eqn : eq_label.
+        * simpl in *.
+          destruct s_pointer eqn : eq_pointer.
+          -- inversion Htrans.
+             rewrite <- H1 in H.
+             rewrite H2 in H.
+             destruct om.
+             ++ destruct m0 as [c0 v0 j] eqn : eq_m0.
+                apply set_add_elim in H.
+                rewrite H2. 
+                destruct H.
+                ** left. f_equal. intuition.
+                ** right. destruct m as [c1 v1 j0].
+                   inversion H2.
+                   subst j. simpl in *.
+                   intuition. 
+             ++ simpl in H. intuition.
+          -- simpl in *.
+             inversion Htrans.
+             rewrite <- H1 in H.
+             simpl in H.
+             destruct H;[|intuition].
+             left. f_equal. intuition.
+        * simpl in *.
+          unfold State.sent_messages in *.
+          destruct im eqn : eq_im. 
+          -- inversion Htrans.
+             rewrite <- H1 in H.
+             destruct s_pointer eqn : eq_pointer; simpl in *.
+             ++ destruct m0 as [c0 v0 j] eqn : eq_m0.
+                right. intuition.
+             ++ simpl in H. intuition.
+          -- inversion Htrans.
+             rewrite <- H1 in H.
+             destruct s_pointer eqn : eq_pointer; simpl in *.
+             ++ destruct m as [c v0 j].
+                right. intuition.
+             ++ intuition.
+      + destruct s as [s_set s_pointer].
+        unfold State.sent_messages in *.
+        destruct l eqn : eq_label.
+        * simpl in *.
+          destruct s_pointer eqn : eq_pointer; simpl in *.
+          -- destruct m as [c0 v0 j] eqn : eq_m.
+             inversion Htrans. subst om. simpl in *.
+             apply set_add_iff.
+             destruct H.
+             ++ left. inversion H. intuition.
+             ++ right. intuition.
+          -- inversion Htrans. subst om. simpl in *.
+             destruct H;[|intuition].
+             left. inversion H. intuition.
+        * destruct im eqn : eq_im.
+          -- inversion Htrans.
+             destruct s_pointer eqn : eq_pointer; simpl in *.
+             ++ destruct m0 as [c0 v0 j] eqn : eq_m0.
+                destruct H;[intuition congruence|intuition].
+             ++ destruct H;[intuition congruence|intuition].
+          -- inversion Htrans. 
+             destruct s_pointer eqn : eq_pointer; simpl in *.
+             ++ destruct m as [c0 v0 j] eqn : eq_m.
+                destruct H;[intuition congruence|intuition].
+             ++ destruct H;[intuition congruence|intuition].
+  Qed.
 
   Definition VLSM_full_validator_has_been_sent
     : has_been_sent_capability vlsm
@@ -968,6 +1066,43 @@ Section proper_sent_received.
       received_messages_full := received_messages_prop;
       received_messages_consistency := VLSM_full_validator_received_consistency
     }.
+  
+  Definition receive_oracle 
+    (s : vstate vlsm) 
+    (m : message) :
+    Prop :=
+    In m (State.received_messages s).
+  
+  Global Instance receive_oracle_dec : RelDecision receive_oracle.
+  Proof.
+    unfold RelDecision; intros s m.
+    unfold receive_oracle.
+    destruct (inb decide_eq m (State.received_messages s)) eqn : eq_inb.
+    - apply in_correct in eq_inb. left. intuition.
+    - apply in_correct' in eq_inb. right. intuition. 
+  Qed.
+  
+  Global Instance VLSM_full_validator_has_been_received : has_been_received_capability vlsm.
+  Proof.
+    apply (@has_been_received_capability_from_stepwise _ vlsm receive_oracle _).
+    split.
+    - intros s H m.
+      simpl in H. unfold initial_state_prop in H. subst s.
+      unfold receive_oracle. simpl. intuition.
+    - intros.
+      unfold receive_oracle in *.
+      destruct H as [Hprotocol Htrans].
+      unfold transition in Htrans. simpl in Htrans.
+      unfold vtransition in Htrans. unfold transition in Htrans.
+      unfold protocol_valid in Hprotocol.
+      unfold valid in Hprotocol. simpl in Hprotocol.
+      unfold vvalid in Hprotocol. unfold valid in Hprotocol.
+      simpl in *.
+      split; intros H; unfold State.received_messages in *.
+      + destruct s as [s_set s_pointer].
+        destruct l eqn : eq_l.
+       
+  
 
   Definition VLSM_full_validator_has_been_received
     : has_been_received_capability vlsm
