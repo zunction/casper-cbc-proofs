@@ -736,16 +736,16 @@ Section proper_sent_received.
         specialize (H is tr Htr Hlst). assumption.
   Qed.
     
-  Definition send_oracle 
+  Definition VLSM_full_validator_send_oracle 
     (s : vstate vlsm) 
     (m : message) :
     Prop :=
     In m (State.sent_messages s).
   
-  Global Instance send_oracle_dec : RelDecision send_oracle.
+  Global Instance VLSM_full_validator_send_oracle_dec : RelDecision VLSM_full_validator_send_oracle.
   Proof.
     unfold RelDecision; intros s m.
-    unfold send_oracle.
+    unfold VLSM_full_validator_send_oracle.
     destruct (inb decide_eq m (State.sent_messages s)) eqn : eq_inb.
     - apply in_correct in eq_inb. left. intuition.
     - apply in_correct' in eq_inb. right. intuition. 
@@ -753,13 +753,13 @@ Section proper_sent_received.
   
   Global Instance VLSM_full_validator_has_been_sent : has_been_sent_capability vlsm.
   Proof.
-    apply (@has_been_sent_capability_from_stepwise _ vlsm send_oracle _).
+    apply (@has_been_sent_capability_from_stepwise _ vlsm VLSM_full_validator_send_oracle _).
     split.
     - intros.
       simpl in H. unfold initial_state_prop in H.
-      subst s. unfold send_oracle. intuition.
+      subst s. unfold VLSM_full_validator_send_oracle. intuition.
     - intros.
-      unfold send_oracle in *.
+      unfold VLSM_full_validator_send_oracle in *.
       destruct H as [Hprotocol Htrans].
       unfold transition in Htrans. simpl in Htrans.
       unfold vtransition in Htrans. unfold transition in Htrans.
@@ -878,16 +878,16 @@ Section proper_sent_received.
       subst s0. simpl. apply set_add_iff. left. reflexivity.
   Qed.
   
-  Definition receive_oracle 
+  Definition VLSM_full_validator_receive_oracle 
     (s : vstate vlsm) 
     (m : message) :
     Prop :=
     In m (State.received_messages s).
   
-  Global Instance receive_oracle_dec : RelDecision receive_oracle.
+  Global Instance VLSM_full_validator_receive_oracle_dec : RelDecision VLSM_full_validator_receive_oracle.
   Proof.
     unfold RelDecision; intros s m.
-    unfold receive_oracle.
+    unfold VLSM_full_validator_receive_oracle.
     destruct (inb decide_eq m (State.received_messages s)) eqn : eq_inb.
     - apply in_correct in eq_inb. left. intuition.
     - apply in_correct' in eq_inb. right. intuition. 
@@ -895,13 +895,13 @@ Section proper_sent_received.
   
   Global Instance VLSM_full_validator_has_been_received : has_been_received_capability vlsm.
   Proof.
-    apply (@has_been_received_capability_from_stepwise _ vlsm receive_oracle _).
+    apply (@has_been_received_capability_from_stepwise _ vlsm VLSM_full_validator_receive_oracle _).
     split.
     - intros s H m.
       simpl in H. unfold initial_state_prop in H. subst s.
-      unfold receive_oracle. simpl. intuition.
+      unfold VLSM_full_validator_receive_oracle. simpl. intuition.
     - intros.
-      unfold receive_oracle in *.
+      unfold VLSM_full_validator_receive_oracle in *.
       destruct H as [Hprotocol Htrans].
       unfold transition in Htrans. simpl in Htrans.
       unfold vtransition in Htrans. unfold transition in Htrans.
