@@ -464,7 +464,7 @@ Section proper_sent_received.
       ; elim Hs1
       ; assumption.
   Qed.
- 
+
   Lemma has_been_sent_in_trace
     (s : state C V)
     (m: message)
@@ -567,7 +567,7 @@ Section proper_sent_received.
     destruct Htr as [Htr Hinit].
     apply has_been_sent_witness with s is; try assumption.
     inversion Hinit. intro. contradiction H0.
-  Qed. 
+  Qed.
 
   Lemma has_been_received_in_futures
     (s1 s2 : state C V)
@@ -623,7 +623,7 @@ Section proper_sent_received.
         assumption.
     - destruct iom as [msg|]; inversion Ht.
   Qed.
-  
+
   Lemma last_state_empty_segment
     (start: Common.state)
     (prefix: list transition_item)
@@ -672,7 +672,7 @@ Section proper_sent_received.
     destruct Htr as [Htr _].
     specialize (last_state_empty_segment is tr Htr Hlast item Hitem) as H.
     assumption.
-  Qed. 
+  Qed.
 
   Lemma sent_messages_prop
     (s : state C V)
@@ -735,7 +735,7 @@ Section proper_sent_received.
         exists Hlst.
         specialize (H is tr Htr Hlst). assumption.
   Qed.
-    
+
   Definition VLSM_full_validator_send_oracle 
     (s : vstate vlsm) 
     (m : message) :
@@ -1101,11 +1101,11 @@ Section proper_sent_received.
     (tr : list transition_item)
     (Htr : finite_protocol_trace bvlsm s tr)
     (m1 m2 : message)
-    (Hm1 : trace_has_message (field_selector output) m1 tr)
-    (Hm2 : trace_has_message (field_selector output) m2 tr)
+    (Hm1 : Equivocation.trace_has_message vlsm (field_selector output) m1 tr)
+    (Hm2 : Equivocation.trace_has_message vlsm (field_selector output) m2 tr)
     : m1 = m2 \/ validator_message_preceeds _ _ m1 m2 \/ validator_message_preceeds _ _ m2 m1.
   Proof.
-    unfold trace_has_message in *.
+    unfold Equivocation.trace_has_message in *.
     apply Exists_exists in Hm1. destruct Hm1 as [item1 [Hitem1 Hm1]].
     apply Exists_exists in Hm2. destruct Hm2 as [item2 [Hitem2 Hm2]].
     apply in_split in Hitem1.
