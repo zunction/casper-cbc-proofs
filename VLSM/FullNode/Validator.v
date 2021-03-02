@@ -709,7 +709,7 @@ Section proper_sent_received.
       destruct Hexistm as [item [Hin Hout]].
       apply (has_been_sent_in_trace s m ism trm Htrm item Hin Hout Hlastm).
   Qed.
-  
+
   Lemma VLSM_full_validator_sent_consistency
     (s : vstate vlsm)
     (Hs : protocol_state_prop bvlsm s)
