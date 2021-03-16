@@ -35,6 +35,7 @@ VLSM/ListValidator/EquivocationAwareComposition.v
 VLSM/ListValidator/CommonFutures.v
 VLSM/Liveness.v
 VLSM/Liveness/SimpleFragileProtocol.v
+VLSM/FinalityInspector/Inspector.v
 CBC/Binary.v
 CBC/Common.v
 CBC/CTL.v
