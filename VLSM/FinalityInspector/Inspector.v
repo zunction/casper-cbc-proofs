@@ -16,14 +16,14 @@ Context
   {message : Type}
   {mdec : EqDecision message}
   (happens_before : message -> message -> Prop)
-  (happens_before' := clos_trans _ happens_before)
   (Hstrict : StrictOrder happens_before)
+  (happens_before' := clos_trans _ happens_before)
   (happens_before_dec : RelDecision happens_before)
   (predSet : message -> set message)
-  (HpredSetCorrect : forall (m1 m2 : message), happens_before m1 m2 <-> In m2 (predSet m1))
+  (HpredSetCorrect : forall (m1 m2 : message), happens_before m1 m2 <-> In m1 (predSet m2))
   (downSet : message -> set message)
   (downSet' := fun (m : message) => set_union mdec (downSet m) [m])
-  (HdownSetCorrect : forall (m1 m2 : message), happens_before' m1 m2 <-> In m2 (downSet m1))
+  (HdownSetCorrect : forall (m1 m2 : message), happens_before' m1 m2 <-> In m1 (downSet m2))
   {index : Type}
   {index_listing : list index}
   (n := length index_listing)
@@ -74,39 +74,39 @@ Context
     let (s', oom) := vtransition (IM i) (projT2 l) ((s i), iom) in
     has_justification_option i (s i) iom /\ has_justification_option i (s i) oom.
     
-   Definition is_equivocating_from_set
-      (sm : set message)
-      (i : index) :=
-      exists (m1 m2 : message), 
-      In m1 sm /\
-      sender m1 = i /\
-      In m2 sm /\ 
-      sender m2 = i /\
-      ~comparable happens_before m1 m2.
+  Definition is_equivocating_from_set
+    (sm : set message)
+    (i : index) :=
+    exists (m1 m2 : message), 
+    In m1 sm /\
+    sender m1 = i /\
+    In m2 sm /\ 
+    sender m2 = i /\
+    ~comparable happens_before m1 m2.
       
-   Definition is_equivocating_from_message
+  Definition is_equivocating_from_message
      (m : message) :=
      is_equivocating_from_set (downSet m).
     
-   Local Instance is_equivocating_from_message_dec : RelDecision is_equivocating_from_message.
-   Proof.
-   Admitted.
+  Local Instance is_equivocating_from_message_dec : RelDecision is_equivocating_from_message.
+  Proof.
+  Admitted.
     
-   Definition honest_validators_from_message
-     (m : message) : set index := 
-     List.filter (fun (i : index) => negb (bool_decide (is_equivocating_from_message m i))) index_listing.
+  Definition honest_validators_from_message
+    (m : message) : set index := 
+    List.filter (fun (i : index) => negb (bool_decide (is_equivocating_from_message m i))) index_listing.
     
-   Definition honest_votes_count 
-     (m : message) : nat :=
-     length (honest_validators_from_message m).
+  Definition honest_votes_count 
+    (m : message) : nat :=
+    length (honest_validators_from_message m).
     
-   Definition honest_messages
-     (m : message) : set message :=
-     List.filter (fun (m : message) => inb idec (sender m) (honest_validators_from_message m)) (predSet m).
+  Definition honest_messages
+    (m : message) : set message :=
+    List.filter (fun (m : message) => inb idec (sender m) (honest_validators_from_message m)) (predSet m).
       
-   Definition latest_messages
-     (m : message) : set message :=
-     ListSetExtras.get_maximal_elements (fun m1 m2 => bool_decide (happens_before m1 m2)) (honest_messages m).
+  Definition latest_messages
+    (m : message) : set message :=
+    ListSetExtras.get_maximal_elements (fun m1 m2 => bool_decide (happens_before m1 m2)) (honest_messages m).
     
 Section Inspector.
 
@@ -215,12 +215,12 @@ Context
     
     Theorem main
       (s : vstate X)
-      (value : C)
       (Hpr : protocol_state_prop X s)
       (Com : committee)
       (skel := proj1_sig Com)
       (q := (q skel))
       (k := (k skel))
+      (value := (value skel))
       (base top : set message)
       (Hbase : get_base skel = Some base)
       (Htop : get_top skel = Some top)
