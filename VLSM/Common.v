@@ -171,6 +171,21 @@ In Coq, we can define these objects (which we name [transition_item]s) as consis
       : Prop
       := List.Exists (message_selector msg) tr.
 
+    (** Defines a message received but not sent by within the trace. *)
+    Definition trace_received_not_sent_before_or_after
+      (tr : list transition_item)
+      (m : message)
+      : Prop
+      := trace_has_message (field_selector input) m tr /\
+         ~trace_has_message (field_selector output) m tr.
+
+    (** States that a property holds for all messages received but not sent by a trace. *)
+    Definition trace_received_not_sent_before_or_after_invariant
+      (tr : list transition_item)
+      (P : message -> Prop)
+      : Prop
+      := forall m, trace_received_not_sent_before_or_after tr m -> P m.
+
   (** 'proto_run's are used for an alternative definition of 'protocol_prop' which
   takes into account transitions. See 'vlsm_run_prop'.
   *)
@@ -410,7 +425,7 @@ to define a protocol message property for optional messages:
       [apply option_protocol_message_Some
       |apply option_protocol_message_None].
       apply initial_message_is_protocol;assumption.
-    Qed.    
+    Qed.
 
 (**
 
@@ -883,22 +898,42 @@ decompose the above properties in proofs.
         reflexivity.
     Qed.
 
+    Lemma protocol_transition_to
+          (s : state)
+          (tr : list transition_item)
+          (tr1 tr2 : list transition_item)
+          (te : transition_item)
+          (Htr : finite_protocol_trace_from s tr)
+          (Heq : tr = tr1 ++ [te] ++ tr2)
+          (lst1 := last (List.map destination tr1) s)
+      : protocol_transition (l te) (lst1, input te) (destination te, output te).
+    Proof.
+      generalize dependent s. generalize dependent tr.
+      induction tr1.
+      - intros tr Heq s Htr. simpl in Heq; subst. inversion Htr; subst. assumption.
+      - specialize (IHtr1 (tr1 ++ [te] ++ tr2) eq_refl).
+        intros tr Heq is Htr; subst. inversion Htr; subst.
+        simpl in IHtr1. specialize (IHtr1 s H2).
+        rewrite map_cons, unroll_last.
+        assumption.
+    Qed.
+
     Lemma finite_ptrace_consecutive_valid_transition
           (s : state)
-          (tr tr2 : list transition_item)
-          (tr1 : list transition_item)
+          (tr : list transition_item)
+          (tr1 tr2 : list transition_item)
           (te1 te2 : transition_item)
           (Htr : finite_protocol_trace_from s tr)
           (Heq : tr = tr1 ++ [te1; te2] ++ tr2)
       : protocol_transition (l te2) (destination te1, input te2) (destination te2, output te2).
     Proof.
-      generalize dependent s. generalize dependent tr.
-      induction tr1.
-      - intros tr Heq s Htr. simpl in Heq; subst. inversion Htr; subst. inversion H2; subst. assumption.
-      - specialize (IHtr1 (tr1 ++ [te1; te2] ++ tr2) eq_refl).
-        intros tr Heq is Htr; subst. inversion Htr; subst.
-        simpl in IHtr1. specialize (IHtr1 s H2). assumption.
+      change ([te1; te2] ++ tr2) with ([te1] ++ [te2] ++ tr2) in Heq.
+      rewrite app_assoc in Heq.
+      specialize (protocol_transition_to s tr (tr1 ++ [te1]) tr2 te2 Htr Heq)
+        as Ht.
+      rewrite map_app in Ht. simpl in Ht. rewrite last_is_last in Ht. assumption.
     Qed.
+
 
     Lemma protocol_trace_output_is_protocol
       (is : state)
@@ -946,7 +981,7 @@ decompose the above properties in proofs.
       - intro Htr.
         inversion Htr.
         assumption.
-      - destruct te. simpl. intro Ht. 
+      - destruct te. simpl. intro Ht.
         apply protocol_transition_destination in Ht as Hdestination0.
         constructor; [|assumption]. constructor. assumption.
     Qed.
@@ -1082,82 +1117,30 @@ traces.
 
     (* begin hide *)
 
-    Lemma protocol_transition_to
-      (si : state)
-      (middle : transition_item)
-      (tr prefix suffix : list transition_item)
-      (Hsplit : tr = prefix ++ [middle] ++ suffix)
-      (Htr : finite_protocol_trace_from si tr)
-      (prev_state := last (List.map destination prefix) si)
-      :
-      protocol_transition (l middle) (prev_state, input middle) (destination middle, output middle).
-    Proof.
-      intros.
-      destruct prefix eqn : eq_prefix.
-      - simpl in *.
-        unfold prev_state.
-        apply first_transition_valid.
-        specialize (finite_protocol_trace_from_prefix si tr Htr 1).
-        intros.
-        rewrite Hsplit in H.
-        simpl in *.
-        assert (list_prefix suffix 0 = []). {
-          unfold list_prefix.
-          destruct suffix;
-          reflexivity.
-        }
-        rewrite H0 in H.
-        assumption.
-      - assert (Hnot_empty: t :: l1 <> []). {
-          intros contra.
-          discriminate contra.
-        }
-        specialize (exists_last Hnot_empty).
-        intros.
-        destruct X0 as [l2 [lst Hlst]].
-        rewrite Hlst in Hsplit.
-        simpl in Hsplit.
-        rewrite <- app_assoc in Hsplit.
-        simpl in Hsplit.
-        specialize (finite_ptrace_consecutive_valid_transition si).
-        intros.
-        specialize (H tr suffix l2 lst middle Htr Hsplit).
-        assert (destination lst = prev_state). {
-          unfold prev_state.
-          rewrite Hlst.
-          rewrite map_app.
-          rewrite last_app.
-          simpl.
-          reflexivity.
-        }
-        rewrite <- H0.
-        assumption.
-    Qed.
-
     Lemma can_emit_from_protocol_trace
       (si : state)
       (m : message)
       (tr : list transition_item)
       (Hprotocol: finite_protocol_trace si tr)
-      (Hm : List.Exists (fun elem : transition_item => output elem = Some m) tr) :
+      (Hm : trace_has_message (field_selector output) m tr) :
       can_emit m.
     Proof.
-      rewrite Exists_exists in Hm.
+      apply Exists_exists in Hm.
       destruct Hm as [x [Hin Houtput]].
       apply in_split in Hin.
       destruct Hin as [l1 [l2 Hconcat]].
       unfold can_emit.
       destruct Hprotocol.
-      specialize (protocol_transition_to si x tr l1 l2 Hconcat H).
+      specialize (protocol_transition_to _ _ _ _ _ H Hconcat).
       intros.
       simpl in H1.
       exists (last (List.map destination l1) si, input x).
       exists (l x).
       exists (destination x).
-      rewrite <- Houtput.
+      replace (Some m) with (output x) by assumption.
       assumption.
     Qed.
-    
+
     (* End Hide *)
 
 (**
@@ -1372,7 +1355,7 @@ It inherits some previously introduced definitions, culminating with the
           ;   destination := fst som'
           ;   output := snd som'
           |}]; final := som' |}.
-    
+
     Lemma vlsm_run_initial_state
       (run : proto_run)
       (Hrun : vlsm_run_prop run)
@@ -1932,16 +1915,7 @@ This relation is often used in stating safety and liveness properties.*)
           rewrite <- (app_assoc p _ _) in Htr. simpl in Htr.
           rewrite <- app_assoc in Htr.
           specialize
-            (finite_ptrace_consecutive_valid_transition
-               s
-               (p ++ [last_p; {| l := l1; input := input0; destination := destination0; output := output0 |}] ++ suffix)
-               suffix
-               p
-               last_p
-               {| l := l1; input := input0; destination := destination0; output := output0 |}
-               Htr
-               eq_refl
-            ).
+            (finite_ptrace_consecutive_valid_transition _ _ _ _ _ _ Htr eq_refl).
           simpl.
           rewrite map_app. simpl. rewrite last_is_last. tauto.
         + assert
@@ -2241,9 +2215,9 @@ is also available to Y.
       (X := mk_vlsm MX) (Y := mk_vlsm MY)
       (Hincl : VLSM_incl X Y)
       (s1 s2 : vstate X)
-      (Hfuture: in_futures X s1 s2)
-      : in_futures Y s1 s2.
+      : in_futures X s1 s2 -> in_futures Y s1 s2.
     Proof.
+      intro Hfuture.
       apply in_futures_witness in Hfuture.
       destruct Hfuture as [[tr Htr] [n1 [n2 [Hle [Hs1 Hs2]]]]].
       simpl in Hs1. simpl in Hs2.
@@ -2486,6 +2460,34 @@ Context
   (MY : VLSM_class SY)
   (X := mk_vlsm MX)
   (Y := mk_vlsm MY)
+  .
+
+Lemma VLSM_incl_finite_traces_characterization
+  : VLSM_incl X Y <->
+    forall (s : vstate X)
+    (tr : list (vtransition_item X)),
+    finite_protocol_trace X s tr -> finite_protocol_trace Y s tr.
+Proof.
+  split; intros Hincl.
+  - intros. specialize (Hincl (Finite s tr)). apply Hincl. assumption.
+  - intros tr Htr.
+    destruct tr as [is tr | is tr]; simpl in *.
+    + revert Htr. apply Hincl.
+    + destruct Htr as [HtrX HisX].
+      assert (His_tr: finite_protocol_trace X is []).
+      { split; [|assumption]. constructor.
+        apply initial_is_protocol. assumption.
+      }
+      apply Hincl in His_tr.
+      destruct His_tr as [_ HisY].
+      split; [|assumption].
+      apply infinite_protocol_trace_from_prefix_rev.
+      intros.
+      apply infinite_protocol_trace_from_prefix with (n0 := n) in HtrX.
+      apply (Hincl _ _ (conj HtrX HisX)).
+Qed.
+
+Context
   (Hinitial_state :
     forall s : state,
       vinitial_state_prop X s -> vinitial_state_prop Y s
@@ -2609,34 +2611,16 @@ Qed.
       apply basic_VLSM_incl_protocol_transition. assumption.
   Qed.
 
-  Lemma basic_VLSM_incl_infinite_protocol_trace
-    (s : state)
-    (ls : Stream transition_item)
-    (Hpxt : infinite_protocol_trace_from X s ls)
-    : infinite_protocol_trace_from Y s ls.
-  Proof.
-    generalize dependent ls. generalize dependent s.
-    cofix H.
-    intros s [[l input destination output] ls] Hx.
-    inversion Hx; subst.
-    specialize (H destination ls H3).
-    constructor; try assumption.
-    apply basic_VLSM_incl_protocol_transition.
-    assumption.
-  Qed.
-
   (* end hide *)
 
   Lemma basic_VLSM_incl
     : VLSM_incl X Y.
   Proof.
-    intros [s ls| s ss]; simpl; intros [Hxt Hinit].
-    - apply basic_VLSM_incl_finite_protocol_trace in Hxt.
-      split; try assumption.
-      apply Hinitial_state. assumption.
-    - apply basic_VLSM_incl_infinite_protocol_trace in Hxt.
-      split; try assumption.
-      apply Hinitial_state. assumption.
+    apply VLSM_incl_finite_traces_characterization.
+    intros s ls [Hxt Hinit].
+    apply basic_VLSM_incl_finite_protocol_trace in Hxt.
+    split; [assumption|].
+    apply Hinitial_state. assumption.
   Qed.
 
 End basic_VLSM_incl.
