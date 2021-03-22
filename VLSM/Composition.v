@@ -240,14 +240,14 @@ updating an initial composite state, say [s0], to <<sj>> on component <<j>>.
       - exact (lift_to_composite_state j destination).
       - exact output.
     Defined.
-    
+
     Definition lift_to_composite_state'
       (s : composite_state)
       (j : index)
       (sj : vstate (IM j))
       : composite_state
       := state_update s j sj.
-    
+
     Definition lift_to_composite_transition_item'
       (s : composite_state)
       (j : index)
@@ -802,7 +802,7 @@ If @(sj, om)@ has the [protocol_prop]erty for component and @s@ is the [lift_to_
       apply (protocol_prop_composite_free_lift_generalized_initial P P); [|assumption].
       intro m. exact id.
     Qed.
-    
+
     Lemma protocol_message_prop_composite_free_lift
       (j : index)
       (m : message)
@@ -1213,7 +1213,7 @@ the initial ones available from <<X>>.
         set (lX := existT (fun n => vlabel (IM n)) j l) in Hv.
         apply protocol_prop_valid_out in Hv.
         simpl in Hv.
-        unfold vstate in Hv. 
+        unfold vstate in Hv.
         rewrite H0 in Hv.
         eexists; exact Hv.
     Qed.
@@ -1519,14 +1519,14 @@ All results from regular projections carry to these "free" projections.
         destruct om;exact I.
       + rewrite state_update_neq; try assumption. apply IHHs.
   Qed.
-  
+
   (* The following results concern facts about applying a [plan X] <<P>>
      to a [vstate X] <<s'>>, knowing its effects on a different [vstate X] <<s>>
      which shares some relevant features with <<s'>>. *)
-  
+
   (* A transition on component <<i>> is protocol from <<s'>> if it is
      protocol from <<s>> and their <<i>>'th components are equal *)
-     
+
   Lemma relevant_component_transition
     (s s' : vstate X)
     (l : vlabel X)
@@ -1537,7 +1537,7 @@ All results from regular projections carry to these "free" projections.
     (Hpr : protocol_valid X l (s, input)) :
     protocol_valid X l (s', input).
   Proof.
-    unfold protocol_valid in *. 
+    unfold protocol_valid in *.
     split; [intuition|intuition|..].
     unfold valid in *; simpl in *.
     unfold constrained_composite_valid in *.
@@ -1550,9 +1550,9 @@ All results from regular projections carry to these "free" projections.
     rewrite <- Heq.
     assumption.
   Qed.
-  
+
   (* The effect of the transition is also the same *)
-  
+
   Lemma relevant_component_transition2
     (s s' : vstate X)
     (l : vlabel X)
@@ -1560,7 +1560,7 @@ All results from regular projections carry to these "free" projections.
     (i := projT1 l)
     (Heq : (s i) = (s' i))
     (Hprs : protocol_state_prop X s') :
-    let (dest, output) := vtransition X l (s, input) in 
+    let (dest, output) := vtransition X l (s, input) in
     let (dest', output') := vtransition X l (s', input) in
     output = output' /\ (dest i) = (dest' i).
   Proof.
@@ -1576,7 +1576,7 @@ All results from regular projections carry to these "free" projections.
     rewrite state_update_eq.
     reflexivity.
   Qed.
-  
+
   Lemma relevant_components_one
     (s s' : vstate X)
     (Hprs' : protocol_state_prop X s')
@@ -1585,8 +1585,8 @@ All results from regular projections carry to these "free" projections.
     (Heq : (s i) = (s' i))
     (Hpr : finite_protocol_plan_from X s [ai]) :
     let res' := snd (apply_plan X s' [ai]) in
-    let res := snd (apply_plan X s [ai]) in 
-    finite_protocol_plan_from X s' [ai] /\ 
+    let res := snd (apply_plan X s [ai]) in
+    finite_protocol_plan_from X s' [ai] /\
     (res' i) = res i.
   Proof.
     simpl.
@@ -1609,7 +1609,7 @@ All results from regular projections carry to these "free" projections.
         apply relevant_component_transition with (s' := s') in Hpr_valid.
         all : intuition.
       }
-      
+
       apply finite_ptrace_extend.
       apply finite_ptrace_empty.
       apply protocol_transition_destination in H7; assumption.
@@ -1627,10 +1627,10 @@ All results from regular projections carry to these "free" projections.
       unfold i.
       intuition.
   Qed.
-  
-  (* Transitioning on some index different from <<i>> does not affect 
+
+  (* Transitioning on some index different from <<i>> does not affect
      component i. *)
-  
+
   Lemma irrelevant_components_one
     (s : state)
     (ai : composite_plan_item IM)
@@ -1657,9 +1657,9 @@ All results from regular projections carry to these "free" projections.
     reflexivity.
     assumption.
   Qed.
-  
+
   (* Same as the previous result, but for multiple transitions. *)
-  
+
   Lemma irrelevant_components
     (s : state)
     (a : composite_plan IM)
@@ -1679,11 +1679,11 @@ All results from regular projections carry to these "free" projections.
       unfold a_indices in Hdif.
       rewrite map_app in Hdif.
       rewrite map_app in Hdif.
-      
+
       spec IHa. {
         intuition.
       }
-      
+
       rewrite <- IHa.
       replace sx with (snd (composite_apply_plan IM sa [x])) by (rewrite eq_x; reflexivity).
       apply irrelevant_components_one.
@@ -1693,9 +1693,9 @@ All results from regular projections carry to these "free" projections.
       rewrite in_app_iff in Hdif; simpl in Hdif.
       intuition.
   Qed.
-  
+
   (* Same as relevant_components_one but for multiple transitions *)
-  
+
   Lemma relevant_components
     (s s' : vstate X)
     (Hprs' : protocol_state_prop X s')
@@ -1706,8 +1706,8 @@ All results from regular projections carry to these "free" projections.
     (Hincl : incl a_indices li)
     (Hpr : finite_protocol_plan_from X s a) :
     let res' := snd (apply_plan X s' a) in
-    let res := snd (apply_plan X s a) in 
-    finite_protocol_plan_from X s' a /\ 
+    let res := snd (apply_plan X s a) in
+    finite_protocol_plan_from X s' a /\
     (forall (i : index), In i li -> (res' i) = res i).
   Proof.
     induction a using rev_ind.
@@ -1718,7 +1718,7 @@ All results from regular projections carry to these "free" projections.
     - simpl in *.
       apply finite_protocol_plan_from_app_iff in Hpr.
       destruct Hpr as [Hrem Hsingle].
-      
+
       spec IHa. {
         remember (map (projT1 (P:=fun n : index => vlabel (IM n))) (map label_a a)) as small.
         apply incl_tran with (m := a_indices).
@@ -1728,22 +1728,22 @@ All results from regular projections carry to these "free" projections.
         rewrite map_app.
         all : intuition.
       }
-      
+
       spec IHa. {
         assumption.
       }
-      
+
       destruct IHa as [IHapr IHaind].
-      
+
       specialize (relevant_components_one (snd (apply_plan X s a)) (snd (apply_plan X s' a))) as Hrel.
-      
+
       spec Hrel. {
         apply apply_plan_last_protocol.
         all : intuition.
       }
-      
+
       specialize (Hrel x); simpl in *.
-      
+
       spec Hrel. {
         specialize (IHaind (projT1 (label_a x))).
         symmetry.
@@ -1757,7 +1757,7 @@ All results from regular projections carry to these "free" projections.
         apply in_app_iff.
         right; simpl; intuition.
       }
-      
+
       specialize (Hrel Hsingle).
       destruct Hrel as [Hrelpr Hrelind].
       split.
@@ -1788,7 +1788,7 @@ All results from regular projections carry to these "free" projections.
           simpl in *.
           apply (f_equal snd) in eq_xsa.
           apply (f_equal snd) in eq_xsa'.
-          
+
           replace sx' with (snd (composite_apply_plan IM sa' [x])).
           replace sx with (snd (composite_apply_plan IM sa [x])).
           setoid_rewrite Hdiff.

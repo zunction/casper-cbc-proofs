@@ -30,7 +30,7 @@ Section apply_plans.
     .
 
   (** If we don't concern ourselves with the validity of the traces obtained
-  upon applying a plan, then a [VLSM_type] and a [transition] function 
+  upon applying a plan, then a [VLSM_type] and a [transition] function
   suffice for defining plan application and related results.
   The advantage of this approach is that the same definition works for
   pre_loaded versions as well as for all constrained variants of a composition.
@@ -212,7 +212,7 @@ Section protocol_plans.
     rewrite Happ. simpl. clear Happ. subst afinal.
     apply finite_protocol_trace_from_app_iff.
   Qed.
-  
+
   Lemma finite_protocol_plan_empty
     (s : vstate X)
     (Hpr : protocol_state_prop X s)  :
@@ -221,7 +221,7 @@ Section protocol_plans.
     apply finite_ptrace_empty.
     assumption.
   Qed.
-    
+
   Lemma apply_plan_last_protocol
     (s : vstate X)
     (Hprs : protocol_state_prop X s)
@@ -262,7 +262,7 @@ Section protocol_plans.
     match goal with
     |- context[vtransition X ?l ?lst] => replace (vtransition X l lst) with (destination x, output x)
     end.
-    destruct x. 
+    destruct x.
     reflexivity.
   Qed.
 
@@ -368,12 +368,12 @@ Section protocol_plans.
   Lemma finite_protocol_plan_from_one
     (s : vstate X)
     (a : plan_item) :
-    let res := vtransition X (label_a a) (s, input_a a) in 
+    let res := vtransition X (label_a a) (s, input_a a) in
     finite_protocol_plan_from s [a] <-> protocol_transition X (label_a a) (s, input_a a) res.
   Proof.
-    split; 
-    intros; 
-    destruct a; 
+    split;
+    intros;
+    destruct a;
     unfold apply_plan,_apply_plan in *; simpl in *;
     unfold finite_protocol_plan_from in *;
     unfold apply_plan, _apply_plan in *; simpl in *.
@@ -393,7 +393,7 @@ Section protocol_plans.
       apply protocol_transition_destination in H; intuition.
       assumption.
   Qed.
-  
+
   Definition preserves
     (a : plan)
     (P : vstate X -> Prop) :
@@ -407,12 +407,12 @@ Section protocol_plans.
     Prop :=
     forall (s : vstate X),
     (protocol_state_prop X s -> P s -> finite_protocol_plan_from s a).
-   
+
    (* If some property of a state guarantees a plan `b` applied to the state is protocol,
       and this property is preserved by the application of some other plan `a`,
       then these two plans can be composed and the application of `a ++ b` will also
       be protocol. *)
-   
+
    Lemma plan_independence
     (a b : plan)
     (Pb : vstate X -> Prop)
@@ -427,7 +427,7 @@ Section protocol_plans.
     unfold ensures in *.
     unfold preserves in *.
     apply finite_protocol_plan_from_app_iff.
-    split. 
+    split.
     - assumption.
     - remember (snd (apply_plan s a)) as s'.
       specialize (Hensures s').

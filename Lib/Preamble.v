@@ -83,7 +83,7 @@ Proof.
   exists a.
   assumption.
 Qed.
-   
+
 Lemma forall_and_commute
   {A : Type}
   (P Q : A -> Prop)
@@ -398,7 +398,7 @@ Definition comparable
   : Prop
   :=
   a = b \/ R a b \/ R b a.
-  
+
 Lemma comparable_commutative
    {A : Type}
    (R : A -> A -> Prop)
