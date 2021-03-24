@@ -405,29 +405,6 @@ or a simpler way of defining the equivocator_transition
 equivocator_transition inside of so many proofs.
 *)
 
-Lemma proper_equivocator_transition
-  (bl : equivocator_label X)
-  (bs : equivocator_state X)
-  (om : option message)
-  (Hd : proper_descriptor (snd bl) bs)
-  : equivocator_transition_alt X bl (bs, om) = equivocator_transition X bl (bs, om).
-Proof.
-  unfold equivocator_transition.
-  unfold equivocator_transition_alt.
-  unfold equivocator_state_descriptor_project.
-  unfold equivocator_state_descriptor_update.
-  destruct bl as (l, d).
-  unfold fst. unfold snd.
-  destruct d as [sn | id fd]; [reflexivity|].
-  unfold equivocator_state_project, equivocator_state_index_update.
-  destruct bs as (n, bs).
-  unfold projT1, projT2. 
-  simpl in Hd.
-  destruct (le_lt_dec (S n) id); [lia|].
-  destruct (vtransition X l (bs (of_nat_lt l0), om)) as (si', om').
-  destruct fd; reflexivity.
-Qed.
-
 (** If the state obtained after one transition has no equivocation, then
 the descriptor of the label of the transition must be Existing 0 false
 *)
@@ -440,24 +417,18 @@ Lemma equivocator_transition_no_equivocation_zero_descriptor
   (Hs' : is_singleton_state X s')
   : snd l = Existing _ 0 false.
 Proof.
-  unfold vtransition, transition, equivocator_vlsm, Common.equivocator_vlsm, mk_vlsm, machine, projT2, equivocator_vlsm_machine in Ht.
-  rewrite <- proper_equivocator_transition in Ht by
-    (destruct l as (l, [sn | ei ef]); apply Hv).
-  simpl in Ht.
-  unfold is_singleton_state in Hs'. unfold vtransition in Ht. simpl in Ht.
-  destruct l as (l, [sn | ei ef])
+  unfold is_singleton_state in Hs'.
+  unfold vtransition in Ht. unfold_transition Ht.
+  destruct l as (l, [sn | ei ef]); unfold snd in Ht
   ; [inversion Ht; subst; destruct s; simpl; inversion Hs'|].
-  simpl in Ht.
-  destruct s as (n, s).
-  unfold equivocator_state_project, equivocator_state_index_update, projT1, projT2 in Ht.
-  destruct Hv as [Hei _]. simpl in Hei.
-  destruct (le_lt_dec (S n) ei); [lia|].
+  destruct Hv as [Hei _].
+  destruct (le_lt_dec (S (projT1 s)) ei); [lia|].
   match type of Ht with
   | (let (_, _) := ?t in _) = _ => destruct t as (_s', _om')
   end.
   destruct ef; inversion Ht; subst; clear Ht.
-  - inversion Hs'.
-  - simpl in *. assert (ei = 0) by lia. subst. reflexivity.
+  - destruct s. inversion Hs'.
+  - destruct s. simpl in *. assert (ei = 0) by lia. subst. reflexivity.
 Qed.
 
 (** If the state obtained after one transition has no equivocation, then
