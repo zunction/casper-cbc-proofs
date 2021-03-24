@@ -45,6 +45,10 @@ CBC/FullNode.v
 CBC/LightNode.v
 CBC/Protocol.v
 CBC/FullNodeSimpleVLSM.v
+Lib/StructTactics.v
+Lib/ListTactics.v
+Lib/ListUtil.v
+Lib/Fin.v
 Lib/Measurable.v
 Lib/StreamExtras.v
 Lib/RealsExtras.v
