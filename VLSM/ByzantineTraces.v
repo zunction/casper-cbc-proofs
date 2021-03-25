@@ -1,8 +1,8 @@
-Require Import FinFun List.
-From CasperCBC
-Require Import Lib.Preamble VLSM.Common VLSM.Composition VLSM.Validating.
+From Coq Require Import FinFun List.
 
-(** * Byzantine Traces
+From CasperCBC Require Import Lib.Preamble VLSM.Common VLSM.Composition VLSM.Validating.
+
+(** * VLSM Byzantine Traces
 
 In this section, we introduce two definitions of Byzantine traces,
 then show them equivalent (Lemma [byzantine_alt_byzantine_iff]),
