@@ -21,13 +21,13 @@ From CasperCBC
 Section limited_state_equivocation.
 
 Context {message : Type}
-  (index := Type)
+  {index : Type}
   {IndEqDec : EqDecision index}
   (IM : index -> VLSM message)
   (Hbs : forall i : index, has_been_sent_capability (IM i))
   {i0 : Inhabited index}
   (X := free_composite_vlsm IM)
-  (index_listing : list index)
+  {index_listing : list index}
   (finite_index : Listing index_listing)
   (equivocator_descriptors := equivocator_descriptors IM)
   (equivocators_state_project := equivocators_state_project IM)
@@ -54,6 +54,61 @@ Definition equivocators_limited_equivocations_vlsm
   composite_vlsm equivocator_IM equivocators_limited_equivocations_constraint.
 
 End limited_state_equivocation.
+
+Section limited_state_equivocation_with_full_node.
+
+
+Context {message : Type}
+  {index : Type}
+  {IndEqDec : EqDecision index}
+  (IM : index -> VLSM message)
+  (Hbs : forall i : index, has_been_sent_capability (IM i))
+  {i0 : Inhabited index}
+  (X := free_composite_vlsm IM)
+  {index_listing : list index}
+  (finite_index : Listing index_listing)
+  (equivocator_descriptors := equivocator_descriptors IM)
+  (equivocators_state_project := equivocators_state_project IM)
+  (equivocator_IM := equivocator_IM IM)
+  (equivocator_descriptors_update := equivocator_descriptors_update IM)
+  (proper_equivocator_descriptors := proper_equivocator_descriptors IM)
+  {Hmeasurable : Measurable index}
+  (equivocating : set index)
+  {reachable_threshold : ReachableThreshold index}
+  {validator : Type}
+  (A : validator -> index)
+  (sender : message -> option validator)
+  (Hbr : forall i, has_been_received_capability (IM i))
+  {Hdm : DependentMessages sender A IM Hbs Hbr}
+  .
+
+Existing Instance Hdm.
+
+Definition full_node_equivocators_constraint
+  (l : composite_label equivocator_IM)
+  (som : composite_state equivocator_IM * option message)
+  :=
+  let (i, ldi) := l in
+  let (li, desc) := ldi in
+  let (s, om) := som in
+  match desc with
+  | NewMachine _ sn => True
+  | Existing _ j fj =>
+    forall
+      (descriptors : equivocator_descriptors),
+      descriptors i = desc ->
+      dependent_messages_full_node_constraint finite_index
+        (existT _ i li) (equivocators_state_project descriptors s, om)
+  end.
+
+Definition full_node_equivocators_limited_equivocation_constraint
+  (l : composite_label equivocator_IM)
+  (som : composite_state equivocator_IM * option message)
+  :=
+  full_node_equivocators_constraint l som /\
+  equivocators_limited_equivocations_constraint IM Hbs finite_index l som.
+
+End limited_state_equivocation_with_full_node.
 
 Section limited_message_equivocation.
 
