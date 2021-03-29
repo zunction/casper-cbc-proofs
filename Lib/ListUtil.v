@@ -1,5 +1,6 @@
 Require Import Arith.
 Require Import Omega.
+(*
 Require Import List.
 Import ListNotations.
 Require Import Sorting.Permutation.
@@ -134,20 +135,6 @@ Section list_util.
     - easy.
     - simpl.
       break_if; simpl; omega.
-  Qed.
-
-  Lemma NoDup_map_injective : forall (f : A -> B) xs,
-      (forall x y, In x xs -> In y xs ->
-              f x = f y -> x = y) ->
-      NoDup xs -> NoDup (map f xs).
-  Proof using.
-    induction xs; intros.
-    - constructor.
-    - simpl. invc_NoDup. constructor.
-      + intro. do_in_map.
-        assert (x = a) by intuition.
-        congruence.
-      + intuition.
   Qed.
 
   Lemma NoDup_disjoint_append :
@@ -578,7 +565,7 @@ Section list_util.
       In a (xs ++ x :: ys ++ y :: zs).
   Proof using.
     intros.
-    repeat (do_in_app; intuition auto 10 with *).
+    repeat (do_in_app; intuition auto 10 with * ).
   Qed.
 
   Lemma In_cons_2_3_neq :
@@ -992,3 +979,4 @@ End list_util.
 Hint Resolve app_cons_in : struct_util.
 Hint Resolve app_cons_in_rest : struct_util.
 Hint Resolve in_rest_app_cons : struct_util.
+  *)

@@ -1,7 +1,9 @@
+Require Import Omega Lia.
 Require Import List.
 Import ListNotations.
 Require Import CasperCBC.Lib.StructTactics.
-Require Import CasperCBC.Lib.ListUtil.
+Require Import CasperCBC.Lib.ListExtras.
+Require Import CasperCBC.Lib.Classes.
 Require Import OrderedType.
 Require Import OrderedTypeEx.
 
@@ -30,6 +32,12 @@ Fixpoint fin_eq_dec (n : nat) : forall (a b : fin n), {a = b} + {a <> b}.
                  end
     end); congruence.
 Defined.
+
+Lemma fin_eq_decision (n : nat) : EqDecision (fin n).
+Proof.
+  intros a b.
+  apply (fin_eq_dec n).
+Qed.
 
 Fixpoint all_fin (n : nat) : list (fin n) :=
   match n with
@@ -63,6 +71,14 @@ Fixpoint fin_to_nat {n : nat} : fin n -> nat :=
              | Some y => S (fin_to_nat y)
              end
   end.
+
+Lemma fin_to_nat_lt_n
+  (n : nat) (a : fin n)
+  : fin_to_nat a < n.
+Proof.
+  induction n; destruct a; simpl; [|lia].
+  specialize (IHn f). lia.
+Qed.
 
 Definition fin_lt {n : nat} (a b : fin n) : Prop := lt (fin_to_nat a) (fin_to_nat b).
 
@@ -258,4 +274,53 @@ Proof.
   induction n; simpl; intuition.
   destruct a; simpl in *; auto.
   now rewrite IHn.
+Qed.
+
+Lemma fin_of_nat_inj :
+  forall n m1 m2 a,
+    fin_of_nat m1 n = inleft a ->
+    fin_of_nat m2 n = inleft a ->
+    m1 = m2.
+Proof.
+  induction n; simpl; intuition.
+  destruct m1, m2; simpl in *; [reflexivity| ..].
+  - invc H.
+    destruct (fin_of_nat m2 n); inversion H0.
+  - invc H0.
+    destruct (fin_of_nat m1 n); inversion H.
+  - destruct (fin_of_nat m1 n) eqn:Hm1n
+    ; [|congruence].
+    destruct (fin_of_nat m2 n) eqn:Hm2n
+    ; [|congruence].
+    invc H. invc H0.
+    f_equal. revert Hm1n Hm2n. apply IHn.
+Qed.
+
+Lemma fin_of_nat_inleft_lt
+  (m n : nat) : m < n <-> exists a, fin_of_nat m n = inleft a.
+Proof.
+  split.
+  - intros Hmn.
+    destruct (fin_of_nat m n) eqn:Hfin; [eexists _; reflexivity|].
+    exfalso.
+    destruct e as [p Hmnp]. lia.
+  - intros [a  Hmn].
+    assert (Heqm : fin_to_nat a = m); [|subst; apply (fin_to_nat_lt_n n a)].
+    specialize (fin_of_nat_fin_to_nat n a) as Han.
+    revert Han Hmn. apply fin_of_nat_inj.
+Qed.
+
+Lemma fin_of_nat_1_inleft :
+  forall m a, fin_of_nat m 1 = inleft a -> m = 0.
+Proof.
+  intros.
+  cut (m < 1); [lia|].
+  apply (fin_of_nat_inleft_lt m 1). eexists a. assumption.
+Qed.
+
+Lemma fin_1_None :
+  forall f1 : fin 1, f1 = None.
+Proof.
+  intros [f|]; [|reflexivity].
+  inversion f.
 Qed.
