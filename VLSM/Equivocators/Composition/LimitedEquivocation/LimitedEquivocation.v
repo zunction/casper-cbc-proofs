@@ -91,14 +91,11 @@ Definition full_node_equivocators_constraint
   let (i, ldi) := l in
   let (li, desc) := ldi in
   let (s, om) := som in
-  match desc with
-  | NewMachine _ sn => True
-  | Existing _ j fj =>
-    forall
-      (descriptors : equivocator_descriptors),
-      descriptors i = desc ->
-      dependent_messages_full_node_constraint finite_index
-        (existT _ i li) (equivocators_state_project descriptors s, om)
+  match om with
+  | None => True
+  | Some m => 
+    dependent_messages_local_full_node_condition
+      (equivocator_state_descriptor_project (IM i) (s i) desc) m
   end.
 
 Definition full_node_equivocators_limited_equivocation_constraint
@@ -167,7 +164,7 @@ Definition full_node_limited_equivocation_constraint
   (l : composite_label IM)
   (som : composite_state IM * option message)
   :=
-  dependent_messages_full_node_constraint finite_index l som /\
+  dependent_messages_local_full_node_constraint l som /\
   let (s', om') := composite_transition IM l som in
   (globally_known_equivocators_weight s' < proj1_sig threshold)%R.
 

@@ -45,7 +45,6 @@ Class DependentMessages
         @state_received_not_sent _ (IM (A v)) (Hbs (A v)) (Hbr (A v)) s dm
   }.
 
-
 Definition dependent_messages_local_full_node_condition
   {Hdm : DependentMessages}
   (i : index)
@@ -55,9 +54,25 @@ Definition dependent_messages_local_full_node_condition
   := forall dm, In dm (dependent_messages m) ->
     @has_been_observed _ (IM i) (Hbo i) s dm.
 
+Definition dependent_messages_local_full_node_constraint
+  {Hdm : DependentMessages}
+  (l : composite_label IM)
+  (som : composite_state IM * option message)
+  : Prop
+  :=
+  let (s, om) := som in
+  match om with
+  | None => True
+  | Some m =>
+    let (i, li) := l in
+    dependent_messages_local_full_node_condition i (s i) m
+  end.
+
 End dependent_messages.
 
 Arguments dependent_messages { _ _ _ _ _ _ _ _ _ _ _} _ .
+Arguments dependent_messages_local_full_node_constraint  { _ _ _ _ _ _ _ _ _ _ _} _ _.
+Arguments dependent_messages_local_full_node_condition  { _ _ _ _ _ _ _ _ _ _ _ _} _ _.
 
 
 Section dependent_messages_full_node.
@@ -93,18 +108,6 @@ Definition dependent_messages_global_full_node_condition
   forall dm, In dm (dependent_messages m) ->
     has_been_observed X s dm.
 
-Definition dependent_messages_full_node_constraint
-  (l : composite_label IM)
-  (som : composite_state IM * option message)
-  : Prop
-  :=
-  let (s, om) := som in
-  match om with
-  | None => True
-  | Some m => dependent_messages_global_full_node_condition s m
-  end.
-
 End dependent_messages_full_node.
 
-Arguments dependent_messages_global_full_node_condition  { _ _ _ _ _ _ _ _ _ _ _ _ } _ _.
-Arguments dependent_messages_full_node_constraint  { _ _ _ _ _ _ _ _ _ _ _ _} _ _.
+Arguments dependent_messages_global_full_node_condition  { _ _ _ _ _ _ _ _ _ _ _ _} _ _.
