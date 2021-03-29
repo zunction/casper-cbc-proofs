@@ -833,6 +833,20 @@ Proof.
     ; rewrite Hproj; rewrite <- Hs1 || rewrite <- Hs2; symmetry; assumption.
 Qed.
 
+Lemma projection_valid_protocol
+  (l : vlabel Xj)
+  (som : vstate Xj * option message)
+  (Hv : vvalid Xj l som)
+  : protocol_valid Xj l som.
+Proof.
+  destruct som as (s, om).
+  destruct (id Hv) as [sX [Hsi [Hps [Hopm _]]]].
+  repeat split.
+  - subst. apply protocol_state_projection. assumption.
+  - apply protocol_message_projection. assumption.
+  - assumption.
+Qed.
+
 End ProjectionTraces.
 
 Section ProjectionTraces_membership.
