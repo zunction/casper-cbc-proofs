@@ -1061,8 +1061,19 @@ Let us fix an indexed set of VLSMs <<IM>> and their composition <<X>> using <<co
           (T := composite_type IM)
           (constraint : composite_label IM -> composite_state IM * option message -> Prop)
           (X := composite_vlsm IM constraint)
-          .
+  .
+  
 
+  Definition projected_state_prop (j : index) (sj : vstate (IM j)) := exists (s : protocol_state X), proj1_sig s j = sj.
+  Definition projected_states (j : index) := { sj : vstate (IM j) | projected_state_prop j sj }.
+  
+  Definition VLSM1_projection_valid
+             (i : index)
+             (li : vlabel (IM i))
+             (siomi : vstate (IM i) * option message)
+    := vvalid (IM i) li siomi /\ projected_state_prop i (fst (vtransition (IM i) li siomi)).
+      
+          
 (**
 The [VLSM_type] of a projection of <<X>> to component <<i>> is the
 type of the <<i>>th component of <<X>>.
