@@ -1106,6 +1106,95 @@ to be all [protocol_message]s of <<X>>:
     exists (s : vstate X),
       s i = si /\ protocol_valid X (existT _ i li) (s, omi).
 
+  Lemma projection_valid_iff_VLSM1_projection_valid
+        (i : index)
+        (li : vlabel (IM i))
+        (siomi : vstate (IM i) * option message)
+    :
+      projection_valid i li siomi <-> VLSM1_projection_valid i li siomi.
+  Proof.
+    unfold projection_valid.
+    unfold VLSM1_projection_valid.
+    destruct siomi as [si omi].
+    split; intros H.
+    - destruct H as [s [Hsi Hpv]].
+      unfold protocol_valid in Hpv.
+      destruct Hpv as [Hs [Homi Hvalid]].
+      simpl in Hvalid.
+      unfold constrained_composite_valid in Hvalid.
+      destruct Hvalid as [Hcvalid Hconstraint].
+      simpl in Hcvalid.
+      split.
+      { subst si. apply Hcvalid. }
+      unfold projected_state_prop.
+      unfold vvalid in Hcvalid.
+      unfold protocol_state.
+      Search protocol_state_prop.
+      Print composite_label.
+      remember (@composite_label _ index IM) as CL in |-.
+      Search composite_label.
+      pose (existT (fun n => vlabel (IM n)) i li) as er.
+      remember (vtransition X er (s,omi)) as sm'.
+      remember (fst sm') as s'.
+
+      destruct sm' as [s'' om'].
+      simpl in Heqs'. subst s''.
+      
+      assert (Hpsps' : protocol_state_prop X s').
+      { admit. }
+      exists (exist _ s' Hpsps').
+      Search vtransition composite_vlsm.
+      Print composite_label.
+      pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
+  Abort.
+  (*
+
+      Search composite_label.
+      simpl in H.
+      simpl.
+      Check (s' i).
+      simpl.
+
+      unfold vtransition in Heqsm'. unfold vtransition.
+      destruct sm' as [s'' om'].
+      simpl in Heqs'. subst s''.
+      simpl in Heqsm'.
+      destruct (vtransition (IM i) li (s i, omi)) as [si'' om''].
+      simpl in s'.
+      inversion Heqsm'. clear Heqsm'. subst om''. subst s'.
+      rewrite state_update_eq.
+      unfold protocol_state_prop in Hpsps'.
+      destruct Hpsps' as [om Hom].
+      inversion Hom.
+      +  subst s0. subst om0. admit.
+      + destruct l. destruct (vtransition (IM x) v (s0 x, om0)) eqn:Heq.
+        unfold vtransition in Heq.
+      Search protocol_prop composite_vlsm.
+      Search state_update.
+      rewrite Heqs'. simpl.
+
+
+      
+      Search protocol_state_prop.
+      Check (existT _ i li).
+      
+      unfold vlabel in li.
+      unfold vstate in si.
+      Print existT.
+      
+      Check (vtransition X li).
+      apply finite_ptrace_first_pstate.
+      Check (existT _ i li).
+      Search protocol_state_prop composite_vlsm.
+      
+      
+      assert (protocol_state_)
+      (*remember (exist _ s Hs) as s'.*)
+      exists (exist _ s Hs).
+      simpl. rewrite <- Hsi.
+  Abort.
+*)  
+  
 (**
 Since [projection_valid]ity is derived from [protocol_valid]ity, which in turn
 depends on [valid]ity in the component, it is easy to see that
