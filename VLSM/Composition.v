@@ -1106,102 +1106,82 @@ to be all [protocol_message]s of <<X>>:
     exists (s : vstate X),
       s i = si /\ protocol_valid X (existT _ i li) (s, omi).
 
-  Lemma projection_valid_iff_VLSM1_projection_valid
+  Lemma projection_valid_impl_VLSM1_projection_valid
         (i : index)
         (li : vlabel (IM i))
         (siomi : vstate (IM i) * option message)
     :
-      projection_valid i li siomi <-> VLSM1_projection_valid i li siomi.
+      projection_valid i li siomi -> VLSM1_projection_valid i li siomi.
   Proof.
     unfold projection_valid.
     unfold VLSM1_projection_valid.
     destruct siomi as [si omi].
-    split; intros H.
-    - destruct H as [s [Hsi Hpv]].
-      destruct (id Hpv) as [Hs [Homi Hvalid]].
-      simpl in Hvalid.
-      unfold constrained_composite_valid in Hvalid.
-      destruct Hvalid as [Hcvalid Hconstraint].
-      simpl in Hcvalid.
+    intros [s [Hsi Hpv]].
+    destruct (id Hpv) as [Hs [Homi Hvalid]].
+    simpl in Hvalid.
+    unfold constrained_composite_valid in Hvalid.
+    destruct Hvalid as [Hcvalid Hconstraint].
+    simpl in Hcvalid.
+    split.
+    { subst si. apply Hcvalid. }
+    unfold projected_state_prop.
+    unfold vvalid in Hcvalid.
+    unfold protocol_state.
+    remember (@composite_label _ index IM) as CL in |-.
+    remember (existT (fun n => vlabel (IM n)) i li) as er.
+    remember (vtransition X er (s,omi)) as sm'.
+    remember (fst sm') as s'.
+
+    destruct sm' as [s'' om'].
+    simpl in Heqs'. subst s''.
+
+    assert (Hpt : protocol_transition X er (s,omi) (s', om')).
+    {
+      unfold protocol_transition.
       split.
-      { subst si. apply Hcvalid. }
-      unfold projected_state_prop.
-      unfold vvalid in Hcvalid.
-      unfold protocol_state.
-      remember (@composite_label _ index IM) as CL in |-.
-      remember (existT (fun n => vlabel (IM n)) i li) as er.
-      remember (vtransition X er (s,omi)) as sm'.
-      remember (fst sm') as s'.
+      { apply Hpv. }
+      unfold vtransition in Heqsm'.
+      symmetry.
+      apply Heqsm'.
+    }
 
-      destruct sm' as [s'' om'].
-      simpl in Heqs'. subst s''.
+    pose proof (Hps' := protocol_transition_destination X Hpt).
 
-      assert (Hpt : protocol_transition X er (s,omi) (s', om')).
-      {
-        unfold protocol_transition.
-        split.
-        { apply Hpv. }
-        unfold vtransition in Heqsm'.
-        symmetry.
-        apply Heqsm'.
-      }
+    exists (exist _ s' Hps').
 
-      pose proof (Hps' := protocol_transition_destination X Hpt).
+    pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
+    specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
+    rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
+  Qed.
+  
 
-      exists (exist _ s' Hps').
 
-      pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
-      specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
-      rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
-      
+  
+  Lemma VLSM1_projection_valid_impl_projection_valid
+        (i : index)
+        (li : vlabel (IM i))
+        (siomi : vstate (IM i) * option message)
+    :
+      VLSM1_projection_valid i li siomi -> projection_valid i li siomi.
+  Proof.
+    unfold projection_valid.
+    unfold VLSM1_projection_valid.
+    destruct siomi as [si omi].
+    intros H.
+    unfold projected_state_prop in H.
+    destruct H as [Hvalid [s Hs]].
+    unfold protocol_valid.
+    unfold protocol_state in s.
+    destruct (vtransition (IM i) li (si, omi)) as [s1 om1] eqn:Heqvt.
+    simpl in Hs.
+    destruct s as [s Hpsps]. simpl in s. simpl in Hs.
+    subst s1.
+    rename si into s0i.
+    remember (state_update IM s i s0i) as s0.
+    fold (_composite_state IM) in s0.
+    Search protocol_state_prop state_update.    
+    Check composite_state.
   Abort.
-  (*
-
-      Search composite_label.
-      simpl in H.
-      simpl.
-      Check (s' i).
-      simpl.
-
-      unfold vtransition in Heqsm'. unfold vtransition.
-      destruct sm' as [s'' om'].
-      simpl in Heqs'. subst s''.
-      simpl in Heqsm'.
-      destruct (vtransition (IM i) li (s i, omi)) as [si'' om''].
-      simpl in s'.
-      inversion Heqsm'. clear Heqsm'. subst om''. subst s'.
-      rewrite state_update_eq.
-      unfold protocol_state_prop in Hpsps'.
-      destruct Hpsps' as [om Hom].
-      inversion Hom.
-      +  subst s0. subst om0. admit.
-      + destruct l. destruct (vtransition (IM x) v (s0 x, om0)) eqn:Heq.
-        unfold vtransition in Heq.
-      Search protocol_prop composite_vlsm.
-      Search state_update.
-      rewrite Heqs'. simpl.
-
-
-      
-      Search protocol_state_prop.
-      Check (existT _ i li).
-      
-      unfold vlabel in li.
-      unfold vstate in si.
-      Print existT.
-      
-      Check (vtransition X li).
-      apply finite_ptrace_first_pstate.
-      Check (existT _ i li).
-      Search protocol_state_prop composite_vlsm.
-      
-      
-      assert (protocol_state_)
-      (*remember (exist _ s Hs) as s'.*)
-      exists (exist _ s Hs).
-      simpl. rewrite <- Hsi.
-  Abort.
-*)  
   
 (**
 Since [projection_valid]ity is derived from [protocol_valid]ity, which in turn
