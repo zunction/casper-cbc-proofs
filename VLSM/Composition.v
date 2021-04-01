@@ -1118,8 +1118,7 @@ to be all [protocol_message]s of <<X>>:
     destruct siomi as [si omi].
     split; intros H.
     - destruct H as [s [Hsi Hpv]].
-      unfold protocol_valid in Hpv.
-      destruct Hpv as [Hs [Homi Hvalid]].
+      destruct (id Hpv) as [Hs [Homi Hvalid]].
       simpl in Hvalid.
       unfold constrained_composite_valid in Hvalid.
       destruct Hvalid as [Hcvalid Hconstraint].
@@ -1129,23 +1128,32 @@ to be all [protocol_message]s of <<X>>:
       unfold projected_state_prop.
       unfold vvalid in Hcvalid.
       unfold protocol_state.
-      Search protocol_state_prop.
-      Print composite_label.
       remember (@composite_label _ index IM) as CL in |-.
-      Search composite_label.
-      pose (existT (fun n => vlabel (IM n)) i li) as er.
+      remember (existT (fun n => vlabel (IM n)) i li) as er.
       remember (vtransition X er (s,omi)) as sm'.
       remember (fst sm') as s'.
 
       destruct sm' as [s'' om'].
       simpl in Heqs'. subst s''.
-      
-      assert (Hpsps' : protocol_state_prop X s').
-      { admit. }
-      exists (exist _ s' Hpsps').
-      Search vtransition composite_vlsm.
-      Print composite_label.
+
+      assert (Hpt : protocol_transition X er (s,omi) (s', om')).
+      {
+        unfold protocol_transition.
+        split.
+        { apply Hpv. }
+        unfold vtransition in Heqsm'.
+        symmetry.
+        apply Heqsm'.
+      }
+
+      pose proof (Hps' := protocol_transition_destination X Hpt).
+
+      exists (exist _ s' Hps').
+
       pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
+      specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
+      rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
+      
   Abort.
   (*
 
