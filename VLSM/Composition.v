@@ -1157,7 +1157,41 @@ to be all [protocol_message]s of <<X>>:
       specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
       rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
     }
+    unfold option_protocol_message_prop.
+
+    fold (vstate X).
+    assert (Hveq: snd (vtransition (IM i) li (si, omi)) = snd (vtransition X er (s, omi))).
+    {
+      rewrite Heqer.
+      destruct (vtransition (IM i) li (si, omi)) eqn:Heq1.
+      destruct (vtransition X (existT (fun n => vlabel (IM n)) i li) (s, omi)) eqn:Heq2.
+      simpl.
+      unfold vtransition in Heq2. unfold transition in Heq2. unfold machine in Heq2.
+      simpl in Heq2.
+      rewrite Hsi in Heq2.
+      rewrite Heq1 in Heq2.
+      inversion Heq2.
+      reflexivity.
+    }
+    rewrite Hveq.
+    exists (fst (vtransition X er (s, omi))).
+    rewrite <- surjective_pairing.
+    destruct Hs as [om Hsom].
+
+    destruct (id Hpt) as [[_ [Hpmomi _]]_].
+    unfold option_protocol_message_prop in Hpmomi.
+    destruct Hpmomi as [s'' Hs''].
     
+    eapply protocol_generated.
+    3: { unfold valid. unfold machine. simpl.
+         unfold constrained_composite_valid.
+         split.
+         2: { apply Hconstraint. }
+         unfold composite_valid. rewrite Heqer.
+         apply Hcvalid.
+    }
+    { apply Hsom. }
+    { apply Hs''. }
   Qed.
   
 
