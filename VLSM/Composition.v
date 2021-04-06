@@ -1071,7 +1071,9 @@ Let us fix an indexed set of VLSMs <<IM>> and their composition <<X>> using <<co
              (i : index)
              (li : vlabel (IM i))
              (siomi : vstate (IM i) * option message)
-    := vvalid (IM i) li siomi /\ projected_state_prop i (fst (vtransition (IM i) li siomi)).
+    := vvalid (IM i) li siomi
+       /\ projected_state_prop i (fst (vtransition (IM i) li siomi))
+       /\ option_protocol_message_prop X (snd (vtransition (IM i) li siomi)).
       
           
 (**
@@ -1147,11 +1149,15 @@ to be all [protocol_message]s of <<X>>:
 
     pose proof (Hps' := protocol_transition_destination X Hpt).
 
-    exists (exist _ s' Hps').
+    split.
+    {
+      exists (exist _ s' Hps').
 
-    pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
-    specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
-    rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
+      pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
+      specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
+      rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
+    }
+    
   Qed.
   
 
@@ -1170,8 +1176,24 @@ to be all [protocol_message]s of <<X>>:
     unfold VLSM1_projection_valid.
     destruct siomi as [si omi].
     intros H Hpsp.
+    simpl in Hpsp.
     unfold projected_state_prop in H.
     destruct H as [Hvalid [s Hs]].
+    unfold projected_state_prop in Hpsp.
+    destruct Hpsp as [s' Hs'].
+    exists (proj1_sig s').
+    split.
+    { apply Hs'. }
+    unfold protocol_valid.
+    split.
+    { exact (proj2_sig s'). }
+
+    unfold option_protocol_message_prop.
+
+    Check state_update.
+    Search state_update.
+    
+    (*
     unfold protocol_valid.
     unfold protocol_state in s.
     destruct (vtransition (IM i) li (si, omi)) as [s1 om1] eqn:Heqvt.
@@ -1239,6 +1261,7 @@ to be all [protocol_message]s of <<X>>:
     }
     Search protocol_state_prop state_update.    
     Check composite_state.
+*)
   Abort.
   
 (**
