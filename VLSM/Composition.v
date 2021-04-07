@@ -1194,16 +1194,15 @@ to be all [protocol_message]s of <<X>>:
     { apply Hs''. }
   Qed.
   
-
-
-  Check projected_state_prop.
   Lemma VLSM1_projection_valid_impl_projection_valid
         (i : index)
         (li : vlabel (IM i))
         (siomi : vstate (IM i) * option message)
     :
       VLSM1_projection_valid i li siomi ->
-      projected_state_prop i (fst siomi) ->
+      (exists s : protocol_state X,
+          proj1_sig s i = (fst siomi)
+          /\ constraint (existT (fun n : index => vlabel (IM n)) i li) (proj1_sig s, (snd siomi))) ->
       option_protocol_message_prop X (snd siomi) ->
       projection_valid i li siomi.
   Proof.
@@ -1214,8 +1213,7 @@ to be all [protocol_message]s of <<X>>:
     simpl in Hpsp.
     unfold projected_state_prop in H.
     destruct H as [Hvalid [[s Hs] Homp]].
-    unfold projected_state_prop in Hpsp.
-    destruct Hpsp as [s' Hs'].
+    destruct Hpsp as [s' [Hs' Hconstraint]].
     exists (proj1_sig s').
     split.
     { apply Hs'. }
@@ -1232,85 +1230,8 @@ to be all [protocol_message]s of <<X>>:
     rewrite <- Hs' in Hvalid.
     split.
     { apply Hvalid. }
-    Set Printing Implicit.
-    unfold state in Hs'.
-    rewrite Hs'.
-
-    unfold option_protocol_message_prop.
-
-    Check state_update.
-    Search state_update.
-    
-    (*
-    unfold protocol_valid.
-    unfold protocol_state in s.
-    destruct (vtransition (IM i) li (si, omi)) as [s1 om1] eqn:Heqvt.
-    simpl in Hs.
-    destruct s as [s Hpsps]. simpl in s. simpl in Hs.
-    subst s1.
-    rename si into s0i.
-    (*
-    remember (state_update IM s i s0i) as s0.
-    fold (_composite_state IM) in s0.*)
-    simpl in Hpsp.
-    unfold projected_state_prop in Hpsp.
-    destruct Hpsp as [s0' Hs0'].
-    unfold protocol_state in s0'.
-    destruct s0' as [s0' Hpsps0'].
-    simpl in Hs0'.
-    exists s0'.
-    split.
-    { apply Hs0'. }
-    split.
-    { apply Hpsps0'. } simpl.
-    unfold option_protocol_message_prop.
-    simpl.
-
-    Check composite_transition.
-    Search composite_transition.
-    rewrite <- Hs0' in Heqvt.
-    Search vtransition composite_vlsm.
-    Check lift_to_composite_transition_item.
-
-    assert (vtransition X (existT _ i li) (s0',omi) = (state_update IM s0' i (s i), om1)).
-    { unfold vtransition. unfold transition. simpl. rewrite Heqvt. reflexivity. }
-    
-
-    (*
-    
-    assert (vtransition X (existT _ i li) (s0',omi) = (s, om1)).
-    {
-      Search vtransition composite_vlsm.
-      unfold vtransition. unfold transition. simpl.
-      rewrite Heqvt.
-      assert (state_update IM s0' i (s i) = s).
-      { unfold state_update.
-        apply functional_extensionality.
-      }
-      unfold state_update.
-      Search state_update.
-      rewrite state_update_id.
-      2: { subst.
-      Search vtransition composite_vlsm.
-    }
-    *)
-    
-    split.
-    {
-      exists (state_update IM s0' i (s i)).
-      Check protocol_generated.
-            apply protocol_generated.
-      Print protocol_prop.
-      Search valid protocol_prop.
-      (*
-      unfold protocol_state_prop in Hpsps0'.
-      destruct Hpsps0' as [om Hom].
-*)
-    }
-    Search protocol_state_prop state_update.    
-    Check composite_state.
-*)
-  Abort.
+    apply Hconstraint.
+  Qed.
   
 (**
 Since [projection_valid]ity is derived from [protocol_valid]ity, which in turn
