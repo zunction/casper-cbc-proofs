@@ -1108,6 +1108,14 @@ to be all [protocol_message]s of <<X>>:
     exists (s : vstate X),
       s i = si /\ protocol_valid X (existT _ i li) (s, omi).
 
+  (**
+   The following two lemmas ([projection_valid_impl_VLSM1_projection_valid]
+   and [VLSM1_projection_valid_impl_projection_valid]) relate the definition
+   of validity in a projection VLSM to the original definition from the VLSM1
+   paper: the conclusion is that the VLSM1 definition is weaker.
+   *)
+  
+  
   Lemma projection_valid_impl_VLSM1_projection_valid
         (i : index)
         (li : vlabel (IM i))
