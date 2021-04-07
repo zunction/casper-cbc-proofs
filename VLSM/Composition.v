@@ -1243,7 +1243,41 @@ to be all [protocol_message]s of <<X>>:
     { apply Hvalid. }
     apply Hconstraint.
   Qed.
+
+
+  Definition VLSM2_is_projected_state (i : index) (si : vstate (IM i)) := projected_state_prop i si.
   
+  Definition VLSM2_projection_valid
+             (i : index)
+             (li : vlabel (IM i))
+             (siomi : vstate (IM i) * option message)
+    := vvalid (IM i) li siomi /\ VLSM2_is_projected_state i (fst siomi).
+
+  Lemma projection_valid_impl_VLSM2_projection_valid
+        (i : index)
+        (li : vlabel (IM i))
+        (siomi : vstate (IM i) * option message)
+    :
+      projection_valid i li siomi -> VLSM2_projection_valid i li siomi.
+  Proof.
+    intros H.
+    unfold projection_valid in H.
+    unfold VLSM2_projection_valid.
+    destruct siomi as [si omi].
+    simpl in H. simpl.
+    destruct H as [s [Hsi [Hpsp [Hopmp Hconstr]]]].
+    unfold constrained_composite_valid in Hconstr.
+    destruct Hconstr as [Hcvalid Hconstr].
+    unfold composite_valid in Hcvalid.
+    split.
+    { rewrite <- Hsi. apply Hcvalid. }
+    unfold VLSM2_is_projected_state.
+    unfold projected_state_prop.
+    exists (exist _ s Hpsp).
+    simpl.
+    apply Hsi.
+  Qed.
+    
 (**
 Since [projection_valid]ity is derived from [protocol_valid]ity, which in turn
 depends on [valid]ity in the component, it is easy to see that
