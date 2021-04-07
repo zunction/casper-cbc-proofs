@@ -1066,7 +1066,10 @@ Let us fix an indexed set of VLSMs <<IM>> and their composition <<X>> using <<co
 
   Definition projected_state_prop (j : index) (sj : vstate (IM j)) := exists (s : protocol_state X), proj1_sig s j = sj.
   Definition projected_states (j : index) := { sj : vstate (IM j) | projected_state_prop j sj }.
-  
+
+(**
+The definition [VLSM1_projection_valid] is deprecated and should not be used.    
+*)
   Definition VLSM1_projection_valid
              (i : index)
              (li : vlabel (IM i))
