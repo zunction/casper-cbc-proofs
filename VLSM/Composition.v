@@ -1204,15 +1204,16 @@ to be all [protocol_message]s of <<X>>:
     :
       VLSM1_projection_valid i li siomi ->
       projected_state_prop i (fst siomi) ->
+      option_protocol_message_prop X (snd siomi) ->
       projection_valid i li siomi.
   Proof.
     unfold projection_valid.
     unfold VLSM1_projection_valid.
     destruct siomi as [si omi].
-    intros H Hpsp.
+    intros H Hpsp Hpmp.
     simpl in Hpsp.
     unfold projected_state_prop in H.
-    destruct H as [Hvalid [s Hs]].
+    destruct H as [Hvalid [[s Hs] Homp]].
     unfold projected_state_prop in Hpsp.
     destruct Hpsp as [s' Hs'].
     exists (proj1_sig s').
@@ -1221,6 +1222,19 @@ to be all [protocol_message]s of <<X>>:
     unfold protocol_valid.
     split.
     { exact (proj2_sig s'). }
+
+    simpl in Hpmp.
+    split.
+    { apply Hpmp. }
+    unfold valid. unfold machine. simpl.
+    unfold constrained_composite_valid.
+    unfold composite_valid.
+    rewrite <- Hs' in Hvalid.
+    split.
+    { apply Hvalid. }
+    Set Printing Implicit.
+    unfold state in Hs'.
+    rewrite Hs'.
 
     unfold option_protocol_message_prop.
 
