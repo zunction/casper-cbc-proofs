@@ -209,7 +209,7 @@ Context
   Definition latest_messages
     (m : message) : set message :=
     ListSetExtras.get_maximal_elements (fun m1 m2 => bool_decide (happens_before m1 m2)) (honest_messages m).
-    
+ 
 Section Inspector.
 
 Context
@@ -220,6 +220,11 @@ Context
              (forall (oc' : option C),
              List.count_occ option_eq_dec (List.map vote (latest_messages m)) oc >= 
              List.count_occ option_eq_dec (List.map vote (latest_messages m)) oc')). 
+    
+    Definition count_votes_for
+      (m : message)
+      (oc : option C) :=
+    List.count_occ option_eq_dec (List.map vote (latest_messages m)) oc.
     
     Definition composite_sent
       (s : vstate X) := 
@@ -454,15 +459,23 @@ Context
           intuition.
         }
         
+        (*
+        assert (forall i, In i Vk_1 /\ ~ In i Veq /\ ~ In i Vchange -> vote i = Some value). *)
+        
         assert (Hineq1 : 2 * (q - (length Veq) - (length Vchange)) <= n - length Eu). {
           move Hvote at bottom.
           assert (Hvote' := Hvote).
           
           assert (~ 2 * (q - (length Veq) - (length Vchange)) > n - length Eu). {
             intros contra.
-            assert (vote m = Some value). {
-            
+            assert (vote u = Some value). {
+              remember (count_votes_for u (Some value)) as votes_for_value.
+              assert (votes_for_value >= (q - length Veq - length Vchange)). {
+                rewrite Heqvotes_for_value.
+                unfold count_votes_for.
+              }
             }
+            intuition.
           }
           lia.
         }
