@@ -186,15 +186,15 @@ Qed.
 
 Class DecidablePred {A} (r : A -> Prop) :=
   pred_dec : forall (a : A), r a \/ ~ r a.
-Hint Mode DecidablePred ! ! : typeclass_instances.
+Global Hint Mode DecidablePred ! ! : typeclass_instances.
 
 Class PredicateFunction {A} (r : A -> Prop) (r_fn : A -> bool) : Prop :=
   {
     equiv : forall a, r a <-> r_fn a = true;
     predicate_function_dec :> DecidablePred r;
   }.
-Hint Mode PredicateFunction ! ! - : typeclass_instances.
-Hint Mode PredicateFunction ! - ! : typeclass_instances.
+Global Hint Mode PredicateFunction ! ! - : typeclass_instances.
+Global Hint Mode PredicateFunction ! - ! : typeclass_instances.
 
 Definition predicate_not {A} (p : A -> Prop) : A -> Prop :=
   fun a => ~ p a.
@@ -211,8 +211,8 @@ Qed.
 
 Class PredicateFunction2 {A B} (r : A -> B -> Prop) (r_fn : A -> B -> bool) : Prop :=
   predicate_function2 : forall a b, r a b <-> r_fn a b = true.
-Hint Mode PredicateFunction2 ! ! ! - : typeclass_instances.
-Hint Mode PredicateFunction2 ! ! - ! : typeclass_instances.
+Global Hint Mode PredicateFunction2 ! ! ! - : typeclass_instances.
+Global Hint Mode PredicateFunction2 ! ! - ! : typeclass_instances.
 
 Lemma predicate_function2_neg : forall A B (r : A -> B -> Prop) (r_fn : A -> B -> bool),
   PredicateFunction2 r r_fn ->
@@ -243,7 +243,7 @@ Qed.
 (* Reflexivity of comparison operators *)
 Class CompareReflexive {A} (compare : A -> A -> comparison) : Prop :=
     compare_eq : forall x y, compare x y = Eq <-> x = y.
-Hint Mode CompareReflexive ! - : typeclass_instances.
+Global Hint Mode CompareReflexive ! - : typeclass_instances.
 
 (* About reflexive comparison operators *)
 Lemma compare_eq_refl {A} `{CompareReflexive A} :
@@ -285,7 +285,7 @@ Class CompareTransitive {A} (compare : A -> A -> comparison) : Prop :=
     compare_transitive : forall x y z comp, compare x y = comp ->
                                        compare y z = comp ->
                                        compare x z = comp.
-Hint Mode CompareTransitive ! - : typeclass_instances.
+Global Hint Mode CompareTransitive ! - : typeclass_instances.
 
 (* Strict-orderedness of comparison operators *)
 Class CompareStrictOrder {A} (compare : A -> A -> comparison) : Prop :=
@@ -293,7 +293,7 @@ Class CompareStrictOrder {A} (compare : A -> A -> comparison) : Prop :=
     StrictOrder_Reflexive :> CompareReflexive compare;
     StrictOrder_Transitive :> CompareTransitive compare;
   }.
-Hint Mode CompareStrictOrder ! - : typeclass_instances.
+Global Hint Mode CompareStrictOrder ! - : typeclass_instances.
 
 (* Strictly-ordered comparisons give decidable equality *)
 Lemma compare_eq_dec {A} `{CompareStrictOrder A} :
@@ -314,7 +314,7 @@ Definition eq_bool {X} `{CompareStrictOrder X} (x y : X) : bool :=
 (* Asymmetry of comparison operators *)
 Class CompareAsymmetric {A} (compare : A -> A -> comparison) : Prop :=
     compare_asymmetric : forall x y, compare x y = Lt <-> compare y x = Gt.
-Hint Mode CompareAsymmetric ! - : typeclass_instances.
+Global Hint Mode CompareAsymmetric ! - : typeclass_instances.
 
 (* Strictly-ordered comparisons give asymmetry *)
 Lemma compare_asymmetric_intro {A} `{CompareStrictOrder A} :
@@ -385,7 +385,7 @@ Class StrictlyComparable (X : Type) : Type :=
      compare : X -> X -> comparison;
      compare_strictorder :> CompareStrictOrder compare;
    }.
-Hint Mode StrictlyComparable ! : typeclass_instances.
+Global Hint Mode StrictlyComparable ! : typeclass_instances.
 
 Instance strictly_comparable_eq_dec `{StrictlyComparable M}
   : EqDecision M.

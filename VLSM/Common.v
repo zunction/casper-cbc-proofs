@@ -2365,8 +2365,8 @@ Class TraceWithLast
    ptrace_forget_last: forall [msg] [X: VLSM msg] [s f tr],
      trace_prop X s f tr -> base_prop X s tr
   }.
-Hint Mode TraceWithLast - ! : typeclass_instances.
-Hint Mode TraceWithLast ! - : typeclass_instances.
+Global Hint Mode TraceWithLast - ! : typeclass_instances.
+Global Hint Mode TraceWithLast ! - : typeclass_instances.
 
 Definition ptrace_add_default_last
   `{TraceWithLast base_prop trace_prop}
@@ -2399,7 +2399,7 @@ Class TraceWithStart
  {ptrace_first_pstate:
     forall [tr], trace_prop tr -> protocol_state_prop X start
  }.
-Hint Mode TraceWithStart - - - ! : typeclass_instances.
+Global Hint Mode TraceWithStart - - - ! : typeclass_instances.
 
 Instance trace_with_start_ptrace_from message (X: VLSM message) s:
   TraceWithStart s (finite_protocol_trace_from X s)

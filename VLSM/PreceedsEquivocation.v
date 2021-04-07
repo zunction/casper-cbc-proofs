@@ -58,7 +58,7 @@ Proof with (try (right; intros [v1 [Hv Hv0]]; congruence)).
 Qed.
 
 Instance equivocating_in_set_dec `{message_equivocation_evidence} :
-  Decision (equivocating_in_set msg msgs).
+  forall msg msgs, Decision (equivocating_in_set msg msgs).
 Proof.
   intros msg msgs.
   apply (Decision_iff (Exists_exists _ _)).

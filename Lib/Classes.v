@@ -15,18 +15,18 @@ Proof. split; repeat intro; congruence. Qed.
 (** ** Top-level classes *)
 
 Class Decision (P : Prop) := decide : {P} + {~P}.
-Hint Mode Decision ! : typeclass_instances.
+Global Hint Mode Decision ! : typeclass_instances.
 Arguments decide _ {_} : simpl never, assert.
 
 Class RelDecision {A B} (R : A -> B -> Prop) :=
   decide_rel x y :> Decision (R x y).
-Hint Mode RelDecision ! ! ! : typeclass_instances.
+Global Hint Mode RelDecision ! ! ! : typeclass_instances.
 Arguments decide_rel {_ _} _ {_} _ _ : simpl never, assert.
 Notation EqDecision A := (RelDecision (@eq A)).
 Notation decide_eq := (fun x y => decide (x = y)).
 
 Class Inhabited (A : Type) : Type := populate { inhabitant : A }.
-Hint Mode Inhabited ! : typeclass_instances.
+Global Hint Mode Inhabited ! : typeclass_instances.
 Arguments populate {_} _ : assert.
 
 Class Inj {A B} (R : relation A) (S : relation B) (f : A -> B) : Prop :=
@@ -150,9 +150,9 @@ Class TotalOrder {A} (R : relation A) : Prop := {
 (** ** Boolean coercion *)
 
 Coercion Is_true : bool >-> Sortclass.
-Hint Unfold Is_true : core.
-Hint Immediate Is_true_eq_left : core.
-Hint Resolve orb_prop_intro andb_prop_intro : core.
+Global Hint Unfold Is_true : core.
+Global Hint Immediate Is_true_eq_left : core.
+Global Hint Resolve orb_prop_intro andb_prop_intro : core.
 Lemma Is_true_iff_eq_true: forall x: bool, x = true <-> x.
 Proof.
   split. apply Is_true_eq_left. apply Is_true_eq_true.
@@ -179,7 +179,7 @@ Instance prod_inhabited {A B} (iA : Inhabited A)
     (iB : Inhabited B) : Inhabited (A * B) :=
   match iA, iB with populate x, populate y => populate (x,y) end.
 
-Instance pair_inj : Inj2 eq eq eq (@pair A B).
+Instance pair_inj {A B} : Inj2 eq eq eq (@pair A B).
 Proof. injection 1; auto. Qed.
 
 Instance option_inhabited {A} : Inhabited (option A) := populate None.

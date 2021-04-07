@@ -23,7 +23,7 @@ Class observable_events
     has_been_observed : state -> event -> Prop;
     has_been_observed_dec : RelDecision has_been_observed;
   }.
-Hint Mode observable_events ! ! : typeclass_instances.
+Global Hint Mode observable_events ! ! : typeclass_instances.
 
 (**
 The <<event>> type is equiped with a decidable relation [happens_before] which should tell
@@ -145,7 +145,7 @@ Section not_heavy_incl.
 
 Context
   (state validator event : Type)
-  `{EqDecision event}
+  {eq_dec_event : EqDecision event}
   (v_eq : EqDecision validator)
   {happens_before : event -> event -> Prop}
   {happens_before_dec : RelDecision happens_before}
@@ -157,7 +157,7 @@ Context
   {reachable_threshold : ReachableThreshold validator}
   (validators : state -> set validator)
   (validators_nodup : forall (s : state), NoDup (validators s))
-  (basic_eqv := basic_observable_equivocation state validator event happens_before state_events subject_of_observation validators validators_nodup)
+  (basic_eqv := @basic_observable_equivocation state validator event eq_dec_event happens_before happens_before_dec state_events subject_of_observation Hevidence _ _ _ validators validators_nodup)
   .
 
 Existing Instance basic_eqv.
