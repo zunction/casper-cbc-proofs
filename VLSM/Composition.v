@@ -1277,7 +1277,33 @@ to be all [protocol_message]s of <<X>>:
     simpl.
     apply Hsi.
   Qed.
-    
+
+
+  Lemma VLSM2_projection_valid_impl_projection_valid
+        (i : index)
+        (li : vlabel (IM i))
+        (siomi : vstate (IM i) * option message)
+    :
+      VLSM2_projection_valid i li siomi ->
+      projection_valid i li siomi.
+  Proof.
+    intros H.
+    unfold VLSM2_projection_valid in H.
+    unfold projection_valid.
+    destruct siomi as [si omi].
+    simpl in H. simpl.
+    destruct H as [Hvalid Hproj].
+    unfold VLSM2_is_projected_state in Hproj.
+    unfold projected_state_prop in Hproj.
+    destruct Hproj as [s Hsi].
+    exists (proj1_sig s).
+    split.
+    { apply Hsi. }
+    split.
+    { apply (proj2_sig s). }
+  Abort.
+  
+       
 (**
 Since [projection_valid]ity is derived from [protocol_valid]ity, which in turn
 depends on [valid]ity in the component, it is easy to see that
