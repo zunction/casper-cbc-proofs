@@ -45,6 +45,67 @@ Definition validating_projection_prop :=
         protocol_valid (pre_loaded_with_all_messages_vlsm (IM i)) li siomi ->
         vvalid Xi li siomi.
 
+(** A corresponding definition from the VLSM2 paper *)
+Definition VLSM2_validating_projection_prop :=
+  forall (li : vlabel (IM i)) (siomi : vstate (IM i) * option message),
+    vvalid (IM i) li siomi ->
+    protocol_valid Xi li siomi.
+
+
+Lemma VLSM2_validating_projection_prop_implies_validating_projection_prop:
+  VLSM2_validating_projection_prop -> validating_projection_prop.
+Proof.
+  intros H.
+  unfold VLSM2_validating_projection_prop in H.
+  unfold validating_projection_prop.
+  intros li siomi Hpv.
+  specialize (H li siomi).
+  unfold protocol_valid in Hpv.
+  destruct siomi as [si omi].
+  destruct Hpv as [Hpsp [Hopmp Hvalid]].
+  unfold vvalid in H. specialize (H Hvalid).
+  unfold protocol_valid in H.
+  destruct H as [Hpspi [Hopmpi Hvalidi]].
+  apply Hvalidi.
+Qed.
+
+
+Lemma validating_projection_prop_implies_VLSM2_validating_projection_prop:
+  validating_projection_prop -> VLSM2_validating_projection_prop.
+  (*
+  forall (li : vlabel (IM i)) (siomi : vstate (IM i) * option message),
+         validating_projection_pr
+   *)
+Proof.
+  intros H.
+  unfold validating_projection_prop in H.
+  unfold VLSM2_validating_projection_prop.
+  intros li siomi Hvalidi.
+  (*specialize (H li siomi).*)
+  unfold protocol_valid.
+  destruct siomi as [si omi].
+  repeat split.
+  3: {
+    apply H.
+    Search protocol_valid pre_loaded_with_all_messages_vlsm.
+    unfold protocol_valid.
+    Search protocol_state_prop pre_loaded_with_all_messages_vlsm.
+    Search preloaded_protocol_state_prop.
+    Print preloaded_protocol_state_prop.
+    repeat split.
+    3: apply Hvalidi.
+  }
+  
+Abort.
+(*
+    { apply pre_loaded_with_all_messages_protocol_state_  }
+
+  }
+ *)
+
+
+
+
 (**
 It is easy to see that the [validating_projection_prop]erty includes the
 [validating_projection_received_messages_prop]erty.
