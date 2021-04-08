@@ -409,7 +409,7 @@ the [composite_valid]ity.
       (start : composite_state)
       (a : list plan_item)
       (after_a := composite_apply_plan start a)
-      : last (map destination (fst after_a)) start = snd after_a
+      : finite_trace_last start (fst after_a) = snd after_a
       := (@_apply_plan_last _ composite_type composite_transition start a).
     Definition composite_trace_to_plan := (@_trace_to_plan _ composite_type).
 
@@ -1061,8 +1061,24 @@ Let us fix an indexed set of VLSMs <<IM>> and their composition <<X>> using <<co
           (T := composite_type IM)
           (constraint : composite_label IM -> composite_state IM * option message -> Prop)
           (X := composite_vlsm IM constraint)
-          .
+  .
+  
 
+  Definition projected_state_prop (j : index) (sj : vstate (IM j)) := exists (s : protocol_state X), proj1_sig s j = sj.
+  Definition projected_states (j : index) := { sj : vstate (IM j) | projected_state_prop j sj }.
+
+(**
+The definition [VLSM1_projection_valid] is deprecated and should not be used.    
+*)
+  Definition VLSM1_projection_valid
+             (i : index)
+             (li : vlabel (IM i))
+             (siomi : vstate (IM i) * option message)
+    := vvalid (IM i) li siomi
+       /\ projected_state_prop i (fst (vtransition (IM i) li siomi))
+       /\ option_protocol_message_prop X (snd (vtransition (IM i) li siomi)).
+      
+          
 (**
 The [VLSM_type] of a projection of <<X>> to component <<i>> is the
 type of the <<i>>th component of <<X>>.
@@ -1095,6 +1111,139 @@ to be all [protocol_message]s of <<X>>:
     exists (s : vstate X),
       s i = si /\ protocol_valid X (existT _ i li) (s, omi).
 
+  (**
+   The following two lemmas ([projection_valid_impl_VLSM1_projection_valid]
+   and [VLSM1_projection_valid_impl_projection_valid]) relate the definition
+   of validity in a projection VLSM to the original definition from the VLSM1
+   paper: the conclusion is that the VLSM1 definition is weaker.
+   *)
+  
+  
+  Lemma projection_valid_impl_VLSM1_projection_valid
+        (i : index)
+        (li : vlabel (IM i))
+        (siomi : vstate (IM i) * option message)
+    :
+      projection_valid i li siomi -> VLSM1_projection_valid i li siomi.
+  Proof.
+    unfold projection_valid.
+    unfold VLSM1_projection_valid.
+    destruct siomi as [si omi].
+    intros [s [Hsi Hpv]].
+    destruct (id Hpv) as [Hs [Homi Hvalid]].
+    simpl in Hvalid.
+    unfold constrained_composite_valid in Hvalid.
+    destruct Hvalid as [Hcvalid Hconstraint].
+    simpl in Hcvalid.
+    split.
+    { subst si. apply Hcvalid. }
+    unfold projected_state_prop.
+    unfold vvalid in Hcvalid.
+    unfold protocol_state.
+    remember (@composite_label _ index IM) as CL in |-.
+    remember (existT (fun n => vlabel (IM n)) i li) as er.
+    remember (vtransition X er (s,omi)) as sm'.
+    remember (fst sm') as s'.
+
+    destruct sm' as [s'' om'].
+    simpl in Heqs'. subst s''.
+
+    assert (Hpt : protocol_transition X er (s,omi) (s', om')).
+    {
+      unfold protocol_transition.
+      split.
+      { apply Hpv. }
+      unfold vtransition in Heqsm'.
+      symmetry.
+      apply Heqsm'.
+    }
+
+    pose proof (Hps' := protocol_transition_destination X Hpt).
+
+    split.
+    {
+      exists (exist _ s' Hps').
+
+      pose proof (H := @composite_transition_state_eq message index IndEqDec IM i0 constraint er).
+      specialize (H s s' omi om' Hpt). rewrite Heqer in H. simpl in H.
+      rewrite <- Hsi. rewrite <- H. simpl. reflexivity.
+    }
+    unfold option_protocol_message_prop.
+
+    fold (vstate X).
+    assert (Hveq: snd (vtransition (IM i) li (si, omi)) = snd (vtransition X er (s, omi))).
+    {
+      rewrite Heqer.
+      destruct (vtransition (IM i) li (si, omi)) eqn:Heq1.
+      destruct (vtransition X (existT (fun n => vlabel (IM n)) i li) (s, omi)) eqn:Heq2.
+      simpl.
+      unfold vtransition in Heq2. unfold transition in Heq2. unfold machine in Heq2.
+      simpl in Heq2.
+      rewrite Hsi in Heq2.
+      rewrite Heq1 in Heq2.
+      inversion Heq2.
+      reflexivity.
+    }
+    rewrite Hveq.
+    exists (fst (vtransition X er (s, omi))).
+    rewrite <- surjective_pairing.
+    destruct Hs as [om Hsom].
+
+    destruct (id Hpt) as [[_ [Hpmomi _]]_].
+    unfold option_protocol_message_prop in Hpmomi.
+    destruct Hpmomi as [s'' Hs''].
+    
+    eapply protocol_generated.
+    3: { unfold valid. unfold machine. simpl.
+         unfold constrained_composite_valid.
+         split.
+         2: { apply Hconstraint. }
+         unfold composite_valid. rewrite Heqer.
+         apply Hcvalid.
+    }
+    { apply Hsom. }
+    { apply Hs''. }
+  Qed.
+  
+  Lemma VLSM1_projection_valid_impl_projection_valid
+        (i : index)
+        (li : vlabel (IM i))
+        (siomi : vstate (IM i) * option message)
+    :
+      VLSM1_projection_valid i li siomi ->
+      (exists s : protocol_state X,
+          proj1_sig s i = (fst siomi)
+          /\ constraint (existT (fun n : index => vlabel (IM n)) i li) (proj1_sig s, (snd siomi))) ->
+      option_protocol_message_prop X (snd siomi) ->
+      projection_valid i li siomi.
+  Proof.
+    unfold projection_valid.
+    unfold VLSM1_projection_valid.
+    destruct siomi as [si omi].
+    intros H Hpsp Hpmp.
+    simpl in Hpsp.
+    unfold projected_state_prop in H.
+    destruct H as [Hvalid [[s Hs] Homp]].
+    destruct Hpsp as [s' [Hs' Hconstraint]].
+    exists (proj1_sig s').
+    split.
+    { apply Hs'. }
+    unfold protocol_valid.
+    split.
+    { exact (proj2_sig s'). }
+
+    simpl in Hpmp.
+    split.
+    { apply Hpmp. }
+    unfold valid. unfold machine. simpl.
+    unfold constrained_composite_valid.
+    unfold composite_valid.
+    rewrite <- Hs' in Hvalid.
+    split.
+    { apply Hvalid. }
+    apply Hconstraint.
+  Qed.
+  
 (**
 Since [projection_valid]ity is derived from [protocol_valid]ity, which in turn
 depends on [valid]ity in the component, it is easy to see that
@@ -1801,11 +1950,11 @@ All results from regular projections carry to these "free" projections.
   Qed.
 
   Lemma pre_loaded_with_all_messages_projection_protocol_transition_neq
-    (s1 s2 : vstate X)
-    (om1 om2 : option message)
-    (l : label)
+    [s1 s2 : vstate X]
+    [om1 om2 : option message]
+    [l : label]
     (Ht : protocol_transition (pre_loaded_with_all_messages_vlsm X) l (s1, om1) (s2, om2))
-    (i : index)
+    [i : index]
     (Hi : i <> projT1 l)
     : s1 i = s2 i.
   Proof.
@@ -1824,30 +1973,24 @@ All results from regular projections carry to these "free" projections.
     (i : index)
     : in_futures (pre_loaded_with_all_messages_vlsm (IM i))  (s1 i) (s2 i).
   Proof.
-    destruct Hfutures as [tr [Htr Hlast]].
-    generalize dependent s1.
-    induction tr; intros.
-    - exists []. simpl in Hlast. subst.
-      split; try constructor; simpl; try reflexivity.
-      inversion Htr.
-      apply preloaded_composed_protocol_state. assumption.
-    - rewrite map_cons in Hlast. rewrite unroll_last in Hlast.
-      inversion Htr. subst. simpl in *.
-      specialize (IHtr s H2 eq_refl).
-      destruct (decide (i = projT1 l)).
-      + subst. apply pre_loaded_with_all_messages_projection_protocol_transition_eq in H3.
-        destruct IHtr as [tri [Htri Hlasti]].
+    destruct Hfutures as [tr Htr].
+    induction Htr using finite_protocol_trace_from_to_ind.
+    - exists [].
+      constructor.
+      apply preloaded_composed_protocol_state;assumption.
+    - destruct (decide (i = projT1 l)).
+      + subst. apply pre_loaded_with_all_messages_projection_protocol_transition_eq in H.
+        destruct IHHtr as [tri Htri].
         exists
           ({| l := projT2 l; input := iom; destination := s (projT1 l); output := oom |}
           ::tri
           ).
-        split; try apply (finite_ptrace_extend (pre_loaded_with_all_messages_vlsm (IM (projT1 l))))
-        ; try assumption.
-        rewrite map_cons. rewrite unroll_last. simpl.
+        apply (finite_ptrace_from_to_extend (pre_loaded_with_all_messages_vlsm (IM (projT1 l)))).
         assumption.
-      + specialize
-          (pre_loaded_with_all_messages_projection_protocol_transition_neq _ _ _ _ _ H3 _ n) as Hs1i.
-        rewrite Hs1i. assumption.
+        assumption.
+      + replace (s' i) with (s i). assumption.
+        symmetry.
+        apply (pre_loaded_with_all_messages_projection_protocol_transition_neq H n).
   Qed.
 
 End free_projections.

@@ -430,7 +430,7 @@ Proof.
     specialize (Happ (conj (proj1 Hstate_trace) Hmsg_trace_full_replay)).
     simpl.
     specialize
-      (extend_right_finite_trace_from SeededXE _ _ Happ) as Happ_extend.
+      (extend_right_finite_trace_from SeededXE Happ) as Happ_extend.
     destruct l as (eqv, li).
     specialize (Heqv_state_descriptors eqv) as Heqv_state_descriptors_i.
     destruct (eqv_state_descriptors eqv) as [| eqv_state_descriptors_i eqv_state_descriptors_f]
@@ -440,8 +440,7 @@ Proof.
     pose
       (existT (fun i : index => vlabel (equivocator_IM i)) (eqv) (li, Existing (IM (eqv)) eqv_state_descriptors_i false))
       as el.
-    pose (last (map destination (transitions eqv_state_run ++ emsg_tr))
-      (start eqv_state_run))
+    pose (finite_trace_last (start eqv_state_run) (transitions eqv_state_run ++ emsg_tr))
       as es.
 
     destruct (vtransition SeededXE el (es, om))
@@ -465,7 +464,7 @@ Proof.
     destruct
       (replayed_trace_from_state_correspondence
         IM Hbs index_listing finite_index seed
-        (last (map destination (transitions eqv_state_run)) (start eqv_state_run))
+        (finite_trace_last (start eqv_state_run) (transitions eqv_state_run))
         _  _ Hmsg_trace
       )
       as [Houtput Hstate].
@@ -473,9 +472,9 @@ Proof.
     destruct Hstate_eqv as [Hstate_size [Hstate_msg Hstate_state]].
     spec Hstate_state eqv_state_descriptors_i.
 
-    remember (last (map destination (transitions eqv_state_run ++ emsg_tr)) (start eqv_state_run))
+    remember (finite_trace_last (start eqv_state_run) (transitions eqv_state_run ++ emsg_tr))
       as ess.
-    rewrite map_app in Heqess. rewrite last_app in Heqess.
+    rewrite finite_trace_last_app in Heqess.
     specialize
       (vlsm_run_last_state SeededXE
         (exist _ _ Heqv_state_run)
@@ -525,8 +524,7 @@ Proof.
     {
       split; [|assumption].
       specialize (finite_ptrace_last_pstate SeededXE _ _ Happ) as Hps.
-      rewrite map_app in Hps.
-      rewrite last_app in Hps. simpl in Hps.
+      rewrite finite_trace_last_app in Hps. progress simpl in Hps.
       rewrite Heqv_state_final in Hps.
       split; [subst; assumption|].
       assert (Hpom : option_protocol_message_prop SeededXE om).
@@ -561,7 +559,7 @@ Proof.
           {
             specialize (finite_ptrace_last_pstate SeededXE _ _ Happ)
               as Hlst.
-            rewrite map_app, last_app in Hlst. simpl in Hlst.
+            rewrite finite_trace_last_app in Hlst. progress simpl in Hlst.
             rewrite Heqv_state_final in Hlst.
             subst. subst es.
             revert Hlst.
@@ -586,24 +584,18 @@ Proof.
             (Hbs_free : has_been_sent_capability (free_composite_vlsm equivocator_IM)).
           { exact (composite_has_been_sent_capability equivocator_IM (free_constraint equivocator_IM) finite_index (equivocator_Hbs IM Hbs)).
           }
-          assert
-            (Hlst :
-              last (map destination (transitions eqv_state_run ++ emsg_tr))
-                (start eqv_state_run) = es
-            ).
-          { rewrite map_app, last_app.
+          apply ptrace_add_last with (f:=es) in Happ_pre.
+          2:{
+            rewrite finite_trace_last_app.
             simpl.
             unfold es.
             rewrite !Heqv_state_final. subst. reflexivity.
           }
-          assert
-            (Hes_pre : protocol_state_prop
-              (pre_loaded_with_all_messages_vlsm
-                (free_composite_vlsm (Common.equivocator_IM IM))) es).
-          { rewrite <- Hlst. apply (finite_ptrace_last_pstate PreFree). apply Happ_pre.
-          }
-          apply has_been_sent_consistency; [assumption| assumption| ].
-          eexists _. eexists _. exists Happ_pre, Hlst.
+          apply has_been_sent_consistency;
+          [assumption
+          |apply ptrace_last_pstate in Happ_pre;assumption
+          |].
+          eexists _. eexists _. exists Happ_pre.
 
           apply Exists_app. right. subst.
           spec Houtput n.
