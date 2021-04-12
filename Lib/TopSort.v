@@ -654,4 +654,18 @@ Proof.
   - apply top_sort_sorted.
 Qed.
 
+Definition lbound : list A -> option A := 
+  match l with
+  | [] => None
+  | _ => hd_error (top_sort l)
+  end.
+
+Context
+  (Htotal : forall a b, In a l /\ In b l -> comparable preceeds a b).
+  
+Lemma lower_bound_correct 
+  (lb := lbound l) :
+  forall a, In a l /\ Some a <> lb -> preceeds lb a.
+ 
+
 End top_sort.
