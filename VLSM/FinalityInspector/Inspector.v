@@ -36,6 +36,18 @@ Context
   (computable_sent : forall (i : index), computable_sent_messages (IM i))
   (computable_received : forall (i : index), computable_received_messages (IM i)). 
   
+  Lemma something_pretentious : 
+    StrictOrder (preceeds_P happens_before' (fun _ : message => True)).
+  Proof.
+    unfold preceeds_P.
+    simpl.
+    split.
+    - unfold Irreflexive. unfold RelationClasses.Reflexive. intros.
+      unfold complement. apply StrictOrder_Irreflexive.
+    - unfold RelationClasses.Transitive. intros.
+      apply (RelationClasses.StrictOrder_Transitive (` x) (` y) (` z)); intuition.
+  Qed.
+  
   Lemma minimal_element_P
     (P : message -> Prop)
     (Pdec : forall m, Decision (P m))
@@ -85,15 +97,9 @@ Context
           rewrite Forall_forall.
           intros. intuition.
         }
-        spec Hzero. {
-          unfold preceeds_P.
-          simpl.
-          split.
-          - unfold Irreflexive. unfold RelationClasses.Reflexive. intros.
-            unfold complement. apply StrictOrder_Irreflexive.
-          - unfold RelationClasses.Transitive. intros.
-            apply (RelationClasses.StrictOrder_Transitive (` x) (` y) (` z)); intuition.
-        }
+        
+        spec Hzero. apply something_pretentious.
+        
         specialize (Hzero dP m0 eq_refl).
         destruct (@bool_decide (In m' d) (in_dec decide_eq m' d)) eqn : eq.
         * rewrite bool_decide_eq_true in eq. 
@@ -202,13 +208,82 @@ Context
     (m : message) : nat :=
     length (honest_validators_from_message m).
     
-  Definition honest_messages
-    (m : message) : set message :=
-    List.filter (fun (m' : message) => inb decide_eq (sender m') (honest_validators_from_message m)) (predSet m).
+  Definition messages_from
+    (m : message) 
+    (i : index) : set message :=
+    List.filter (fun (m' : message) => bool_decide (sender m' = i)) (predSet m).
+  
+  Definition latest_message_from
+    (m : message)
+    (i : index) : option message :=
+  TopSort.get_maximal_element happens_before' (messages_from m i).
       
   Definition latest_messages
     (m : message) : set message :=
-    ListSetExtras.get_maximal_elements (fun m1 m2 => bool_decide (happens_before m1 m2)) (honest_messages m).
+  ListExtras.cat_option (List.map (latest_message_from m) (honest_validators_from_message m)).
+  
+  Definition latest_message_in_latest_messages
+    (m m' : message)
+    (Hlatest : latest_message_from m (sender m') = Some m') 
+    (Hne : ~ is_equivocating_from_message m (sender m')) :
+    In m' (latest_messages m).
+  Proof.
+    unfold latest_messages.
+    apply in_cat_option.
+    exists (Some m').
+    split;[|intuition].
+    apply in_map_iff.
+    exists (sender m').
+    split;[intuition|].
+    apply filter_In.
+    split;[apply Hfinite|].
+    rewrite negb_true_iff.
+    rewrite bool_decide_eq_false.
+    intuition.
+  Qed.
+  
+  Definition latest_message_sender
+    (m m' : message)
+    (i : index)
+    (Hlatest : latest_message_from m i = Some m') :
+    i = sender m'.
+  Proof.
+     unfold latest_message_from in Hlatest.
+     apply maximal_element_in with (P := (fun x => True)) in Hlatest.
+     - apply filter_In in Hlatest.
+       rewrite bool_decide_eq_true in Hlatest.
+       intuition.
+     - apply something_pretentious.
+     - rewrite Forall_forall; intuition.
+  Qed.
+  
+  Lemma latest_message_sender_info
+    (m m' : message)
+    (Hinm' : In m' (latest_messages m)) : 
+    ~ is_equivocating_from_message m (sender m')
+    /\ latest_message_from m (sender m') = Some m'.
+  Proof.
+    unfold latest_messages in Hinm'.
+    apply in_cat_option in Hinm'.
+    destruct Hinm' as [om [Hom Heqom]].
+    apply in_map_iff in Hom.
+    destruct Hom as [omi [Hlatest Hhonest]].
+    unfold honest_validators_from_message in Hhonest.
+    apply filter_In in Hhonest.
+    destruct Hhonest as [_ Hhonest].
+    rewrite negb_true_iff in Hhonest.
+    rewrite bool_decide_eq_false in Hhonest.
+    
+    assert (omi = sender m'). {
+      rewrite Heqom in Hlatest.
+      apply latest_message_sender in Hlatest.
+      intuition.
+    }
+    rewrite <- H at 1.
+    rewrite H in Hlatest.
+    rewrite Heqom in Hlatest.
+    intuition.
+  Qed.
  
 Section Inspector.
 
@@ -427,40 +502,92 @@ Context
         remember (filter (fun m' => negb (bool_decide (vote m' = Some value))) (latest_messages u)) as latest_divergent.
         remember (filter (fun (i : index) => inb decide_eq i (senders latest_divergent)) Vk_1) as Vchange.
         
+        assert (Hin_veq1 : forall i, In i Veq -> is_equivocating_from_message u i). {
+          intros. rewrite HeqVeq in H.
+          apply filter_In in H.
+          rewrite bool_decide_eq_true in H. intuition.
+        }
+        
+        assert (Hin_veq2 : forall i, In i Vk_1 /\ ~ In i Veq -> ~ is_equivocating_from_message u i). {
+          intros. rewrite HeqVeq in H.
+          intros contra.
+          destruct H as [Hini H].
+          contradict H; apply filter_In; rewrite bool_decide_eq_true; intuition.
+        }
+        
+        assert (Hin_veq3 : forall i, In i Vk_1 /\ ~ In i Veq -> exists mi, latest_message_from u i = Some mi). {
+          intros.
+          assert (H' := H).
+          apply Hin_veq2 in H'.
+          destruct H as [H _].
+          admit.
+        }
+        
+        assert (Hin_vchange : forall i, In i Vchange -> ~ is_equivocating_from_message u i /\
+                                        (exists mi, latest_message_from u i = Some mi /\ 
+                                        vote mi <> Some value)). {
+          intros. rewrite HeqVchange in H.
+          apply filter_In in H.
+          rewrite <- in_correct in H.
+          rewrite Heqlatest_divergent in H.
+          destruct H as [_ H].
+          apply in_map_iff in H.
+          destruct H as [mi [Hsender Hinmi]].
+          apply filter_In in Hinmi.
+          rewrite negb_true_iff in Hinmi.
+          rewrite bool_decide_eq_false in Hinmi.
+          destruct Hinmi as [Hlatest Hvote_mi].
+          assert (Hlatest' := Hlatest).
+          apply latest_message_sender_info in Hlatest.
+          destruct Hlatest as [Hnon_equiv Hlatest].
+          rewrite Hsender in Hnon_equiv.
+          split;[intuition|].
+          exists mi.
+          rewrite <- Hsender.
+          split;intuition. 
+        }
+        
         assert (Heq_change_disjoint : ~ (exists i, In i Veq /\ In i Vchange)). {
           intros contra.
-          destruct contra as [i contra].
-          destruct contra as [Hin_veq Hin_change].
-          rewrite HeqVeq in Hin_veq.
-          rewrite HeqVchange in Hin_change.
-          apply filter_In in Hin_veq.
-          apply filter_In in Hin_change.
-          rewrite bool_decide_eq_true in Hin_veq.
-          rewrite <- in_correct in Hin_change.
-          rewrite Heqlatest_divergent in Hin_change.
-          destruct Hin_change as [_ Hin_change].
-          apply in_map_iff in Hin_change.
-          destruct Hin_change as [m'' [Hm''_sender Hm''_in]].
-          apply filter_In in Hm''_in.
-          destruct Hm''_in as [Hm''_in _].
-          unfold latest_messages in Hm''_in.
-          apply filter_In in Hm''_in.
-          destruct Hm''_in as [Hm''_in _].
-          unfold honest_messages in Hm''_in.
-          apply filter_In in Hm''_in.
-          destruct Hm''_in as [_ Hm''_in].
-          rewrite <- in_correct in Hm''_in.
-          unfold honest_validators_from_message in Hm''_in.
-          apply filter_In in Hm''_in.
-          destruct Hm''_in as [_ Hm''_in].
-          rewrite negb_true_iff in Hm''_in.
-          rewrite bool_decide_eq_false in Hm''_in.
-          rewrite Hm''_sender in Hm''_in.
+          destruct contra as [i [HiniVeq HiniVchange]].
+          apply Hin_vchange in HiniVchange.
+          apply Hin_veq1 in HiniVeq.
           intuition.
         }
         
-        (*
-        assert (forall i, In i Vk_1 /\ ~ In i Veq /\ ~ In i Vchange -> vote i = Some value). *)
+        assert (forall i, In i Vk_1 /\ ~ In i Veq /\ ~ In i Vchange -> 
+          (exists mi, (latest_message_from u i) = Some mi /\ vote mi = Some value)). {
+          intros.
+          destruct H as [Hk_1 [Hn_veq Hn_change]].
+          specialize (Hin_veq3 i).
+          spec Hin_veq3. intuition.
+          destruct Hin_veq3 as [mi Hlatest].
+          exists mi.
+          split; [intuition|].
+          
+          destruct (bool_decide (vote mi = Some value)) eqn : eq_bd. 
+          - rewrite bool_decide_eq_true in eq_bd; intuition.
+          - rewrite bool_decide_eq_false in eq_bd.
+            contradict Hn_change.
+            rewrite HeqVchange.
+            apply filter_In.
+            split;[intuition|].
+            apply in_correct.
+            rewrite Heqlatest_divergent.
+            apply in_map_iff.
+            
+            assert (sender mi = i) by (apply latest_message_sender in Hlatest; intuition).
+            
+            exists mi.
+            split;[intuition|].
+            apply filter_In. rewrite negb_true_iff. rewrite bool_decide_eq_false.
+            split;[|intuition].
+            apply latest_message_in_latest_messages.
+            rewrite H. intuition.
+            apply Hin_veq2.
+            rewrite H.
+            intuition.
+        }
         
         assert (Hineq1 : 2 * (q - (length Veq) - (length Vchange)) <= n - length Eu). {
           move Hvote at bottom.
@@ -473,7 +600,9 @@ Context
               assert (votes_for_value >= (q - length Veq - length Vchange)). {
                 rewrite Heqvotes_for_value.
                 unfold count_votes_for.
+                admit.
               }
+              admit.
             }
             intuition.
           }

@@ -656,4 +656,26 @@ Proof.
   - apply top_sort_sorted.
 Qed.
 
+Definition get_maximal_element := ListExtras.last_error (top_sort l).
+
+Lemma maximal_element_in 
+  (a : A)
+  (Hmax : get_maximal_element = Some a) :
+  In a l.
+Proof.
+  unfold get_maximal_element in Hmax.
+  destruct l.
+  - simpl in *. intuition congruence.
+  - specialize (last_error_some l a a0).
+    simpl in *.
+    inversion Hmax.
+    admit.
+Admitted.
+
+Lemma get_maximal_element_some
+  (Hne : l <> []) :
+  exists a, get_maximal_element = Some a.
+Proof.
+Admitted.
+
 End top_sort.
