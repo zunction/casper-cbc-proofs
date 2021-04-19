@@ -211,12 +211,27 @@ Context
   Definition messages_from
     (m : message) 
     (i : index) : set message :=
-    List.filter (fun (m' : message) => bool_decide (sender m' = i)) (predSet m).
+    List.filter (fun (m' : message) => bool_decide (sender m' = i)) (downSet m).
   
   Definition latest_message_from
     (m : message)
     (i : index) : option message :=
   TopSort.get_maximal_element happens_before' (messages_from m i).
+  
+  Lemma latest_message_from_exists
+    (m : message)
+    (i : index)
+    (Hsome : exists mi, In mi (messages_from m i)) :
+    exists mi', latest_message_from m i = Some mi'.
+  Proof.
+    apply get_maximal_element_some with (P := fun x => True).
+    apply something_pretentious.
+    apply Forall_forall. intuition.
+    destruct (messages_from m i).
+    - destruct Hsome as [mi Hin].
+      intuition.
+    - intuition congruence.
+  Qed.
       
   Definition latest_messages
     (m : message) : set message :=
@@ -379,12 +394,14 @@ Context
       (value : C)
       (q : nat)
       (sm : set message)
+      (Hnodup : NoDup sm)
       (H : unanimity value sm /\ honesty s sm /\ convexity sm) : valid_com_prop s value q [sm]
     | valid_com_ind 
         (s : vstate X)
         (value : C)
         (q : nat)
         (sm1 sm2 : set message) 
+        (Hnodup : NoDup sm1)
         (l : list (set message))
         (Hincl : incl sm2 sm1)
         (Hdensity : density sm1 sm2 q)
@@ -461,6 +478,22 @@ Context
         
         remember (senders (filter (fun v => bool_decide (happens_before' v u)) (relevant_messages sm1 sm2))) as Vk_1.
         
+        assert (Hin_Vk : forall i, In i Vk_1 -> exists mi, In mi (messages_from u i)). {
+          intros.
+          rewrite HeqVk_1 in H.
+          apply in_map_iff in H.
+          destruct H as [mi [Hsender Hinmi]].
+          exists mi.
+          apply filter_In.
+          rewrite bool_decide_eq_true.
+          split;[|intuition].
+          apply filter_In in Hinmi.
+          destruct Hinmi as [_ Hinmi].
+          rewrite bool_decide_eq_true in Hinmi.
+          apply HdownSetCorrect in Hinmi.
+          intuition.
+        }
+        
         assert (HVk1_sz : length Vk_1 >= q). {
           rewrite HeqVk_1.
           move Hdensity at bottom.
@@ -520,7 +553,9 @@ Context
           assert (H' := H).
           apply Hin_veq2 in H'.
           destruct H as [H _].
-          admit.
+          apply latest_message_from_exists.
+          apply Hin_Vk in H.
+          intuition.
         }
         
         assert (Hin_vchange : forall i, In i Vchange -> ~ is_equivocating_from_message u i /\
@@ -589,6 +624,21 @@ Context
             intuition.
         }
         
+        assert (Hdectemp: forall i, Decision (~In i Veq /\ ~In i Vchange)). {
+          intros.
+          apply Decision_and; apply Decision_not; apply in_dec; apply idec.
+        }
+        
+        remember (filter (fun i => @bool_decide (~ In i Veq /\ ~In i Vchange) (Hdectemp i)) Vk_1) as value_voters.
+        
+        assert (Hvoters_nodup : NoDup value_voters). {
+          admit.
+        }
+        
+        assert (Hvoters_length : length value_voters >= (length Vk_1 - length Veq - length Vchange)). {
+          admit.
+        }
+        
         assert (Hineq1 : 2 * (q - (length Veq) - (length Vchange)) <= n - length Eu). {
           move Hvote at bottom.
           assert (Hvote' := Hvote).
@@ -599,14 +649,35 @@ Context
               remember (count_votes_for u (Some value)) as votes_for_value.
               assert (votes_for_value >= (q - length Veq - length Vchange)). {
                 rewrite Heqvotes_for_value.
-                unfold count_votes_for.
                 admit.
               }
-              admit.
+              destruct (bool_decide (vote u = Some value)) eqn : eq_bd.
+              - rewrite bool_decide_eq_true in eq_bd; intuition. 
+              - rewrite bool_decide_eq_false in eq_bd.
+                specialize (Hvote' u (vote u) eq_refl (Some value)).
+                rewrite Heqvotes_for_value in H0.
+                assert (count_votes_for u (Some value) + count_votes_for u (vote u) <= n - length Eu). {
+                  admit.
+                }
+                unfold count_votes_for in *.
+                clear -H0 H1 contra Hvote'.
+                lia.
             }
             intuition.
           }
           lia.
+        }
+        
+        assert (n - length Eu <= n - length Veq). {
+          admit.
+        }
+        
+        assert (2 * q <= n + length Veq + 2 * (length Vchange)). {
+          assert (length Veq + length Vchange <= q). {
+            admit.
+          }
+          assert (2 * (q - length Veq - length Vchange) <= n - length Veq) by lia.
+          admit.
         }
         
     Admitted.

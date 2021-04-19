@@ -932,4 +932,121 @@ Proof.
      destruct (f a); destruct (f' a); (simpl in *; intuition congruence).
 Qed.
 
+Definition disjoint `{EqDecision X}
+  (s1 s2 : set X) := ~ exists x, In x s1 /\ In x s2.
+
+Definition pairwise_disjoint `{EqDecision X} 
+  (ls : list (set X)) :=
+  (forall s1 s2, In s1 ls /\ In s2 ls /\ s1 <> s2 -> disjoint s1 s2).
+
+Definition is_partition `{EqDecision X}
+  (large : set X) 
+  (ls : list (set X)) :=
+  NoDup large 
+  /\ Forall (@NoDup X) ls
+  /\ pairwise_disjoint ls
+  /\ (forall x, In x large <-> (exists s, In s ls /\ In x s)).
+
+Lemma partition_union1 `{EqDecision X}
+  (large : set X)
+  (ls : list (set X))
+  (Hpart : is_partition large ls) :
+  set_eq large (fold_right (set_union decide_eq) [] ls).
+Proof.
+  destruct Hpart as [_ [_ [_ Hpart]]].
+  specialize (set_union_in_iterated ls) as Hun.
+  rewrite set_eq_extract_forall.
+  intros.
+  rewrite Hpart.
+  rewrite Hun.
+  rewrite Exists_exists.
+  intuition. 
+Qed.
+
+Lemma partition_union2 `{EqDecision X}
+  (ls : list (set X))
+  (Hnodup : Forall (@NoDup X) ls)
+  (Hdisjoint : pairwise_disjoint ls) :
+  is_partition (fold_right (set_union decide_eq) [] ls) ls.
+Proof.
+  unfold is_partition.
+  split.
+  - apply set_union_iterated_nodup.
+    rewrite Forall_forall in Hnodup. intuition.
+  - split;intuition.
+    + apply set_union_in_iterated in H. rewrite Exists_exists in H. intuition.
+    + apply set_union_in_iterated. rewrite Exists_exists. intuition.
+Qed. 
+
+Lemma partition_lengths1 `{EqDecision X}
+  (large : set X)
+  (ls : list (set X))
+  (Hpart : is_partition large ls) : 
+  list_sum (List.map (@length X) ls) = length large.
+Proof.
+  generalize dependent large.
+  generalize dependent ls.
+  induction ls.
+  - intros. simpl.
+    unfold is_partition in Hpart.
+    destruct Hpart as [_ [_ Hpart]].
+    simpl in Hpart.
+    destruct large.
+    + intuition.
+    + destruct Hpart as [_ Hpart].
+      specialize (Hpart x).
+      destruct Hpart as [Hpart _].
+      spec Hpart. intuition.
+      firstorder.
+  - intros.
+    simpl.
+    remember (fold_right (set_union decide_eq) [] ls) as large'.
+    specialize (IHls large').
+    spec IHls. {
+      rewrite Heqlarge'.
+      apply partition_union2.
+      unfold is_partition in Hpart.
+      admit.
+      admit.
+    }
+    
+    rewrite IHls.
+    admit.
+Admitted.
+  
+Lemma filter_is_partition `{EqDecision X}
+  (s : set X)
+  (Hnodup : NoDup s)
+  (f : X -> bool)
+  (sf := filter f s)
+  (snf := filter (fun x => negb (f x)) s) :
+  is_partition s [sf;snf].
+Proof.
+  split.
+  - destruct H.
+    + subst s0; apply NoDup_filter; intuition.
+    + simpl in H. destruct H;[|intuition]. subst s0; apply NoDup_filter; intuition.
+  - split.
+    unfold disjoint. intros contra.
+    destruct contra as [x Hx].
+    simpl in H0.
+    destruct H0 as [H0 [H1 Hdif]].
+    destruct H0; destruct H1; try intuition congruence.
+    destruct H1;[|intuition].
+    rewrite <- H0 in Hx. rewrite <- H1 in Hx.
+    admit.
+    admit.
+    admit.
+Admitted.
+(*
+  - intros.
+    split.
+    + intros. 
+      destruct (f x) eqn : eq_fx.
+      * left. apply filter_In; intuition.
+      * right. apply filter_In. rewrite negb_true_iff; intuition.
+    + intros.
+      destruct H; apply filter_In in H; intuition.
+Qed. *)
+
 Unset Implicit Arguments.
