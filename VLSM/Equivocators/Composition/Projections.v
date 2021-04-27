@@ -213,6 +213,7 @@ Lemma equivocators_transition_item_project_proper_descriptor_characterization
       | Some itemx =>
         existT _ i (fst (projT2 (l item))) = l itemx /\  input item = input itemx /\ output item = output itemx /\
         (equivocators_state_project eqv_descriptors (destination item) = destination itemx)
+        /\ eqv_descriptors' i = (snd (projT2 (l item)))
       | None => True
       end
     /\ forall
@@ -243,9 +244,10 @@ Proof.
   destruct item. simpl in *. destruct l as (i, li). simpl in *.
   destruct oitemi as [itemi'|]; eexists _; eexists _; (split; [reflexivity|])
   ; destruct li as (li, di); simpl in *;
-  [ destruct Hitemx as [Hli [Hinputi [Houtputi Hdestinationi]]]
+  [ destruct Hitemx as [Hli [Hinputi [Houtputi [Hdestinationi Hdescriptori]]]]
   ; rewrite Hli; subst; split; [repeat split|]
-  | split; [exact I|]]
+  | split; [exact I| ]]
+  ; [apply equivocator_descriptors_update_eq|..]
   ; intros
   ; match type of Ht with
     | (let (_, _) := ?t in _ ) = _ =>
@@ -310,6 +312,7 @@ Lemma equivocators_transition_item_project_proper_characterization
       | Some itemx =>
         existT _ (projT1 (l item)) (fst (projT2 (l item))) = l itemx /\  input item = input itemx /\ output item = output itemx /\
         (equivocators_state_project eqv_descriptors (destination item) = destination itemx)
+        /\ eqv_descriptors' (projT1 (l item)) = (snd (projT2 (l item)))
       | None => True
       end
     /\ forall
@@ -671,7 +674,7 @@ Proof.
         destruct item'.
         apply equivocator_transition_item_project_inv_characterization in Heqpr_item_x.
         simpl in *.
-        destruct Heqpr_item_x as [Hl [Hinput [Houtput Hdestination]]].
+        destruct Heqpr_item_x as [Hl [Hinput [Houtput [Hdestination _]]]].
         subst. reflexivity.
       - simpl in Hproject_xi.
         unfold eqv_final in *.
@@ -813,7 +816,7 @@ Proof.
     specialize (IHtr _ Hproper').
     destruct IHtr as [trX' [initial_descriptors [Htr_project [Hproper_initial Hlst]]]].
     destruct oitem as [item|].
-    + simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput Hdestination]]].
+    + simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput [Hdestination _]]]].
       specialize (Hx _ eq_refl).
       destruct Hx as [Hvx Htx].
       exists (trX' ++ [item]), initial_descriptors. subst foldx.
@@ -1107,7 +1110,7 @@ Proof.
     specialize (H' _ Hproper').
     destruct H' as [trX' [initial_descriptors [Hproper_initial [Htr_project [Hstate_project HtrX']]]]].
     destruct oitem as [item|].
-    +  simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput Hdestination]]].
+    +  simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput [Hdestination _]]]].
       specialize (Hx _ eq_refl).
       destruct Hx as [Hvx Htx].
       exists (trX' ++ [item]), initial_descriptors. subst foldx.

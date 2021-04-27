@@ -260,6 +260,7 @@ Lemma equivocator_transition_item_project_proper_characterization
       | Some itemx =>
         l itemx = fst (l item) /\  input item = input itemx /\ output item = output itemx /\
         (equivocator_state_descriptor_project X (destination item) descriptor = destination itemx)
+        /\ descriptor' = snd (l item)
       | None => True
       end
     /\ forall
@@ -425,6 +426,7 @@ Lemma equivocator_transition_item_project_inv_characterization
   (Hitem : equivocator_vlsm_transition_item_project item descriptor = Some (Some itemx, descriptor'))
   : l itemx = fst (l item) /\  input item = input itemx /\ output item = output itemx /\
     (equivocator_state_descriptor_project X (destination item) descriptor = destination itemx)
+    /\ descriptor' = snd (l item)
     .
 Proof.
   apply equivocator_transition_item_project_inv_messages in Hitem as Hitem'.

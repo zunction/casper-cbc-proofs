@@ -612,7 +612,7 @@ Proof.
       (equivocators_trace_project_preserves_proper_fixed_equivocator_descriptors _ _ (proj1 Htr'pre) _ _ _ Htr_project Hproper')
       as Hproper_initial.
     destruct oitem as [item|].
-    +  simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput Hdestination]]].
+    +  simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput [Hdestination _]]]].
       specialize (Hx _ eq_refl).
       destruct Hx as [Hvx Htx].
       exists (trX' ++ [item]), initial_descriptors. subst foldx.
@@ -638,7 +638,7 @@ Proof.
       apply (extend_right_finite_trace_from X'); [constructor; assumption|].
       simpl in Hl. subst.
       simpl in Hc.
-      destruct Hc as [[Hno_equiv _] Hfixed].
+      destruct Hc as [[Hno_equiv _] _].
       simpl in Htx,Hvx,Hstate_project.
       rewrite Hstate_project in Hvx, Htx.
       destruct input as [input|]

@@ -210,7 +210,7 @@ Definition full_node_limited_equivocation_constraint
   (som : composite_state IM * option message)
   :=
   dependent_messages_local_full_node_constraint l som /\
-  let (s', om') := composite_transition IM l som in
+  let s' := fst (composite_transition IM l som) in
   (globally_known_equivocators_weight s' <= proj1_sig threshold)%R.
 
 
@@ -253,6 +253,7 @@ Context
   (IM : index -> VLSM message)
   (Hbs : forall i : index, has_been_sent_capability (IM i))
   (Hbr : forall i : index, has_been_received_capability (IM i))
+  (Hbo : forall i : index, has_been_observed_capability (IM i) := fun i => has_been_observed_capability_from_sent_received (IM i))
   (i0 : Inhabited index)
   (*equivocating : set index)
   (Hi0_equiv : equivocating <> []*)
@@ -485,13 +486,13 @@ Proof.
     apply finite_protocol_trace_from_app_iff in Htr.
     destruct Htr as [Htr Hlst].
     specialize (H' tr' (conj Htr Hinit) eq_refl).
-    specialize (equivocators_transition_item_project_proper_characterization IM final_descriptors lst) as Hproperx.
+    specialize (equivocators_transition_item_project_proper_descriptor_characterization IM final_descriptors lst) as Hproperx.
     specialize
       (equivocators_transition_item_project_preserves_zero_descriptors IM final_descriptors lst)
       as Hzero.
     unfold final_state in Hproper.
     rewrite Htr_lst, finite_trace_last_is_last in Hproper.
-    spec Hproperx Hproper.
+    spec Hproperx (Hproper (projT1 (l lst))).
     destruct Hproperx as [oitem [final_descriptors' [Hprojectx [Hitemx Hproperx]]]].
     specialize (Hproperx (finite_trace_last is tr')).
     unfold equivocators_trace_project.
@@ -502,18 +503,20 @@ Proof.
     simpl in Heqfoldx.
     rewrite Hprojectx in Heqfoldx.
     apply first_transition_valid in Hlst. destruct lst as (l, iom, s, oom). simpl in *.
-    destruct Hlst as [[Hs [Hiom [Hv Hc]]] Ht].
+    destruct Hlst as [Hpv Ht].
+    assert (Hpv' := Hpv).
+    destruct Hpv' as [Hs [Hiom [Hv Hc]]].
     specialize (Hzero oitem final_descriptors' _ Ht Hv Hprojectx).
     specialize (Hproperx Hv Ht).
-    destruct Hproperx as [Hproper' Hx].
-    (*
-    assert (Hproper' : proper_fixed_equivocator_descriptors final_descriptors' (last (map destination tr') is)).
-    { split; [assumption|].
-      intros i Hi. apply Hzero. clear Hzero. destruct Hproper as [_ Hzero].
-      apply Hzero. assumption.
+    destruct Hproperx as [Hproperi' [Hdescriptors' [Hlst' Hx]]].
+    assert (Hproper' : proper_equivocator_descriptors IM final_descriptors' ( finite_trace_last is tr')).
+    {  rewrite Hdescriptors'. intro i.
+      destruct (decide (i = projT1 l)).
+      - subst. rewrite equivocator_descriptors_update_eq. assumption.
+      - rewrite equivocator_descriptors_update_neq by assumption.
+        rewrite Hlst'. rewrite state_update_neq by assumption.
+        apply Hproper.
     }
-    clear _Hproper' Hzero.
-    *)
     specialize (H' _ Hproper').
     destruct H' as [trX' [initial_descriptors [_ [Htr_project [Hstate_project HtrX']]]]].
     assert
@@ -532,7 +535,7 @@ Proof.
       (equivocators_trace_project_preserves_proper_equivocator_descriptors _ _ (proj1 Htr'pre) _ _ _ Htr_project Hproper')
       as Hproper_initial.
     destruct oitem as [item|].
-    +  simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput Hdestination]]].
+    +  simpl in Hitemx. destruct Hitemx as [Hl [Hinput [Houtput [Hdestination Hdescriptorsi']]]].
       specialize (Hx _ eq_refl).
       destruct Hx as [Hvx Htx].
       exists (trX' ++ [item]), initial_descriptors. subst foldx.
@@ -558,7 +561,7 @@ Proof.
       apply (extend_right_finite_trace_from X'); [constructor; assumption|].
       simpl in Hl. subst.
       simpl in Hc.
-      destruct Hc as [Hfull [[Hno_equiv _] Hlimited]].
+      destruct Hc as [Hfull [[Hno_equiv _] _]].
       simpl in Htx,Hvx,Hstate_project.
       rewrite Hstate_project in Hvx, Htx.
       destruct input as [input|]
@@ -639,6 +642,171 @@ Proof.
   ; unfold constraint_has_been_sent_prop; intros; exact I.
 Qed.
 
+Lemma full_node_limited_equivocation_constraint_hbo
+  s
+  l input
+  (Hv: protocol_valid XE l (s, Some input))
+  :
+  let (i, l') := l in
+  let (li, di) := l' in
+  forall 
+    descriptors
+    (Hdescriptorsi: descriptors i = di)
+    ,
+    let sX' := equivocators_state_project IM descriptors s in
+  dependent_messages_local_full_node_constraint (existT _ i li) (sX', Some input).
+Proof.
+  destruct l as (i, (li, di)). destruct Hv as [_ [_ [_ [Hfull _]]]].
+  simpl in *.
+  intros.
+  intros m Hm.
+  unfold equivocators_state_project.
+  rewrite Hdescriptorsi in *.
+  apply Hfull.
+  assumption.
+Qed.
+
+Lemma full_node_limited_equivocation_constraint_known_equivocators
+  s
+  (Hs : protocol_state_prop XE s)
+  : forall
+     descriptors
+     (Hdescriptors : proper_equivocator_descriptors IM descriptors s)
+     (sX := equivocators_state_project IM descriptors s),
+     incl (globally_known_equivocators sX) (equivocating_indices IM index_listing s).
+Proof.
+  induction Hs using protocol_state_prop_ind; intros; intros eqv Heqv.
+  - rewrite
+      (known_equivocators_initial_state finite_index IM Hbs Hbr i0 sender globally_known_equivocators
+        sX
+      )
+      in Heqv; [inversion Heqv|].
+    intro i. specialize (Hs i). destruct Hs as [Hns Hs].
+    subst sX.
+    specialize (Hdescriptors i).
+    unfold equivocators_state_project.
+    destruct (descriptors i) as [sn | j fj]; simpl in Hdescriptors
+    ; [assumption|].
+    assert (Hj : j = 0) by lia. subst j. simpl.
+    unfold equivocator_state_project.
+    destruct (s i). assumption.
+  - destruct Ht as [[Hs [Hom [Hv Hc]]] Ht].
+    specialize
+      (equivocators_transition_item_project_proper_descriptor_characterization IM
+        descriptors (Build_transition_item l om s' om') (Hdescriptors (projT1 l))
+      ).
+
+
+Lemma full_node_limited_equivocation_constraint_limited
+  s
+  l input
+  (Hv: protocol_valid XE l (s, Some input))
+  :
+  let (i, l') := l in
+  let (li, di) := l' in
+  forall 
+    descriptors
+    (Hdescriptorsi: descriptors i = di)
+    ,
+    let sX' := equivocators_state_project IM descriptors s in
+  incl
+    (globally_known_equivocators
+      (fst (composite_transition IM
+        (existT (fun n : index => vlabel (IM n)) (projT1 l) (fst (projT2 l)))
+        (sX', Some input))))
+    (equivocating_indices IM index_listing
+      (fst (composite_transition (equivocator_IM IM) l (s, Some input)))).
+Proof.
+  apply proj1 in Hv as Hs.
+  revert l input Hv.
+Admitted.
+
+Lemma full_node_limited_equivocation_constraint_hbs
+  (is: composite_state (equivocator_IM IM))
+  (constraint := full_node_limited_equivocation_constraint IM Hbs Hbr i0 sender globally_known_equivocators)
+  (X':= composite_vlsm IM constraint : VLSM message)
+  (HconstraintNone: forall (l : composite_label IM) (s : _composite_state IM), protocol_state_prop X' s -> constraint l (s, None))
+  (Hconstraintinitial: forall (l : composite_label IM) (s : _composite_state IM) (m : message), protocol_state_prop X' s -> vinitial_message_prop FreeE m -> constraint l (s, Some m))
+  (tr': list (composite_transition_item (equivocator_IM IM)))
+  (l: _composite_label (equivocator_IM IM))
+  (s: _composite_state (equivocator_IM IM))
+  (input: message)
+  (destination: _composite_state IM)
+  (output: option message)
+  (final_descriptors : equivocator_descriptors IM)
+  (final_descriptors': equivocator_descriptors IM)
+  (Hdescriptors': final_descriptors' =  equivocator_descriptors_update IM final_descriptors (projT1 l) (final_descriptors' (projT1 l)))
+  (Hdescriptorsi': final_descriptors' (projT1 l) = snd (projT2 l))
+  (final_state:= s)
+  (Hprojectx: equivocators_transition_item_project IM final_descriptors 
+    (@Build_transition_item message (@type message XE) l (Some input) s output)
+     = Some (Some (@Build_transition_item message (@type message X) (existT (fun n : index => vlabel (IM n)) (projT1 l) (fst (projT2 l))) (Some input) destination output), final_descriptors'))
+  (Htr: finite_protocol_trace_from XE is tr')
+  (Hpv: protocol_valid XE l (finite_trace_last is tr', Some input))
+  (Hs: protocol_state_prop XE (finite_trace_last is tr'))
+  (Ht: (let (i, li) := l in let (si', om') := vtransition (equivocator_IM IM i) li (finite_trace_last is tr' i, Some input) in (state_update (equivocator_IM IM) (finite_trace_last is tr') i si', om')) = (s, output))
+  (Hfull: full_node_equivocators_constraint IM Hbs sender Hbr l (finite_trace_last is tr', Some input))
+  (Hno_equiv: composite_has_been_sent (equivocator_IM IM) (free_constraint (equivocator_IM IM)) (equivocator_Hbs IM Hbs) (finite_trace_last is tr') input)
+  (Hv: let (i, li) := l in vvalid (equivocator_IM IM i) li (finite_trace_last is tr' i, Some input))
+  (Hiom: option_protocol_message_prop XE (Some input))
+  (Hinit: composite_initial_state_prop (equivocator_IM IM) is)
+  (Hproper: proper_equivocator_descriptors IM final_descriptors s)
+  (trX': list (composite_transition_item IM))
+  (initial_descriptors: equivocator_descriptors IM)
+  (Htr_project: equivocators_trace_project IM final_descriptors' tr' = Some (trX', initial_descriptors))
+  (Hstate_project: equivocators_state_project IM final_descriptors' (finite_trace_last is tr') = finite_trace_last (equivocators_state_project IM initial_descriptors is) trX')
+  (HtrX': finite_protocol_trace_from X' (equivocators_state_project IM initial_descriptors is) trX')
+  (His: composite_initial_state_prop IM (equivocators_state_project IM initial_descriptors is))
+  (Hzero: forall i : index, final_descriptors i = Existing (IM i) 0 false -> final_descriptors' i = Existing (IM i) 0 false)
+  (Hdestination: equivocators_state_project IM final_descriptors s = destination)
+  (Hproper': proper_equivocator_descriptors IM final_descriptors' (finite_trace_last is tr'))
+  (Htx: (let (si', om') := vtransition (IM (projT1 l)) (fst (projT2 l)) (finite_trace_last (equivocators_state_project IM initial_descriptors is) trX' (projT1 l), Some input) in (state_update IM (finite_trace_last (equivocators_state_project IM initial_descriptors is) trX') (projT1 l) si', om')) = (destination, output))
+  (Hvx: vvalid (IM (projT1 l)) (fst (projT2 l)) (finite_trace_last (equivocators_state_project IM initial_descriptors is) trX' (projT1 l), Some input))
+  (Htr': finite_protocol_trace FreeE is tr')
+  (Htr'pre: finite_protocol_trace (pre_loaded_with_all_messages_vlsm FreeE) is tr')
+  (Hproper_initial: proper_equivocator_descriptors IM initial_descriptors is)
+  (Hplst: protocol_state_prop X' (finite_trace_last (equivocators_state_project IM initial_descriptors is) trX'))
+  (Hs_free: protocol_state_prop FreeE (finite_trace_last is tr'))
+  (Hall: trace_has_message (field_selector Common.output) input tr')
+  (final_descriptors_m : equivocator_descriptors IM)
+  (initial_descriptors_m : equivocator_descriptors IM)
+  (trXm: list (composite_transition_item IM))
+  (_Hfinal_descriptors_m: not_equivocating_equivocator_descriptors IM final_descriptors_m (finite_trace_last is tr'))
+  (Hproject_trXm: equivocators_trace_project IM final_descriptors_m tr' = Some (trXm, initial_descriptors_m))
+  (Hex: Exists (field_selector Common.output input) trXm)
+  (Hfinal_descriptors_m: proper_equivocator_descriptors IM final_descriptors_m (last (map Common.destination tr') is))
+  (Hpr_fin_tr': equivocators_state_project IM final_descriptors_m (finite_trace_last is tr') = finite_trace_last (equivocators_state_project IM initial_descriptors_m is) trXm)
+  (HtrXm: finite_protocol_trace X' (equivocators_state_project IM initial_descriptors_m is) trXm)
+  (Hproper_initial_m: proper_equivocator_descriptors IM initial_descriptors_m is)
+  : constraint
+    (existT (fun n : index => vlabel (IM n)) (projT1 l) (fst (projT2 l)))
+    (equivocators_state_project IM final_descriptors'
+      (finite_trace_last is tr'), Some input)
+  .
+Proof.
+  remember (finite_trace_last is tr') as lst_tr'.
+  split.
+  - clear -Hdescriptorsi' Hpv.
+    specialize
+      (full_node_limited_equivocation_constraint_hbo lst_tr' l input Hpv) as Hhbo.
+    destruct l as (i, (li, dl)).
+    specialize (Hhbo final_descriptors' Hdescriptorsi').
+    assumption.
+  - unfold globally_known_equivocators_weight.
+    specialize
+      (full_node_limited_equivocation_constraint_limited lst_tr' l input Hpv)
+      as Hlimited.
+    destruct l as (i, (li, di)).
+    specialize (Hlimited final_descriptors' Hdescriptorsi').
+    unfold projT1, projT2 in Hlimited.
+    unfold projT1, projT2.
+    destruct Hpv as [Hlst [Hinput [_ [_ [_ Hlimit]]]]].
+    revert Hlimit.
+    apply Rle_trans.
+    apply sum_weights_incl; [.. |assumption].
+    + apply (known_equivocators_nodup finite_index IM Hbs Hbr i0 sender globally_known_equivocators).
+    + apply equivocating_indices_nodup. apply finite_index.
+Qed.
 
 (**
 Main result of this section, stating that traces which are protocol for the

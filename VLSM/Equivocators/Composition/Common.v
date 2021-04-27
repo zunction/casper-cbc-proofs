@@ -72,6 +72,15 @@ Definition equivocating_indices
   :=
   filter (fun i => bool_decide (is_equivocating_state (IM i) (s i))) index_listing.
 
+Lemma equivocating_indices_nodup
+  (index_listing : list index)
+  (Hnodup : NoDup index_listing)
+  (s : composite_state equivocator_IM)
+  : NoDup (equivocating_indices index_listing s).
+Proof.
+  apply NoDup_filter. assumption.
+Qed.
+
 (**
 The statement below is obvious a transition cannot make an already equivocating
 component non-equivocating.
