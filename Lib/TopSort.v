@@ -663,13 +663,15 @@ Lemma maximal_element_in
   (Hmax : get_maximal_element = Some a) :
   In a l.
 Proof.
-  unfold get_maximal_element in Hmax.
-  destruct l.
-  - simpl in *. intuition congruence.
-  - specialize (last_error_some l a a0).
-    simpl in *.
-    inversion Hmax.
-    admit.
+Admitted.
+
+Lemma get_maximal_element_correct 
+  (Htotal : forall a b, In a l /\ In b l -> comparable preceeds a b)
+  (a max : A)
+  (Hina : In a l)
+  (Hmax : get_maximal_element = Some max) :
+  ~ preceeds max a.
+Proof.
 Admitted.
 
 Lemma get_maximal_element_some

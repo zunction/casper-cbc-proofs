@@ -1,12 +1,12 @@
-Require Import Bool List ListSet Reals FinFun Program RelationClasses Relations Relations_1 Sorting Basics.
+Require Import Bool List ListSet Reals FinFun Program RelationClasses Relations Relations_1 Sorting Basics ZArith.
 Require Import Lia.
+Require Import ZArith.BinInt.
 Import ListNotations.
 From CasperCBC
   Require Import
     Lib.Preamble Lib.ListExtras Lib.ListSetExtras Lib.RealsExtras Lib.TopSort
     CBC.Protocol CBC.Common CBC.Definitions
     VLSM.Common VLSM.Composition VLSM.Decisions VLSM.Equivocation VLSM.ProjectionTraces.
-    
 
 Section FullNodeLike.
 
@@ -186,7 +186,15 @@ Context
     sender m1 = i /\
     In m2 sm /\ 
     sender m2 = i /\
-    ~comparable happens_before m1 m2.
+    ~comparable happens_before' m1 m2.
+  
+  Local Instance is_equivocating_from_set_dec : RelDecision is_equivocating_from_set.
+  Proof.
+  Admitted.
+  
+  Definition equivocators_from_set 
+    (sm : set message) :=
+    List.filter (fun i => bool_decide (is_equivocating_from_set sm i)) index_listing.
       
   Definition is_equivocating_from_message
      (m : message) :=
@@ -218,6 +226,41 @@ Context
     (i : index) : option message :=
   TopSort.get_maximal_element happens_before' (messages_from m i).
   
+  Definition latest_message_from_strict
+    (m : message)
+    (i : index) : option message :=
+    match bool_decide (is_equivocating_from_message m i) with
+    | true => None
+    | false => latest_message_from m i
+    end.
+  
+  Lemma latest_message_in_messages_from
+    (m m' : message)
+    (i : index) 
+    (Hlatest : latest_message_from m i = Some m') :
+    In m' (messages_from m i).
+  Proof.
+    unfold latest_message_from in Hlatest.
+    apply maximal_element_in with (P := fun x => True) in Hlatest.
+    intuition.
+    apply something_pretentious.
+    rewrite Forall_forall;intuition.
+  Qed.
+    
+  Lemma latest_message_from_compares
+    (m m' : message)
+    (i : index)
+    (Hlatest : latest_message_from m i = Some m') :
+    happens_before' m' m.
+  Proof.
+    unfold latest_message_from in Hlatest.
+    apply latest_message_in_messages_from in Hlatest.
+    unfold messages_from in Hlatest.
+    apply filter_In in Hlatest.
+    rewrite <- HdownSetCorrect in Hlatest.
+    intuition.
+  Qed.
+  
   Lemma latest_message_from_exists
     (m : message)
     (i : index)
@@ -237,7 +280,7 @@ Context
     (m : message) : set message :=
   ListExtras.cat_option (List.map (latest_message_from m) (honest_validators_from_message m)).
   
-  Definition latest_message_in_latest_messages
+  Lemma latest_message_in_latest_messages
     (m m' : message)
     (Hlatest : latest_message_from m (sender m') = Some m') 
     (Hne : ~ is_equivocating_from_message m (sender m')) :
@@ -257,7 +300,7 @@ Context
     intuition.
   Qed.
   
-  Definition latest_message_sender
+  Lemma latest_message_sender
     (m m' : message)
     (i : index)
     (Hlatest : latest_message_from m i = Some m') :
@@ -299,6 +342,70 @@ Context
     rewrite Heqom in Hlatest.
     intuition.
   Qed.
+  
+  Lemma non_equiv_compare 
+    (u v w: message)
+    (Hsenders : sender v = sender w)
+    (Hless : happens_before' v u /\ happens_before' w u) 
+    (Hnon_equiv : ~ (is_equivocating_from_message u (sender v))) :
+    comparable happens_before' v w.
+  Proof.
+    unfold is_equivocating_from_message in Hnon_equiv.
+    unfold is_equivocating_from_set in Hnon_equiv.
+    destruct (bool_decide (comparable happens_before' v w)) eqn : eqb.
+    - rewrite bool_decide_eq_true in eqb. intuition.
+    - rewrite bool_decide_eq_false in eqb.
+      contradict Hnon_equiv.
+      exists v. exists w.
+      split;[apply HdownSetCorrect;intuition|].
+      split;[intuition|].
+      split;[apply HdownSetCorrect;intuition|].
+      split;[symmetry;intuition|intuition].
+  Qed.
+  
+  Lemma compare_messages1
+    (u v v_dif: message)
+    (Hsenders : sender v = sender v_dif)
+    (Hlatest : In v_dif (latest_messages u))
+    (Hdif : v <> v_dif)
+    (Hv_less : happens_before' v u) :
+    happens_before' v v_dif.
+  Proof.
+    apply latest_message_sender_info in Hlatest as Hlatest'.
+    
+    assert (comparable happens_before' v v_dif). {
+      apply non_equiv_compare with (u := u).
+      intuition.
+      split;[intuition|].
+      apply latest_message_from_compares with (i := sender v_dif).
+      intuition.
+      rewrite Hsenders. intuition.
+    }
+    
+    destruct H;[intuition congruence|].
+    destruct H.
+    - intuition.
+    - apply latest_message_sender_info in Hlatest.
+      destruct Hlatest as [_ Hlatest].
+      apply TopSort.get_maximal_element_correct with (a := v) (P := fun x => true) in Hlatest.
+      intuition.
+      apply something_pretentious.
+      rewrite Forall_forall. intros. intuition.
+      intros.
+      destruct H0 as [Hina Hinb].
+      apply filter_In in Hina.
+      apply filter_In in Hinb.
+      rewrite bool_decide_eq_true in Hina, Hinb.
+      apply non_equiv_compare with (u := u).
+      intuition congruence.
+      rewrite <- HdownSetCorrect in Hina, Hinb.
+      intuition.
+      intuition congruence.
+      apply filter_In.
+      rewrite <- HdownSetCorrect.
+      rewrite bool_decide_eq_true.
+      intuition.
+  Qed. 
  
 Section Inspector.
 
@@ -310,7 +417,7 @@ Context
              (forall (oc' : option C),
              List.count_occ option_eq_dec (List.map vote (latest_messages m)) oc >= 
              List.count_occ option_eq_dec (List.map vote (latest_messages m)) oc')). 
-    
+   
     Definition count_votes_for
       (m : message)
       (oc : option C) :=
@@ -327,12 +434,14 @@ Context
     Definition composite_observed
       (s : vstate X) := 
     fold_right (set_union decide_eq) nil (List.map (fun i => observed_set i (s i)) index_listing).
-  
-    Lemma protocol_state_closed 
+    
+    Lemma protocol_state_closed
       (s : vstate X)
       (Hpr : protocol_state_prop X s)
-      (m : message) :
-      In m (composite_observed s) -> incl (downSet m) (composite_observed s).
+      (u v : message)
+      (Hcomp : happens_before' v u)
+      (Hinu : In u (composite_observed s)) :
+      In v (composite_observed s).
     Proof.
     Admitted.
     
@@ -347,7 +456,23 @@ Context
     Definition equivocators_from_state
       (s : vstate X) :=
       List.filter (fun i => negb (bool_decide (is_equivocating_from_state s i))) index_listing.
+    
+    Definition divergent_last_messages 
+      (m : message)
+      (v : option C) :=
+    List.filter (fun m' => negb (bool_decide (vote m' = v))) (latest_messages m).
+    
+    Definition A
+      (m : message)
+      (v : option C)
+      (carrier : set message) :=
+      let e_c0_u := equivocators_from_set (set_union decide_eq carrier (downSet m)) in
+      let divergent_senders := senders (divergent_last_messages m v) in
+      set_union decide_eq
+      (equivocators_from_message m)
+      (List.filter (fun i => inb decide_eq i e_c0_u) divergent_senders).
       
+    
     Record committee_skeleton : Type := {
       com_state : vstate X;
       value : C;
@@ -403,7 +528,7 @@ Context
         (sm1 sm2 : set message) 
         (Hnodup : NoDup sm1)
         (l : list (set message))
-        (Hincl : incl sm2 sm1)
+        (Hincl : incl sm1 sm2)
         (Hdensity : density sm1 sm2 q)
         (Hconv : convexity sm1)
         (Hgood : valid_com_prop s value q (sm2 :: l)) : valid_com_prop s value q (sm1 :: (sm2 :: l)).
@@ -411,6 +536,9 @@ Context
     Definition committee : Type := {
       comskel : committee_skeleton | valid_com_prop (com_state comskel) (value comskel) (q comskel) (com comskel)
     }.
+    
+    Local Open Scope Z_scope.
+    Local Coercion Z_of_nat : nat >-> Z.
     
     Theorem main
       (s : vstate X)
@@ -431,7 +559,7 @@ Context
         In m'' (downSet m') /\ 
         In m'' top))
       (Htouch : exists m, Pdown m) :
-      length (equivocators_from_state s) * 2 ^ k >= 
+      (length (equivocators_from_state s)) * (2 ^ k) >=  
       (2 * q - n) * (2 ^ k - 1).
     Proof.
       destruct Com as [skel' Hcom]. simpl in *.
@@ -441,12 +569,18 @@ Context
       remember (Inspector.value skel') as value'.
       remember (Inspector.q skel') as q'.
       remember (com skel') as com'.
+
+      generalize dependent base.
+      generalize dependent top.
+      generalize dependent skel'.
       induction Hcom.
-      - simpl in *.
-        unfold k. unfold Inspector.k. 
+      - intros.
+        simpl in *.
+        unfold k0. unfold Inspector.k.
         rewrite <- Heqcom'. simpl. lia.
-      - destruct Htouch as [u' Hdown].
-          
+      - intros.
+        
+        destruct Htouch as [u' Hdown].
         assert (HPdec : forall m, Decision (Pdown m)). {
           intros. unfold Decision.
           unfold Pdown.
@@ -478,6 +612,10 @@ Context
         
         remember (senders (filter (fun v => bool_decide (happens_before' v u)) (relevant_messages sm1 sm2))) as Vk_1.
         
+        assert (Vk_1_nodup : NoDup Vk_1). {
+          admit.
+        }
+        
         assert (Hin_Vk : forall i, In i Vk_1 -> exists mi, In mi (messages_from u i)). {
           intros.
           rewrite HeqVk_1 in H.
@@ -492,6 +630,34 @@ Context
           rewrite bool_decide_eq_true in Hinmi.
           apply HdownSetCorrect in Hinmi.
           intuition.
+        }
+        
+        assert (Hinvk2 : forall i, In i Vk_1 -> exists mi, sender mi = i /\ In mi sm2 /\ happens_before' mi u). {
+          intros.
+          rewrite HeqVk_1 in H.
+          apply in_map_iff in H.
+          destruct H as [mi [Hsender Hinmi]].
+          apply filter_In in Hinmi.
+          rewrite bool_decide_eq_true in Hinmi.
+          unfold relevant_messages in Hinmi.
+          rewrite filter_In in Hinmi.
+          exists mi; intuition.
+        }
+        
+        assert (Hinvk3 : forall i, In i Vk_1 -> exists mi, sender mi = i /\ In mi sm1). {
+          intros.
+          rewrite HeqVk_1 in H.
+          apply in_map_iff in H.
+          destruct H as [mi [Hsender Hinmi]].
+          apply filter_In in Hinmi.
+          destruct Hinmi as [Hinmi _].
+          unfold relevant_messages in Hinmi.
+          apply filter_In in Hinmi.
+          destruct Hinmi as [_ Hinmi].
+          rewrite <-in_correct in Hinmi.
+          apply in_map_iff in Hinmi.
+          destruct Hinmi as [mi' Hneed].
+          exists mi'. intuition congruence.
         }
         
         assert (HVk1_sz : length Vk_1 >= q). {
@@ -520,6 +686,8 @@ Context
                   length
                   (filter (fun v : message => bool_decide (happens_before' v uk))
                   (relevant_messages sm1 sm2))). {
+            rewrite Z.ge_le_iff.
+            apply inj_le.
             apply filter_length_fn.
             rewrite Forall_forall.
             intros.
@@ -669,17 +837,94 @@ Context
         }
         
         assert (n - length Eu <= n - length Veq). {
-          admit.
-        }
-        
-        assert (2 * q <= n + length Veq + 2 * (length Vchange)). {
-          assert (length Veq + length Vchange <= q). {
-            admit.
+          cut (length Veq <= length Eu). {
+            lia.
           }
-          assert (2 * (q - length Veq - length Vchange) <= n - length Veq) by lia.
-          admit.
+          rewrite HeqVeq.
+          rewrite HeqEu.
+          unfold equivocators_from_message.
+          apply inj_le.
+          apply NoDup_incl_length.
+          apply NoDup_filter.
+          intuition.
+          apply filter_incl.
+          unfold incl. intros. apply Hfinite.
         }
         
+        assert (2 * q <= n + length Veq + 2 * (length Vchange)) by lia.
+        
+        destruct Vchange eqn : eqd_Vchange.
+        + admit.
+        + assert (Hu': exists u', happens_before' u' u /\
+                             (vote u' <> Some value) /\
+                             (exists v, In v (downSet u') /\ In v sm2)). {
+            move Hin_vchange at bottom.
+            specialize (Hin_vchange i).
+            spec Hin_vchange. intuition.
+            destruct Hin_vchange as [H_i_non_equiv Hinvchange].
+            destruct Hinvchange as [u'' [Hlatest_u'' Hvote_u'']].
+            
+            assert (Hsender_u'': sender u'' = i). {
+              apply latest_message_sender in Hlatest_u''.
+              intuition.
+            }
+            
+            exists u''.
+            split. 
+            * apply latest_message_from_compares in Hlatest_u''.
+              intuition. 
+            * split;[intuition|].
+              assert (Hini : In i Vk_1). {
+                assert (Htemp : In i (filter (fun i1 : index => inb decide_eq i1 (senders latest_divergent)) Vk_1)). {
+                  rewrite <- HeqVchange.
+                  intuition.
+                }
+                apply filter_In in Htemp.
+                intuition.
+              }
+              assert (Hini' := Hini).
+              apply Hinvk2 in Hini.
+              destruct Hini as [mi [Hsender Hmi]].
+              exists mi.
+              split;[|intuition].
+              
+              assert (Hless_mi: happens_before' mi  u''). {
+                apply compare_messages1 with (u := u).
+                intuition congruence.
+                apply latest_message_in_latest_messages.
+                intuition congruence.
+                intuition congruence.
+                admit.
+                intuition.
+              }
+              apply HdownSetCorrect.
+              intuition.
+          }
+          
+          
+         
+          
+          move IHHcom at bottom.
+          specialize (IHHcom Hstate).
+    
+          remember (@Build_committee_skeleton s value (sm2 :: l) q) as new_skel.
+          specialize (IHHcom new_skel).
+          rewrite Heqnew_skel in IHHcom. simpl in IHHcom.
+          spec IHHcom. intuition congruence.
+          spec IHHcom. intuition congruence.
+          spec IHHcom. intuition congruence.
+          specialize (IHHcom eq_refl).
+          specialize (IHHcom sm2). unfold get_top in IHHcom. simpl in IHHcom.
+          specialize (IHHcom eq_refl).
+          
+          spec IHHcom. {
+            destruct Hu' as [u'' Hu''].
+            exists u''.
+            split.
+            - apply protocol_state_closed with (u := u).
+              all : intuition.
+            - intuition.
+          }
     Admitted.
       
 End Inspector.

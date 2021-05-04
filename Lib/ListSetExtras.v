@@ -1022,21 +1022,6 @@ Lemma filter_is_partition `{EqDecision X}
   (snf := filter (fun x => negb (f x)) s) :
   is_partition s [sf;snf].
 Proof.
-  split.
-  - destruct H.
-    + subst s0; apply NoDup_filter; intuition.
-    + simpl in H. destruct H;[|intuition]. subst s0; apply NoDup_filter; intuition.
-  - split.
-    unfold disjoint. intros contra.
-    destruct contra as [x Hx].
-    simpl in H0.
-    destruct H0 as [H0 [H1 Hdif]].
-    destruct H0; destruct H1; try intuition congruence.
-    destruct H1;[|intuition].
-    rewrite <- H0 in Hx. rewrite <- H1 in Hx.
-    admit.
-    admit.
-    admit.
 Admitted.
 (*
   - intros.
